@@ -1,5 +1,7 @@
+import AppKit
 import RelvoraCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 enum SidebarItem: Hashable {
     case dashboard
@@ -49,37 +51,93 @@ struct RootView: View {
             }
         }
         .windowMaterial(windowMaterial)
-        .sheet(isPresented: $model.isPresentingNewProject) {
-            NewProjectSheet { project in selectionID = SidebarItem.project(project.id).storageID }
+        .sheet(item: $model.projectEditor) { request in
+            ProjectEditorSheet(request: request) { project in select(.project(project.id)) }
+        }
+        .confirmationDialog(
+            "Delete “\(model.projectPendingDeletion?.name ?? "")”?",
+            isPresented: Binding(
+                get: { model.projectPendingDeletion != nil }, set: { if !$0 { model.projectPendingDeletion = nil } }),
+            titleVisibility: .visible,
+            presenting: model.projectPendingDeletion
+        ) { project in
+            Button("Delete Project", role: .destructive) {
+                if selectionID == SidebarItem.project(project.id).storageID { select(.dashboard) }
+                Task { await model.deleteProject(project) }
+            }
+        } message: { _ in
+            Text(
+                "Its board, tasks, and release plans are deleted too. This can’t be undone. Archive it instead to keep a record."
+            )
+        }
+        .fileExporter(
+            isPresented: $model.isExportingBackup,
+            document: model.backupToExport,
+            contentType: .json,
+            defaultFilename: AppModel.backupFileName
+        ) { result in
+            model.finishBackupExport(result)
+        }
+        .fileImporter(isPresented: $model.isChoosingBackup, allowedContentTypes: [.json]) { result in
+            model.inspectBackup(result)
         }
         .alert(
-            model.operationError?.title ?? "",
-            isPresented: Binding(get: { model.operationError != nil }, set: { if !$0 { model.operationError = nil } }),
-            presenting: model.operationError
+            "Restore “\(model.pendingRestore?.fileName ?? "")”?",
+            isPresented: Binding(get: { model.pendingRestore != nil }, set: { if !$0 { model.pendingRestore = nil } }),
+            presenting: model.pendingRestore
         ) { _ in
-            Button("OK") {}
-        } message: { error in
-            Text(error.message)
+            Button("Replace All Data", role: .destructive) { Task { await model.confirmRestore() } }
+            Button("Cancel", role: .cancel) {}
+        } message: { pending in
+            Text(
+                "This backup from \(pending.summary.exportedAt.formatted(date: .abbreviated, time: .shortened)) has "
+                    + "\(pending.summary.projectCount) projects and \(pending.summary.taskCount) tasks. It replaces all "
+                    + "current data. Relvora saves a copy of your current data first."
+            )
         }
-        .task { await model.start() }
+        .alert(
+            model.alert?.title ?? "",
+            isPresented: Binding(get: { model.alert != nil }, set: { if !$0 { model.alert = nil } }),
+            presenting: model.alert
+        ) { alert in
+            if let url = alert.revealURL {
+                Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+            }
+            Button("OK") {}
+        } message: { alert in
+            Text(alert.message)
+        }
+        .task {
+            await model.start()
+            if let name = model.options.initialProjectName,
+                let project = model.projects.first(where: { $0.name == name })
+            {
+                select(.project(project.id))
+            }
+        }
     }
 
     @ViewBuilder
     private var detail: some View {
         switch SidebarItem(storageID: selectionID) ?? .dashboard {
         case .dashboard:
-            DashboardView { selectionID = SidebarItem.project($0).storageID }
+            DashboardView { select(.project($0)) }
         case .history:
             ReleaseHistoryView()
         case .project(let id):
             if let project = model.projects.first(where: { $0.id == id }) {
-                ProjectDetailView(project: project)
+                ProjectWorkspaceView(project: project)
+                    .id(project.id)
             } else if model.hasLoaded {
                 ContentUnavailableView("Project Not Found", systemImage: "questionmark.folder")
             } else {
                 ProgressView()
             }
         }
+    }
+
+    private func select(_ item: SidebarItem) {
+        selectionID = item.storageID
     }
 
     private var selection: Binding<SidebarItem?> {

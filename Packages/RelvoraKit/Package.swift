@@ -15,6 +15,10 @@ let package = Package(
         // SwiftData implementation of the repository protocols. Its @Model types stay internal.
         .target(name: "RelvoraPersistence", dependencies: ["RelvoraCore"]),
         .testTarget(name: "RelvoraCoreTests", dependencies: ["RelvoraCore"]),
-        .testTarget(name: "RelvoraPersistenceTests", dependencies: ["RelvoraCore", "RelvoraPersistence"]),
+        .testTarget(
+            name: "RelvoraPersistenceTests",
+            dependencies: ["RelvoraCore", "RelvoraPersistence"],
+            resources: [.copy("Fixtures")]
+        ),
     ]
 )

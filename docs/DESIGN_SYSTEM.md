@@ -50,5 +50,5 @@ Every remote-data view defines all five states:
 - Full keyboard paths:
   - ⌘N new task, ⇧⌘N new project, ⌘F search, ⌘R refresh, ⌫ delete (with confirmation).
   - Arrow keys move the selection.
-  - Moving a task between Kanban columns also has a keyboard path (menu command), not only drag-and-drop.
+  - Moving a task never requires drag-and-drop: the card's context menu offers **Move To**, and the task editor has a **Column** picker.
 - Text meets WCAG AA contrast (4.5:1 for body text) in both appearances with the opaque material.

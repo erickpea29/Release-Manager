@@ -1,0 +1,156 @@
+import RelvoraCore
+import SwiftUI
+
+enum WorkspaceTab: String, CaseIterable, Identifiable {
+    case board
+    case releases
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .board: "Board"
+        case .releases: "Releases"
+        }
+    }
+}
+
+extension FocusedValues {
+    /// Present while a project board is focused; drives File › New Task (⌘N).
+    @Entry var newTaskAction: (@MainActor () -> Void)?
+}
+
+/// A project's board and release plans.
+struct ProjectWorkspaceView: View {
+    @Environment(AppModel.self) private var app
+    let project: Project
+
+    @State private var model: WorkspaceModel?
+    @SceneStorage("workspaceTab") private var tabID = WorkspaceTab.board.rawValue
+
+    private var tab: WorkspaceTab { WorkspaceTab(rawValue: tabID) ?? .board }
+
+    var body: some View {
+        Group {
+            if let model {
+                WorkspaceContent(model: model, project: project, tab: tab)
+            } else {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .navigationTitle(project.name)
+        .navigationSubtitle(project.isArchived ? "Archived" : (project.details ?? ""))
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Picker("View", selection: $tabID) {
+                    ForEach(WorkspaceTab.allCases) { Text($0.title).tag($0.rawValue) }
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
+            }
+            ToolbarItem {
+                switch tab {
+                case .board:
+                    Button("New Task", systemImage: "plus") { model?.beginNewTask() }
+                        .help("New Task (⌘N)")
+                case .releases:
+                    Button("New Release Plan", systemImage: "plus") { model?.planEditor = .new }
+                        .disabled(model?.activePlan != nil)
+                        .help(
+                            model?.activePlan.map { "Finish or cancel \($0.version) first" } ?? "New Release Plan")
+                }
+            }
+            ToolbarItem {
+                Menu {
+                    Button("Edit Project…") { app.projectEditor = .edit(project) }
+                    Button(project.isArchived ? "Unarchive Project" : "Archive Project") {
+                        Task { await app.setArchived(project, !project.isArchived) }
+                    }
+                    Divider()
+                    Button("Delete Project…", role: .destructive) { app.projectPendingDeletion = project }
+                } label: {
+                    Label("Project Actions", systemImage: "ellipsis.circle")
+                }
+            }
+        }
+        .task(id: "\(project.id)-\(app.dataVersion)") { await makeModel() }
+    }
+
+    private func makeModel() async {
+        guard let environment = app.environment else { return }
+        let projectID = project.id
+        let model = WorkspaceModel(projectID: projectID, environment: environment) { [app] in
+            await app.refreshStats(for: projectID)
+        }
+        if let initialTab = app.options.initialTab, WorkspaceTab(rawValue: initialTab) != nil {
+            tabID = initialTab
+        }
+        self.model = model
+        await model.load()
+    }
+}
+
+private struct WorkspaceContent: View {
+    @Environment(AppModel.self) private var app
+    @Bindable var model: WorkspaceModel
+    let project: Project
+    let tab: WorkspaceTab
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if project.isArchived { archivedBanner }
+            mainContent
+        }
+        .sheet(item: $model.taskEditor) { TaskEditorSheet(request: $0, model: model) }
+        .sheet(item: $model.planEditor) { ReleasePlanEditorSheet(request: $0, model: model) }
+        .alert(model.alert?.title ?? "", isPresented: isShowingAlert, presenting: model.alert) { _ in
+            Button("OK") {}
+        } message: { alert in
+            Text(alert.message)
+        }
+        .focusedSceneValue(\.newTaskAction, newTaskAction)
+    }
+
+    private var archivedBanner: some View {
+        HStack {
+            Label("This project is archived.", systemImage: "archivebox")
+            Spacer()
+            Button("Unarchive") { Task { await app.setArchived(project, false) } }
+        }
+        .padding(.horizontal, Spacing.l)
+        .padding(.vertical, Spacing.s)
+        .background(.yellow.opacity(0.15))
+    }
+
+    @ViewBuilder
+    private var mainContent: some View {
+        switch model.loadState {
+        case .loading:
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .failed(let message):
+            ErrorBanner(message: message) { Task { await model.load() } }
+            Spacer()
+        case .loaded:
+            switch tab {
+            case .board:
+                BoardFilterBar(model: model)
+                Divider()
+                BoardView(model: model)
+            case .releases:
+                ReleasePlansView(model: model)
+            }
+        }
+    }
+
+    private var isShowingAlert: Binding<Bool> {
+        Binding(get: { model.alert != nil }, set: { if !$0 { model.alert = nil } })
+    }
+
+    private var newTaskAction: (@MainActor () -> Void)? {
+        guard tab == .board else { return nil }
+        let model = model
+        return { model.beginNewTask() }
+    }
+}

@@ -8,6 +8,7 @@ public struct PersistentStore: Sendable {
     public let projects: any ProjectRepository
     public let board: any BoardRepository
     public let releasePlans: any ReleasePlanRepository
+    public let backups: any BackupRepository
 
     /// `~/Library/Containers/<bundle id>/Data/Library/Application Support/Relvora/<name>.store` when sandboxed.
     public static func defaultURL(name: String = "Relvora") -> URL {
@@ -45,7 +46,7 @@ public struct PersistentStore: Sendable {
         }
         // One actor (one ModelContext) for all repositories, so cross-repository work stays serialized.
         let repository = SwiftDataRepository(modelContainer: container)
-        return PersistentStore(projects: repository, board: repository, releasePlans: repository)
+        return PersistentStore(projects: repository, board: repository, releasePlans: repository, backups: repository)
     }
 
     private static func unavailable(_ error: any Error) -> PersistenceError {

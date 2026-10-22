@@ -9,6 +9,16 @@ public enum ReleasePlanStatus: String, Sendable, CaseIterable, Codable {
     case published
     case cancelled
 
+    public var title: String {
+        switch self {
+        case .planned: "Planned"
+        case .draftCreated: "Draft created"
+        case .reconciliationNeeded: "Needs reconciliation"
+        case .published: "Published"
+        case .cancelled: "Cancelled"
+        }
+    }
+
     /// At most one active plan per project (MVP).
     public var isActive: Bool {
         switch self {
