@@ -9,8 +9,8 @@ The plan suggests an `.xcodeproj` plus Swift packages, with no JavaScript toolin
 
 ## Decision
 
-- One app target in a hand-maintained `ReleaseManager.xcodeproj` using **synchronized folder groups** (`objectVersion = 77`). New files need no project edits, which keeps the project file small and reviewable.
-- Core code lives in a **local Swift package** at `Packages/ReleaseManagerKit/` with library products `ReleaseManagerCore` and `GitHubIntegration`, referenced via `XCLocalSwiftPackageReference`.
+- One app target in a hand-maintained `Relvora.xcodeproj` using **synchronized folder groups** (`objectVersion = 77`). New files need no project edits, which keeps the project file small and reviewable.
+- Core code lives in a **local Swift package** at `Packages/RelvoraKit/` with library products `RelvoraCore` (domain, no SwiftData) and `RelvoraPersistence` (SwiftData), referenced via `XCLocalSwiftPackageReference`. `GitHubIntegration` is added in M03.
   - This avoids a root-level `Package.swift` next to the `.xcodeproj`, which makes Xcode open the package instead of the project.
 - Core logic is testable with `swift test` without building the app. App/UI tests use `xcodebuild test`.
 - Signing settings that identify a person (team ID) go in a git-ignored `Config/Local.xcconfig`; the committed default is ad-hoc signing.

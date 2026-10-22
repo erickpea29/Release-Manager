@@ -1,33 +1,42 @@
 # Technical Architecture
 
-Status: proposed for M01, based on M00 evidence. Decisions are recorded in [decisions/](decisions/).
+Status: implemented through M01. Decisions are recorded in [decisions/](decisions/).
 
 ## 1. Layout
 
 ```text
-release-manager/
-├── ReleaseManager.xcodeproj          # app + UI-test targets, synchronized folders (ADR 0004)
-├── App/                              # SwiftUI app target: App/, Features/, DesignSystem/, Resources/
-├── Packages/ReleaseManagerKit/       # local Swift package
-│   ├── Sources/ReleaseManagerCore/   # domain models, use cases, repository protocols, SwiftData impl
-│   ├── Sources/GitHubIntegration/    # auth, REST client, DTOs, release workflow services
-│   └── Tests/…                       # swift test
-├── Config/                           # Shared.xcconfig (committed), Local.xcconfig (git-ignored)
+release-manager/                        # repository: erickpea29/Release-Manager
+├── Relvora.xcodeproj                   # app target, synchronized folders (ADR 0004)
+├── App/                                # SwiftUI app target
+│   ├── RelvoraApp.swift, AppModel.swift  # scenes, composition root, launch options
+│   ├── Navigation/                     # RootView (split view), SidebarView
+│   ├── Features/                       # Dashboard, Projects, History, Settings
+│   ├── DesignSystem/                   # tokens, panel style, window material
+│   └── Debug/                          # sample data (Debug builds only)
+├── Packages/RelvoraKit/                # local Swift package
+│   ├── Sources/RelvoraCore/            # domain models, rules, use cases, repository protocols, errors
+│   ├── Sources/RelvoraPersistence/     # SwiftData schema + repository implementation
+│   └── Tests/                          # swift test
+├── Config/                             # Shared.xcconfig, Relvora.entitlements, Local.xcconfig (git-ignored)
+├── spikes/M00/                         # throwaway validation code
 ├── docs/
 └── .github/workflows/ci.yml
 ```
 
-Persistence stays inside `ReleaseManagerCore` until there is a reason to split it out. Module boundaries are added only when they pay for themselves.
+`GitHubIntegration` joins the package in M03. Module boundaries are added only when they pay for themselves: persistence is its own target so the compiler keeps `@Model` types out of the app and core.
 
 ## 2. Dependency rules
 
 ```text
-App (SwiftUI views, @Observable feature models)
-  ├─▶ ReleaseManagerCore    (no UI, no networking)
-  └─▶ GitHubIntegration ─▶ ReleaseManagerCore (domain types only)
+App (SwiftUI views, @Observable AppModel)
+  ├─▶ RelvoraCore                              (no UI, no SwiftData, no networking)
+  ├─▶ RelvoraPersistence ─▶ RelvoraCore        (SwiftData; @Model types internal)
+  └─▶ GitHubIntegration  ─▶ RelvoraCore        (M03; DTOs internal)
 ```
 
-- Views never touch `URLSession`, SwiftData, or Keychain. They call feature models, which call use cases and services injected through a single `AppEnvironment` container.
+- Views never touch `URLSession`, SwiftData, or Keychain. They call `AppModel` (and later feature models), which calls use cases and repositories held by a single `AppEnvironment` built at launch.
+- Launch options (Debug builds only): `-RelvoraInMemoryStore YES`, `-RelvoraStoreName <name>` (separate store file), `-RelvoraSeedSampleData YES` (seeds an empty store). Used for UI checks and future UI tests.
+- If the store cannot open, the app shows a recovery screen instead of crashing.
 - GitHub DTOs never leave `GitHubIntegration`; they are mapped to domain values.
 - SwiftData `@Model` types never leave the persistence implementation ([ADR 0001](decisions/0001-swiftdata-behind-repositories.md)).
 

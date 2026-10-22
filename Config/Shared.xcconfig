@@ -1,0 +1,17 @@
+// Committed build settings for the Relvora app target.
+// Personal signing (team ID, identity) goes in Config/Local.xcconfig, which is git-ignored.
+// See Config/Local.xcconfig.example.
+
+RELVORA_BUNDLE_ID_BASE = com.erickpea29.Relvora
+
+// Each signing style gets its own bundle ID, so ad-hoc and team-signed builds never share a sandbox
+// container. Changing the signer of an existing container blocks launch on a consent dialog (M00 F5).
+RELVORA_BUNDLE_ID_SUFFIX = .adhoc
+PRODUCT_BUNDLE_IDENTIFIER = $(RELVORA_BUNDLE_ID_BASE)$(RELVORA_BUNDLE_ID_SUFFIX)
+
+// Default: ad-hoc signing, which needs no certificate (CI, fresh clones).
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =
+
+#include? "Local.xcconfig"

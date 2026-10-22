@@ -1,12 +1,12 @@
 # GitHub App Setup
 
-Release Manager authenticates as a **GitHub App** using the **device flow**. The app ships only the public **client ID**. You never need to generate a client secret or a private key, and none must ever be added to this repository.
+Relvora authenticates as a **GitHub App** using the **device flow**. The app ships only the public **client ID**. You never need to generate a client secret or a private key, and none must ever be added to this repository.
 
 ## Register the app (one time)
 
 1. Go to GitHub → **Settings → Developer settings → GitHub Apps → New GitHub App**.
 2. Fill in:
-   - **GitHub App name:** must be globally unique, for example `Release Manager (your-handle)`.
+   - **GitHub App name:** must be globally unique, for example `Relvora` (the owner's app is named Relvora).
    - **Homepage URL:** this repository's URL.
    - **Callback URL:** leave empty. Leave *Request user authorization (OAuth) during installation* unchecked.
    - **Expire user authorization tokens:** keep **checked**. This is GitHub's recommendation, and refresh works without a secret for device-flow tokens.
