@@ -1,6 +1,6 @@
 # M00 — Technical Validation Report
 
-Date: 2026-10-19 · Spike code: [`spikes/M00/`](../spikes/M00/README.md)
+Status: **Complete** · Started 2026-10-19 · Completed 2026-10-21 · Spike code: [`spikes/M00/`](../spikes/M00/README.md)
 
 Every result below was produced by a command that was actually run, unless marked **PENDING** or **DOC-ONLY**.
 
@@ -99,7 +99,7 @@ Findings:
 - **F12 — Window-only screenshots hide translucency.** `screencapture -l` renders materials against a neutral background, so translucency evidence must use region captures.
 - Reduce Transparency → Opaque is implemented through the `accessibilityReduceTransparency` environment value, but has not been exercised by toggling the system setting (needs a manual toggle).
 
-### 2.5 GitHub App authorization: **PASS (auth and refresh)** / repository probe **PENDING**
+### 2.5 GitHub App authorization: **PASS**
 
 Live run on 2026-10-21 with the registered app (client ID only), `gh-auth-spike validate --repo erickpea29/Release-Manager`:
 
@@ -109,11 +109,22 @@ Live run on 2026-10-21 with the registered app (client ID only), `gh-auth-spike 
 | Refresh **without** client secret | **PASS.** The new token works (`GET /user` 200) |
 | Refresh-token rotation | **Confirmed.** The old access token returns **401** right after refresh |
 | Rate limit | `x-ratelimit-limit: 5000` per hour for the user token |
-| Installation discovery | `GET /user/installations` 200 (1 installation, `repository_selection=selected`). `GET /user/installations/{id}/repositories` 200 with **0 repositories**, because none were selected at install time |
-| Repository endpoints | All **404**, as expected while the repository is not selected in the installation. GitHub hides inaccessible private repositories |
+| Installation discovery | `GET /user/installations` 200. First run: **0 repositories and no permissions**, because the app had been registered without repository permissions, so installing it offered only "No repositories". After adding the permissions and accepting them on the installation: `repos=[erickpea29/Release-Manager]`, granted `contents=write, metadata=read, pull_requests=read` |
+| Repository endpoints (with access) | **All 200:** repo (`private=true`, `push=true`), releases, tags, branches, commits, `commits/{sha}/pulls`, `git/matching-refs/tags`, pulls, `POST releases/generate-notes`. Before access was granted: all **404**, because GitHub hides inaccessible private repositories |
+| Draft release (`POST /releases`, `draft: true`, `target_commitish` = full SHA) | **201**; the full SHA is kept as the target. Accepts `contents=write`, or `contents=write,workflows=write` for commits touching workflows |
+| Does a draft create its tag? | **No.** `git/ref/tags/<tag>` is 404 before and after creating the draft. The tag appears only on publication |
+| Second draft with the **same** tag | **201: accepted.** GitHub returns no 422 and gives drafts no duplicate protection (F13) |
+| Cleanup | Both drafts deleted (204). 0 releases and 0 tags remain, independently verified with `gh` |
 | Required permission per endpoint (`x-accepted-github-permissions`, sent even on 404) | `/user` and `/user/installations`: none (`allows_permissionless_access`). Installation repositories, repo metadata, tags: `metadata=read`. Releases, branches, commits: `contents=read`. Pulls: `pull_requests=read`. `generate-notes`: `contents=write`. **Matches the documented minimum set** |
 
-Still pending: a probe with the repository selected in the installation (granted access, draft-tag semantics, duplicate-tag 422 body). It needs at least one commit in the repository and the installation updated. It reuses the saved token: `gh-auth-spike probe --repo … [--write]`.
+Not exercised: `compare` (the repository has no tags yet; same `contents=read` family as commits). The local spike token was deleted after the run.
+
+- **F13 — GitHub does not prevent duplicate drafts.** Two drafts for the same not-yet-existing tag are both accepted, so idempotency is the app's job:
+  - Before every create, and after any timeout, list releases (drafts included) and match on `tag_name`.
+  - Persist `githubDraftReleaseID` immediately.
+  - The plan's "check GitHub before retrying" rule is mandatory, not merely defensive.
+
+Setup lesson for the guide: an app registered without repository permissions can only be installed with "No repositories". Permissions must be set *before* installing, or accepted on the installation afterward.
 
 Documentation research (official docs, fetched 2026-10-19):
 
@@ -129,7 +140,7 @@ Summary of the documentation research (official docs, fetched 2026-10-19):
 | Repository reach | Only repos where the app is **installed** and the user has access: `GET /user/installations` → `/user/installations/{id}/repositories`. Install via `https://github.com/apps/<slug>/installations/new`. |
 | Device-flow risk | GitHub's best-practices page discourages the device flow outside "constrained environments" because of phishing, while its token page recommends it for desktop apps. Mitigation: start the flow only on user action, show the code in-app, and open the `verification_uri` from the app. |
 | API version | `2026-03-10` is current; `2022-11-28` is supported until 2028-03-10. **`2026-03-10` removes `merge_commit_sha` from PR responses.** Decide in M03. |
-| Draft tag semantics | **Undocumented.** It is believed the tag is created only at publication. The CLI's `--write` probe tests this. |
+| Draft tag semantics | **Verified live:** a draft does not create its tag, and duplicate drafts for one tag are accepted (F13). |
 
 Minimum permission set (DOC-ONLY until the live probe confirms it via `x-accepted-github-permissions`):
 
@@ -149,14 +160,14 @@ No organization or administration permissions are needed, so repository admins (
 | A minimal native app builds and runs | **PASS** |
 | Local data saved and restored after restart | **PASS** (separate process launches, sandboxed) |
 | GitHub authorization validated without embedding confidential credentials | **PASS.** Live device flow and refresh with the client ID only |
-| Required GitHub permissions documented and minimized | **PASS.** Per-endpoint requirements confirmed live via `x-accepted-github-permissions`. Granted-access probe pending repository selection |
+| Required GitHub permissions documented and minimized | **PASS.** All needed endpoints return 200 with exactly `contents=write, metadata=read, pull_requests=read` |
 | Translucency works with a readable opaque fallback | **PASS.** AppKit translucent mode readable in both appearances over a high-contrast backdrop, and opaque fallback works. The Reduce Transparency toggle has not been exercised manually |
 | Unresolved technical risks documented | **PASS** (section 4) |
 
 ## 4. Open risks and decisions needed before M01
 
 1. ~~Minimum macOS version~~: **decided, macOS 26** ([ADR 0003](decisions/0003-minimum-macos-target.md)).
-2. ~~GitHub App registration and live auth~~: **done 2026-10-21** (§2.5). Remaining: select the repository in the app installation, confirm the app's permissions, then run `probe --repo … --write` for draft-tag semantics.
+2. ~~GitHub App registration, live auth, repository access, draft semantics~~: **done 2026-10-21** (§2.5).
 3. ~~Visual translucency check~~: **done 2026-10-21** (§2.4). Optional: toggle Reduce Transparency once to confirm the fallback.
 4. **Distribution.**
    - Only an Apple Development certificate exists. Notarized distribution needs a Developer ID certificate (paid Apple Developer Program).

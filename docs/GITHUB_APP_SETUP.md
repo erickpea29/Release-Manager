@@ -24,6 +24,7 @@ Release Manager authenticates as a **GitHub App** using the **device flow**. The
 4. **Where can this GitHub App be installed?**
    - *Only on this account* for personal use and the M00 spike.
    - *Any account* if it must be installed on organizations. A private app can only be installed on its owner account.
+   > Set these permissions **before** installing. An app with no repository permissions can only be installed with "No repositories". If you add permissions later, accept them on the installation (*Configure → Review request*).
 5. Click **Create GitHub App**, then copy the **Client ID** (it looks like `Iv23li…`). Do not click *Generate a new client secret* or *Generate a private key*.
 
 ## Install the app on repositories

@@ -54,7 +54,7 @@ App (SwiftUI views, @Observable feature models)
 | Headers | `Accept: application/vnd.github+json`, pinned `X-GitHub-Api-Version` (decide `2022-11-28` vs `2026-03-10` in M03) |
 | Pagination | `Link` header `rel="next"` |
 | Errors | 401 → re-auth. 403 → rate-limited (`remaining=0` or `retry-after`) or forbidden (show `x-accepted-github-permissions`). 404 → missing or no access. 409 → conflict. 422 → validation. 429 → rate-limited. 5xx → transient |
-| Retries | Bounded exponential backoff for idempotent GETs and 5xx/429 only. **Never blind-retry `POST /releases`**: after a timeout, list releases and look for the tag before retrying |
+| Retries | Bounded exponential backoff for idempotent GETs and 5xx/429 only. **Never blind-retry `POST /releases`**: after a timeout, list releases and look for the tag before retrying. GitHub accepts duplicate drafts, so it will not reject a repeat (M00 F13) |
 | Rate limits | 5,000/h per user, shared with the user's other tools. Make requests serially, use conditional requests (`ETag`, where 304 responses are free), and wait at least 1 s between writes |
 | Cache | Cached releases and tags stored with `fetchedAt`. Refresh replaces them only on success. The UI shows fresh vs. cached and the last sync time |
 | Identity | Stable numeric IDs (`repository.id`, `release.id`); names are display only |
