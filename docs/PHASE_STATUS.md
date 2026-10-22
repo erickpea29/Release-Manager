@@ -3,8 +3,8 @@
 | Phase | Status |
 |---|---|
 | M00 — Technical Validation | **Complete** (2026-10-21) |
-| M01 — Foundation | **Next** |
-| M02 — Projects and Kanban | Not started |
+| M01 — Foundation | **Complete**: PR #1 awaiting merge ([report](M01_FOUNDATION.md)) |
+| M02 — Projects and Kanban | Next |
 | M03 — GitHub Integration | Not started |
 | M04 — Release Workflow and History | Not started |
 | M05 — Design Polish and Distribution | Not started |
@@ -24,3 +24,14 @@
 - [x] Visual readability check of translucency ([report §2.4](M00_TECHNICAL_VALIDATION.md#24-window-translucency-pass-visual-check-2026-10-21))
 - [x] Architecture changes documented (ADRs 0001–0006, spec documents)
 - [x] Unresolved risks documented ([report §4](M00_TECHNICAL_VALIDATION.md#4-open-risks-and-decisions-needed-before-m01))
+
+## M01 checklist
+
+- [x] Xcode project and minimal package boundaries (`Relvora.xcodeproj`, `RelvoraCore`, `RelvoraPersistence`)
+- [x] Conventions: swift-format config + strict lint, xcconfig-based build settings, local signing template
+- [x] Domain models and persistence repositories
+- [x] Schema V1 with versioned migration plan and freeze rule
+- [x] Navigation shell and design-system foundations
+- [x] Typed errors and dependency injection (`AppEnvironment`)
+- [x] GitHub Actions CI building and testing on macOS 26 (first run passed in 54 s)
+- [x] Initial unit tests (22) and documentation

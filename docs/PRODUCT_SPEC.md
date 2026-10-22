@@ -59,7 +59,7 @@ Each item has a proposed default, used unless the owner decides otherwise.
 | G7 | **A draft does not create its tag** (verified in M00), and GitHub accepts duplicate drafts for one tag. The same tag could also be created elsewhere between draft and publication | Before creating a draft, check for an existing tag *and* for existing releases or drafts with that `tag_name`. On reconciliation, verify the published tag resolves to the reviewed SHA. If not, mark the plan `Needs reconciliation` and warn |
 | G8 | Merged-PR retrieval has no single REST endpoint, and API `2026-03-10` drops `merge_commit_sha` | Per-commit `GET /commits/{sha}/pulls` with a request budget, plus PR-number parsing from merge/squash commit messages as a fallback. Choose the API version in M03 |
 | G9 | Target commits changing `.github/workflows/*` need the Workflows permission | Excluded; show an actionable error |
-| G10 | Final bundle ID, app name, GitHub App name, license | Spike uses `com.erickpea29.ReleaseManager`; owner to confirm |
+| G10 | Final bundle ID, app name, GitHub App name, license | **Decided:** product, app, and GitHub App are named **Relvora**; bundle ID `com.erickpea29.Relvora` (with `.dev`/`.adhoc` suffixes for local builds). License still open |
 | G11 | Distribution: no Developer ID certificate | Decide in M05 (notarized Developer ID vs. local builds only) |
 | G12 | Preferences storage location | `UserDefaults` behind a `PreferencesStore` protocol, included in backups |
 | G13 | Backup scope | Local entities and preferences as versioned JSON. Excludes credentials and the re-fetchable GitHub cache |

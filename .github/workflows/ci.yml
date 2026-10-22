@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch cancels the older run (macOS minutes are billed at 10x on private repos).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Lint, test, and build (macOS 26)
+    # The app targets macOS 26, so its tests must run on macOS 26.
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Lint
+        run: xcrun swift-format lint --strict --recursive --parallel App Packages
+
+      - name: Test RelvoraKit
+        working-directory: Packages/RelvoraKit
+        run: swift test
+
+      # No Config/Local.xcconfig on CI: the app is ad-hoc signed and needs no certificates or secrets.
+      - name: Build app
+        run: >-
+          xcodebuild build -quiet
+          -project Relvora.xcodeproj -scheme Relvora -configuration Debug
+          -destination "platform=macOS,arch=arm64"
+          -derivedDataPath build/DerivedData
