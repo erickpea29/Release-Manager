@@ -102,8 +102,15 @@
 
         // MARK: HTTPTransport
 
+        /// Every request fails as if the Mac were offline (error-state UI tests). Starts on with
+        /// `-RelvoraDemoGitHubOffline YES`; toggled from the Demo GitHub menu.
+        private var isOffline = UserDefaults.standard.bool(forKey: "RelvoraDemoGitHubOffline")
+
+        func setOffline(_ offline: Bool) { isOffline = offline }
+
         func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
             try await Task.sleep(for: .milliseconds(120))
+            if isOffline { throw URLError(.notConnectedToInternet) }
             let url = request.url!
             let path = url.path(percentEncoded: false)
             let method = request.httpMethod ?? "GET"
@@ -277,8 +284,10 @@
             return GitHubServices(
                 configuration: GitHubConfiguration(clientID: "demo", appSlug: nil), transport: DemoGitHub.shared,
                 credentials: InMemoryCredentialStore(tokens),
+                // A fresh cache per launch, so one run's snapshot never shows up as another's cached data.
                 cache: SnapshotCache(
-                    directory: FileManager.default.temporaryDirectory.appending(path: "RelvoraDemoCache")))
+                    directory: FileManager.default.temporaryDirectory.appending(
+                        path: "RelvoraDemoCache-\(UUID().uuidString)")))
         }
     }
 

@@ -24,6 +24,7 @@ final class ReleaseModel {
     let planID: UUID
     let workspace: WorkspaceModel
     let github: GitHubModel
+    let preferences: Preferences
 
     // Target choices, read from GitHub.
     private(set) var branches: [RemoteBranch] = []
@@ -57,10 +58,11 @@ final class ReleaseModel {
     /// Presents the confirmation sheet.
     var review: ReleaseReview?
 
-    init(planID: UUID, workspace: WorkspaceModel, github: GitHubModel) {
+    init(planID: UUID, workspace: WorkspaceModel, github: GitHubModel, preferences: Preferences) {
         self.planID = planID
         self.workspace = workspace
         self.github = github
+        self.preferences = preferences
         notesText = workspace.plan(planID)?.changelogMarkdown ?? ""
     }
 
@@ -246,7 +248,9 @@ final class ReleaseModel {
             (changelogOptions.includePullRequests || changelogOptions.includeCommits) ? await loadChanges() : nil
         let input = ChangelogInput(
             tasks: tasks, changes: changes, tagName: plan.tagName, repositoryURL: connection?.htmlURL)
-        return ChangelogGenerator.markdown(input, options: changelogOptions)
+        var options = changelogOptions
+        options.labelRules = ChangelogLabelRule.normalized(preferences.changelogLabelRules)
+        return ChangelogGenerator.markdown(input, options: options)
     }
 
     var notesWarnings: [String] {

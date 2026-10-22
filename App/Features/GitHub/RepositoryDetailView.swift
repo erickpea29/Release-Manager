@@ -179,8 +179,7 @@ struct RepositoryDetailView: View {
                     Text(Self.describe(release.publishedAt ?? release.createdAt))
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Link(destination: release.htmlURL) { Image(systemName: "arrow.up.right.square") }
-                        .help("Open release on GitHub")
+                    GitHubLinkIcon(url: release.htmlURL, label: "Open release on GitHub")
                 }
                 .accessibilityElement(children: .combine)
             }
@@ -251,8 +250,7 @@ private struct PullRequestRow: View {
             }
             Spacer()
             ForEach(pullRequest.labels.prefix(3), id: \.self) { LabelChip(text: $0) }
-            Link(destination: pullRequest.htmlURL) { Image(systemName: "arrow.up.right.square") }
-                .help("Open pull request on GitHub")
+            GitHubLinkIcon(url: pullRequest.htmlURL, label: "Open pull request on GitHub")
         }
         .accessibilityElement(children: .combine)
     }
@@ -280,8 +278,7 @@ private struct CommitRow: View {
                 .foregroundStyle(.secondary)
             }
             Spacer()
-            Link(destination: commit.htmlURL) { Image(systemName: "arrow.up.right.square") }
-                .help("Open commit on GitHub")
+            GitHubLinkIcon(url: commit.htmlURL, label: "Open commit on GitHub")
         }
         .accessibilityElement(children: .combine)
     }

@@ -151,6 +151,26 @@ struct ChangelogTests {
         #expect(ChangelogGenerator.category(labels: [label], title: "Anything") == expected)
     }
 
+    @Test("The user's label rules win over built-in meanings, ignoring case")
+    func labelRules() {
+        let rules = ChangelogLabelRule.normalized([
+            ChangelogLabelRule(label: " UI ", category: .improvements),
+            ChangelogLabelRule(label: "ui", category: .other),  // duplicate: first rule wins
+            ChangelogLabelRule(label: "bug", category: .maintenance),
+            ChangelogLabelRule(label: "  ", category: .features),  // empty: dropped
+        ])
+        #expect(rules.map(\.label) == ["UI", "bug"])
+        #expect(ChangelogGenerator.category(labels: ["ui"], title: "feat: x", rules: rules) == .improvements)
+        #expect(ChangelogGenerator.category(labels: ["bug"], title: "x", rules: rules) == .maintenance)
+        #expect(ChangelogGenerator.category(labels: ["docs"], title: "x", rules: rules) == .documentation)
+
+        let input = ChangelogInput(
+            tasks: [], changes: changes(commits: [], pulls: [pull(4, "Polish", labels: ["UI"])]), tagName: nil,
+            repositoryURL: nil)
+        #expect(ChangelogGenerator.entries(input, options: .init(labelRules: rules)).map(\.category) == [.improvements])
+        #expect(ChangelogGenerator.entries(input).map(\.category) == [.other])
+    }
+
     @Test("Labels that mean nothing fall back to the title prefix, then to no category")
     func fallback() {
         #expect(ChangelogGenerator.category(labels: ["needs review"], title: "perf: Cache images") == .improvements)

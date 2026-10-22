@@ -24,6 +24,7 @@ struct BoardFilterBar: View {
                 TextField("Filter tasks", text: $model.filter.text, prompt: Text("Filter tasks"))
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 200)
+                    .accessibilityLabel("Filter tasks")
             }
             Menu(title("Priority", count: model.filter.priorities.count)) {
                 ForEach(TaskPriority.allCases.reversed(), id: \.self) { priority in

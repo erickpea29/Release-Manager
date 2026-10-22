@@ -7,7 +7,7 @@
 | M02 — Projects and Kanban | **Complete**: merged in PR #2 ([report](M02_PROJECTS_AND_KANBAN.md)) |
 | M03 — GitHub Integration | **Complete**: merged in PR #3 ([report](M03_GITHUB_INTEGRATION.md)) |
 | M04 — Release Workflow and History | **Complete**: merged in PR #5, fix in PR #6 ([report](M04_RELEASE_WORKFLOW.md)) |
-| M05 — Design Polish and Distribution | Next |
+| M05 — Design Polish and Distribution | **Implemented, awaiting review** (PR #8; [report](M05_DESIGN_POLISH_AND_DISTRIBUTION.md)) |
 
 ## M00 checklist
 
@@ -79,3 +79,18 @@
 - [x] CI on PR #5 (lint, 127/127 tests, 2 opt-in skipped, app build)
 - [x] Live draft creation on the owner's repository, with approval (release 420378956, tag `v0.0.0-relvora-test`)
 - [x] Owner published the draft on GitHub; the app verified the publication (tag at `05157e7`) ([report §2](M04_RELEASE_WORKFLOW.md#2-verification))
+
+## M05 checklist
+
+- [x] Views finished: dashboard (needs attention, recent releases), board (keyboard), releases, history, settings (General, Board, Releases, GitHub)
+- [x] Light, dark, and system appearance
+- [x] Configurable accent color and translucent window, with an opaque fallback
+- [x] Keyboard navigation (board, Task and Go menus) and accessibility labels; Xcode accessibility audit in UI tests
+- [x] Quick actions (⌘K)
+- [x] UI tests (12) and error-state tests (offline, timeout), plus 3 new package tests
+- [x] Installation, backups, recovery, and GitHub authorization documented ([INSTALLATION.md](INSTALLATION.md))
+- [x] Signing and notarization instructions ([DISTRIBUTION.md](DISTRIBUTION.md))
+- [x] Release build automation (notarized Developer ID, [ADR 0011](decisions/0011-distribution-developer-id.md))
+- [x] macOS versions: minimum 26.0 (deployment target), tested on 26.6.2 locally and on the CI image (26.6.2 25G83)
+- [x] CI on PR #8 (lint, 130 package tests, build, 12 UI tests; Release dry run)
+- [ ] Owner: Developer ID certificate, notary key, and GitHub secrets ([DISTRIBUTION.md §1](DISTRIBUTION.md#1-one-time-setup-owner))

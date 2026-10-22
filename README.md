@@ -2,7 +2,7 @@
 
 A native, local-first macOS app for planning software releases: projects, Kanban boards, GitHub release data, changelogs, GitHub draft releases, and an immutable release history.
 
-**Status:** M00–M04 complete; M05 (Design Polish and Distribution) is next. See [docs/PHASE_STATUS.md](docs/PHASE_STATUS.md).
+**Status:** M00–M04 complete; M05 (Design Polish and Distribution) implemented and awaiting review. Install and build: [docs/INSTALLATION.md](docs/INSTALLATION.md). See [docs/PHASE_STATUS.md](docs/PHASE_STATUS.md).
 
 ## Requirements
 
@@ -46,6 +46,8 @@ Team-signed builds use bundle ID `com.erickpea29.Relvora.dev`. The two never sha
 | `-RelvoraConnectRepository owner/name` | Connects that repository to the initial project once signed in |
 | `-RelvoraDemoGitHub YES` | Uses an in-memory fake GitHub (`relvora-demo/relvora`) instead of github.com; **Demo GitHub › Publish Drafts** publishes its drafts |
 | `-RelvoraDemoScenario <name>` | Steps the first release plan through the workflow: `prepare`, `review`, `draft`, `published`, `mismatch`, `timeout`, `history` |
+| `-RelvoraDemoGitHubOffline YES` | Starts the demo GitHub offline (**Demo GitHub › Go Offline / Go Online** switch it at run time) |
+| `-RelvoraDefaultsSuite <name>` | Keeps settings in that suite, emptied at launch (UI tests use it so they never change real settings) |
 
 Example: `open build/DerivedData/Build/Products/Debug/Relvora.app --args -RelvoraStoreName Demo -RelvoraSeedSampleData YES`
 
@@ -54,12 +56,14 @@ Release workflow without a GitHub account: `… --args -RelvoraInMemoryStore YES
 ## Test and lint
 
 ```sh
-cd Packages/RelvoraKit && swift test                                         # domain + persistence tests
-xcrun swift-format lint --strict --recursive --parallel App Packages         # must be clean (CI enforces)
-xcrun swift-format format --in-place --recursive --parallel App Packages    # auto-format
+cd Packages/RelvoraKit && swift test                                         # domain, persistence, GitHub client
+xcodebuild test -project Relvora.xcodeproj -scheme Relvora \
+  -destination "platform=macOS,arch=arm64"                                   # UI tests (in-memory, demo GitHub)
+xcrun swift-format lint --strict --recursive --parallel App Packages UITests # must be clean (CI enforces)
+xcrun swift-format format --in-place --recursive --parallel App Packages UITests # auto-format
 ```
 
-CI (`.github/workflows/ci.yml`) runs lint, tests, and an ad-hoc app build on a macOS 26 runner for every pull request and every push to `main`.
+CI (`.github/workflows/ci.yml`) runs lint, tests, an ad-hoc app build, and the UI tests on a macOS 26 runner for every pull request and every push to `main`. Publishing a GitHub release builds a notarized app (`.github/workflows/release.yml`, [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md)).
 
 ## Project layout
 
@@ -67,6 +71,8 @@ CI (`.github/workflows/ci.yml`) runs lint, tests, and an ad-hoc app build on a m
 |---|---|
 | `App/` | SwiftUI app: composition root, navigation, features, design system |
 | `Packages/RelvoraKit/` | `RelvoraCore` (domain), `RelvoraPersistence` (SwiftData), `GitHubIntegration` (GitHub auth, API, sync) |
+| `UITests/` | XCUITest target (`RelvoraUITests`) |
+| `scripts/release/` | Release build: archive, sign, notarize, staple |
 | `Config/` | Build settings, entitlements, local signing template |
 | `docs/` | Spec, architecture, data model, design system, phase reports, decisions |
 | `spikes/M00/` | Throwaway validation code from M00 |
@@ -76,6 +82,9 @@ CI (`.github/workflows/ci.yml`) runs lint, tests, and an ad-hoc app build on a m
 | Document | Purpose |
 |---|---|
 | [docs/PHASE_STATUS.md](docs/PHASE_STATUS.md) | Phase checklist and current status |
+| [docs/INSTALLATION.md](docs/INSTALLATION.md) | Install, build from source, first launch, uninstall, troubleshooting |
+| [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md) | Developer ID signing and notarization: one-time setup and releasing |
+| [docs/M05_DESIGN_POLISH_AND_DISTRIBUTION.md](docs/M05_DESIGN_POLISH_AND_DISTRIBUTION.md) | M05 report: settings, keyboard, accessibility, UI tests, distribution |
 | [docs/M04_RELEASE_WORKFLOW.md](docs/M04_RELEASE_WORKFLOW.md) | M04 report: release preparation, changelog, drafts, reconciliation, history |
 | [docs/M03_GITHUB_INTEGRATION.md](docs/M03_GITHUB_INTEGRATION.md) | M03 report: GitHub sign-in, repositories, sync, cache |
 | [docs/M02_PROJECTS_AND_KANBAN.md](docs/M02_PROJECTS_AND_KANBAN.md) | M02 report: projects, Kanban, release plans, backup |

@@ -33,9 +33,8 @@ enum SidebarItem: Hashable {
 struct RootView: View {
     @Environment(AppModel.self) private var model
     @SceneStorage("sidebarSelection") private var selectionID = SidebarItem.dashboard.storageID
-    // Stored explicitly: window restoration alone reopened the sidebar collapsed (M00 F11).
-    @AppStorage(PreferenceKey.sidebarVisible) private var sidebarVisible = true
-    @AppStorage(PreferenceKey.windowMaterial) private var windowMaterial = WindowMaterial.opaque
+    // Sidebar visibility is a stored preference: window restoration alone reopened the sidebar collapsed (M00 F11).
+    @Environment(Preferences.self) private var preferences
 
     var body: some View {
         @Bindable var model = model
@@ -50,7 +49,7 @@ struct RootView: View {
                 }
             }
         }
-        .windowMaterial(windowMaterial)
+        .windowMaterial(preferences.windowMaterial)
         .sheet(item: $model.projectEditor) { request in
             ProjectEditorSheet(request: request) { project in select(.project(project.id)) }
         }
@@ -112,6 +111,16 @@ struct RootView: View {
             select(request)
             model.navigationRequest = nil
         }
+        .onChange(of: selectionID, initial: true) { _, id in
+            if case .project(let projectID)? = SidebarItem(storageID: id) {
+                model.currentProjectID = projectID
+            } else {
+                model.currentProjectID = nil
+            }
+        }
+        .sheet(isPresented: $model.isShowingQuickActions) {
+            QuickActionsView()
+        }
         .task {
             await model.start()
             if let name = model.options.initialProjectName,
@@ -154,8 +163,8 @@ struct RootView: View {
 
     private var columnVisibility: Binding<NavigationSplitViewVisibility> {
         Binding(
-            get: { sidebarVisible ? .all : .detailOnly },
-            set: { sidebarVisible = $0 != .detailOnly }
+            get: { preferences.sidebarVisible ? .all : .detailOnly },
+            set: { preferences.sidebarVisible = $0 != .detailOnly }
         )
     }
 }

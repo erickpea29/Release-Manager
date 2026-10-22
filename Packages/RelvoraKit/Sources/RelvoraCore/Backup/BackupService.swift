@@ -11,6 +11,11 @@ public struct BackupSummary: Sendable, Equatable {
 /// store or the board enforces is checked here first, to report a precise problem.
 public enum BackupValidator {
     public static func validate(_ document: BackupDocument) throws(BackupError) {
+        if let columns = document.preferences?.newProjectColumns {
+            guard (try? ProjectRules.validatedTemplate(columns)) != nil else {
+                throw .invalid("the board template for new projects needs named columns and one completion column.")
+            }
+        }
         var projectIDs = Set<UUID>()
         var columnIDs = Set<UUID>()
         var taskIDs = Set<UUID>()
@@ -126,8 +131,12 @@ public struct BackupService: Sendable {
         self.now = now
     }
 
-    public func export(appVersion: String?) async throws -> BackupDocument {
-        BackupDocument(bundles: try await repository.allProjectBundles(), exportedAt: now(), appVersion: appVersion)
+    public func export(appVersion: String?, preferences: BackupDocument.PreferencesRecord? = nil) async throws
+        -> BackupDocument
+    {
+        BackupDocument(
+            bundles: try await repository.allProjectBundles(), exportedAt: now(), appVersion: appVersion,
+            preferences: preferences)
     }
 
     /// Decodes and validates a backup without changing anything, so the user can confirm what it contains.

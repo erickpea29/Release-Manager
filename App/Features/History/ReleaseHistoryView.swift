@@ -69,7 +69,7 @@ struct ReleaseHistoryView: View {
                     HStack(alignment: .firstTextBaseline) {
                         Text(snapshot.version).font(.headline.monospaced()).lineLimit(1)
                         Spacer()
-                        SnapshotStateBadge(state: snapshot.state)
+                        RowStatusLabel(snapshot.state, isSelected: snapshot.id == app.historySelection)
                     }
                     Text(projectName(snapshot.projectID) ?? "Deleted project")
                         .foregroundStyle(.secondary)

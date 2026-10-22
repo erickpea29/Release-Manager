@@ -12,5 +12,6 @@
 | [0008](0008-fresh-context-per-operation.md) | A fresh ModelContext per repository operation | Accepted |
 | [0009](0009-github-integration-design.md) | GitHub integration design (API version, tokens, cache) | Accepted |
 | [0010](0010-release-workflow-and-reconciliation.md) | Release workflow: intent first, reconcile by reading GitHub | Accepted |
+| [0011](0011-distribution-developer-id.md) | Distribution: notarized Developer ID builds from GitHub Actions | Accepted |
 
 New records: copy the shape of an existing one (Status, Date, Context, Decision, Consequences, Evidence). Keep them short.

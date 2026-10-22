@@ -4,13 +4,35 @@ import Foundation
 /// Enum values are stored as strings so the format stays readable and stable.
 public struct BackupDocument: Codable, Sendable, Equatable {
     /// 1: M02 (projects, boards, tasks, plans). 2: M03 adds repository connections. 3: M04 adds release snapshots and
-    /// the plans' repository, tag, and compare base. Older files still restore.
-    public static let currentFormatVersion = 3
+    /// the plans' repository, tag, and compare base. 4: M05 adds preferences. Older files still restore.
+    public static let currentFormatVersion = 4
 
     public var formatVersion: Int
     public var exportedAt: Date
     public var appVersion: String?
     public var projects: [ProjectRecord]
+    /// App settings (format 4). Absent in older files; then the current settings are kept.
+    public var preferences: PreferencesRecord?
+
+    /// Settings worth carrying to another Mac. Values are stable strings; unknown ones are ignored on restore.
+    public struct PreferencesRecord: Codable, Sendable, Equatable {
+        public var appearance: String?
+        public var accentColor: String?
+        public var windowMaterial: String?
+        public var newProjectColumns: [ColumnTemplate]?
+        public var changelogLabelRules: [ChangelogLabelRule]?
+
+        public init(
+            appearance: String? = nil, accentColor: String? = nil, windowMaterial: String? = nil,
+            newProjectColumns: [ColumnTemplate]? = nil, changelogLabelRules: [ChangelogLabelRule]? = nil
+        ) {
+            self.appearance = appearance
+            self.accentColor = accentColor
+            self.windowMaterial = windowMaterial
+            self.newProjectColumns = newProjectColumns
+            self.changelogLabelRules = changelogLabelRules
+        }
+    }
 
     public struct ProjectRecord: Codable, Sendable, Equatable {
         public var id: UUID
@@ -182,12 +204,15 @@ extension BackupDocument {
 // MARK: - Mapping
 
 extension BackupDocument {
-    public init(bundles: [ProjectBundle], exportedAt: Date, appVersion: String?) {
+    public init(
+        bundles: [ProjectBundle], exportedAt: Date, appVersion: String?, preferences: PreferencesRecord? = nil
+    ) {
         self.init(
             formatVersion: Self.currentFormatVersion,
             exportedAt: exportedAt,
             appVersion: appVersion,
-            projects: bundles.map(ProjectRecord.init)
+            projects: bundles.map(ProjectRecord.init),
+            preferences: preferences
         )
     }
 
