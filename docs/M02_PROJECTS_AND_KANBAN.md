@@ -1,6 +1,6 @@
 # M02 — Projects and Kanban Report
 
-Status: **CI PENDING** · 2026-10-22 · Branch `m02-projects-kanban`
+Status: **Complete pending owner manual checks** · 2026-10-22 · PR #2
 
 ## 1. What was built
 
@@ -33,7 +33,7 @@ Schema: still **V1**. No storage changes were needed, so there is no migration.
 | Strict lint | **0 findings** |
 | App build | **Succeeded, 0 warnings** (team-signed `.dev`) |
 | Real app, seeded store `M02Verification` | Board, sidebar (search, plan badge, archived section), and Releases tab render in light and dark. Relaunch shows identical board order. Sidebar stays visible after the F16 fix |
-| CI | **PENDING** (PR) |
+| CI | **PASS**: PR #2, run 39725532755 on `macos-26` (lint, 49/49 tests, app build) |
 
 Representative dataset: `Tests/RelvoraPersistenceTests/Fixtures/backup-v1.json`. It has 2 projects (one archived), custom columns including a fractional position, 5 tasks with notes, labels, checklists and completion, and release plans in planned, published, and cancelled states. It restores into an empty store and exports back to identical content, and it restores over existing data with the same IDs.
 

@@ -4,7 +4,7 @@
 |---|---|
 | M00 — Technical Validation | **Complete** (2026-10-21) |
 | M01 — Foundation | **Complete**: merged in PR #1 ([report](M01_FOUNDATION.md)) |
-| M02 — Projects and Kanban | **In review**: CI pending, owner manual checks ([report](M02_PROJECTS_AND_KANBAN.md)) |
+| M02 — Projects and Kanban | **In review**: CI passed; owner manual checks before merging PR #2 ([report](M02_PROJECTS_AND_KANBAN.md)) |
 | M03 — GitHub Integration | Not started |
 | M04 — Release Workflow and History | Not started |
 | M05 — Design Polish and Distribution | Not started |
@@ -46,5 +46,5 @@
 - [x] Filters and empty states
 - [x] Backup export and restore (validated, safety copy, atomic)
 - [x] Data-integrity tests for moves, edits, deletions
-- [ ] CI on PR: **pending**
+- [x] CI on PR #2 (lint, 49/49 tests, app build)
 - [ ] Owner manual interaction checklist ([report §5](M02_PROJECTS_AND_KANBAN.md#5-not-verified-automatically-manual-checklist-for-the-owner))
