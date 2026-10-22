@@ -3,13 +3,16 @@ import Synchronization
 
 @testable import GitHubIntegration
 
-/// A scripted GitHub: responses are queued per URL path; the last response for a path repeats.
+/// A scripted GitHub: responses are queued per URL path, optionally prefixed with a method (`POST /repos/…`); the
+/// last response for a route repeats.
 actor MockGitHub: HTTPTransport {
     struct Response {
         var status = 200
         var headers: [String: String] = [:]
         var body = "{}"
         var offline = false
+        /// Thrown instead of answering, e.g. `.timedOut` or `.networkConnectionLost`.
+        var failure: URLError.Code?
         var delay: Duration = .zero
     }
 
@@ -24,13 +27,17 @@ actor MockGitHub: HTTPTransport {
         routes[path, default: []].append(Response(headers: headers, body: json))
     }
 
-    func requests(to path: String) -> [URLRequest] {
-        requests.filter { $0.url?.path(percentEncoded: false) == path }
+    /// Requests to `path`, of any method unless one is given.
+    func requests(to path: String, method: String? = nil) -> [URLRequest] {
+        requests.filter { $0.url?.path(percentEncoded: false) == path && (method == nil || $0.httpMethod == method) }
     }
 
     func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         requests.append(request)
-        let path = request.url!.path(percentEncoded: false)
+        let method = request.httpMethod ?? "GET"
+        let urlPath = request.url!.path(percentEncoded: false)
+        // A method-specific route wins; plain paths match any method (the OAuth endpoints are POSTs).
+        let path = routes["\(method) \(urlPath)"] != nil ? "\(method) \(urlPath)" : urlPath
         guard var queue = routes[path], !queue.isEmpty else {
             return (Data(#"{"message":"Not Found"}"#.utf8), Self.response(request, status: 404, headers: [:]))
         }
@@ -38,6 +45,7 @@ actor MockGitHub: HTTPTransport {
         routes[path] = queue
         if response.delay > .zero { try await Task.sleep(for: response.delay) }
         if response.offline { throw URLError(.notConnectedToInternet) }
+        if let failure = response.failure { throw URLError(failure) }
         return (Data(response.body.utf8), Self.response(request, status: response.status, headers: response.headers))
     }
 
@@ -138,6 +146,15 @@ enum Payload {
         """
         {"total_commits": \(total ?? commits.count), "html_url": "https://github.com/octo/app/compare/v1.0.0...main",
          "commits": [\(commits.joined(separator: ","))]}
+        """
+    }
+
+    static func release(_ id: Int, tag: String, draft: Bool, target: String = "main") -> String {
+        """
+        {"id": \(id), "tag_name": "\(tag)", "name": "\(tag)", "draft": \(draft), "prerelease": false,
+         "created_at": "2026-02-01T00:00:00Z", "published_at": \(draft ? "null" : "\"2026-02-02T00:00:00Z\""),
+         "target_commitish": "\(target)", "html_url": "https://github.com/octo/app/releases/tag/\(draft ? "untagged-\(id)" : tag)",
+         "body": "Notes"}
         """
     }
 

@@ -46,6 +46,8 @@ final class WorkspaceModel {
     private(set) var state = BoardState(columns: [], tasks: [])
     private(set) var releasePlans: [ReleasePlan] = []
     private(set) var connections: [RepositoryConnection] = []
+    /// This project's release snapshots, oldest first.
+    private(set) var snapshots: [ReleaseSnapshot] = []
     private(set) var loadState = LoadState.loading
     var filter = TaskFilter()
     var alert: AppAlert?
@@ -55,6 +57,11 @@ final class WorkspaceModel {
     private let board: BoardService
     private let plans: ReleasePlanService
     private let connectionService: RepositoryConnectionService
+    private let snapshotRepository: any ReleaseSnapshotRepository
+    /// The workflow for release drafts; `nil` when this build has no GitHub App.
+    let workflow: ReleaseWorkflow?
+    /// Plan edits run one after another, each on the latest copy, so concurrent edits never overwrite each other.
+    private var planWrites: Task<Void, Never>?
     /// Lets the dashboard refresh its numbers after changes.
     private let didChange: @MainActor () async -> Void
 
@@ -63,6 +70,8 @@ final class WorkspaceModel {
         self.board = environment.board
         self.plans = environment.releasePlans
         self.connectionService = environment.repositoryConnections
+        self.snapshotRepository = environment.store.releaseSnapshots
+        self.workflow = environment.releaseWorkflow
         self.didChange = didChange
     }
 
@@ -86,11 +95,26 @@ final class WorkspaceModel {
 
     func taskCount(for plan: ReleasePlan) -> Int { state.tasks.filter { $0.releasePlanID == plan.id }.count }
 
+    func tasks(of plan: ReleasePlan) -> [ProjectTask] { state.tasks.filter { $0.releasePlanID == plan.id } }
+
+    func columnName(_ id: UUID) -> String? { state.columns.first { $0.id == id }?.name }
+
+    func connection(of plan: ReleasePlan) -> RepositoryConnection? {
+        plan.repositoryConnectionID.flatMap { id in connections.first { $0.id == id } }
+    }
+
+    /// Snapshots of one plan, oldest first.
+    func snapshots(of plan: ReleasePlan) -> [ReleaseSnapshot] { snapshots.filter { $0.releasePlanID == plan.id } }
+
+    /// The snapshot of the plan's current draft (pending or created), if any.
+    func openSnapshot(of plan: ReleasePlan) -> ReleaseSnapshot? { snapshots(of: plan).last { $0.state.isOpen } }
+
     func load() async {
         do {
             state = try await board.load(projectID: projectID)
             releasePlans = try await plans.plans(projectID: projectID)
             connections = try await connectionService.connections(projectID: projectID)
+            snapshots = try await snapshotRepository.snapshots(projectID: projectID)
             loadState = .loaded
         } catch {
             loadState = .failed(AppAlert.message(for: error))
@@ -168,12 +192,37 @@ final class WorkspaceModel {
         case .new:
             _ = try await plans.create(
                 projectID: projectID, version: draft.version, title: draft.title, details: draft.details,
-                plannedDate: draft.plannedDate, targetBranch: draft.targetBranch)
+                plannedDate: draft.plannedDate)
         case .edit:
             _ = try await plans.update(draft)
         }
         releasePlans = try await plans.plans(projectID: projectID)
         await didChange()
+    }
+
+    /// Applies `change` to the latest stored copy of a planned release and saves it. Throws validation errors.
+    func updatePlan(_ id: UUID, _ change: @escaping (inout ReleasePlan) -> Void) async throws {
+        let previous = planWrites
+        let write = Task { () async throws -> Void in
+            await previous?.value
+            guard var plan = self.plan(id) else { throw PersistenceError.notFound(entity: "release plan", id: id) }
+            change(&plan)
+            let saved = try await self.plans.update(plan)
+            if let index = self.releasePlans.firstIndex(where: { $0.id == id }) { self.releasePlans[index] = saved }
+        }
+        planWrites = Task { _ = try? await write.value }
+        try await write.value
+    }
+
+    /// Reloads plans and snapshots after a workflow step, which changes both together.
+    func reloadReleases() async {
+        do {
+            releasePlans = try await plans.plans(projectID: projectID)
+            snapshots = try await snapshotRepository.snapshots(projectID: projectID)
+            await didChange()
+        } catch {
+            alert = AppAlert(title: "Couldn’t reload releases", error: error)
+        }
     }
 
     func cancelPlan(_ plan: ReleasePlan) async {

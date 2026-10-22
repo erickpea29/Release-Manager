@@ -27,6 +27,12 @@ struct RelvoraApp: App {
                 Button("Restore from Backup…") { model.isChoosingBackup = true }
                     .disabled(model.startupError != nil)
             }
+            #if DEBUG
+                CommandMenu("Demo GitHub") {
+                    Button("Publish Drafts on Demo GitHub") { Task { await DemoGitHub.shared.publishAll() } }
+                        .disabled(!model.options.demoGitHub)
+                }
+            #endif
         }
 
         Settings {

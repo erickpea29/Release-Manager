@@ -16,7 +16,7 @@ Relvora authenticates as a **GitHub App** using the **device flow**. The app shi
 
    | Permission | Access |
    |---|---|
-   | Contents | Read and write |
+   | Contents | Read and write (write is used only to create draft releases) |
    | Metadata | Read-only (mandatory) |
    | Pull requests | Read-only |
 

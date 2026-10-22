@@ -36,7 +36,7 @@ public struct GitHubSyncService: Sendable {
 
     /// The latest published release's tag; otherwise the highest semantic-version tag; otherwise GitHub's first
     /// tag; otherwise none. Non-version tags (such as `nightly`) are never preferred over versions.
-    static func baseTag(latestRelease: RemoteRelease?, tags: [RemoteTag]) -> String? {
+    public static func baseTag(latestRelease: RemoteRelease?, tags: [RemoteTag]) -> String? {
         if let latestRelease { return latestRelease.tagName }
         let versions = tags.compactMap { tag in SemanticVersion(tag.name).map { (tag.name, $0) } }
         return versions.max { $0.1 < $1.1 }?.0 ?? tags.first?.name
@@ -49,39 +49,51 @@ public struct GitHubSyncService: Sendable {
             notes.append("The repository has no default branch, so unreleased changes can’t be listed.")
             return nil
         }
+        let result = try await changes(in: repository, base: base, head: branch, branch: branch)
+        notes += result.notes
+        return result.changes
+    }
 
+    /// Commits from `base` to `head` (a branch or commit SHA), newest first, with the pull requests merged into
+    /// `branch` that contain them. Without a base, or when the base tag is gone, the latest commits are used.
+    public func changes(in repository: GitHubRepository, base: String?, head: String, branch: String?)
+        async throws(GitHubError) -> (changes: UnreleasedChanges, notes: [String])
+    {
+        var notes: [String] = []
         var commits: [RemoteCommit]
         var total: Int
         var compareURL: URL?
         var resolvedBase = base
         if let base {
             do {
-                let result = try await api.compare(repository, base: base, head: branch, maxPages: Self.maxCommitPages)
+                let result = try await api.compare(repository, base: base, head: head, maxPages: Self.maxCommitPages)
                 commits = result.commits.reversed()  // newest first
                 total = result.totalCommits
                 compareURL = result.htmlURL
             } catch .notFound {
                 notes.append("Couldn’t compare with \(base) (the tag may have been deleted). Showing recent commits.")
-                commits = try await api.commits(of: repository, branch: branch)
+                commits = try await api.commits(of: repository, branch: head)
                 total = commits.count
                 resolvedBase = nil
             }
         } else {
-            commits = try await api.commits(of: repository, branch: branch)
+            commits = try await api.commits(of: repository, branch: head)
             total = commits.count
             if !commits.isEmpty {
                 notes.append("No releases or tags yet. Showing the latest \(commits.count) commits.")
             }
         }
         let isTruncated = total > commits.count
-        if isTruncated && resolvedBase != nil {
-            notes.append("Showing \(commits.count) of \(total) commits since \(resolvedBase!).")
+        if isTruncated, let resolvedBase {
+            notes.append("Showing \(commits.count) of \(total) commits since \(resolvedBase).")
         }
 
         var pullRequests: [Int: RemotePullRequest] = [:]
         for index in commits.indices.prefix(Self.pullRequestLookupLimit) {
             let found = try await api.pullRequests(of: repository, containing: commits[index].sha)
-            let merged = found.filter { $0.pullRequest.mergedAt != nil && ($0.baseRef == nil || $0.baseRef == branch) }
+            let merged = found.filter {
+                $0.pullRequest.mergedAt != nil && (branch == nil || $0.baseRef == nil || $0.baseRef == branch)
+            }
             for item in merged { pullRequests[item.pullRequest.number] = item.pullRequest }
             commits[index].pullRequestNumbers = merged.map(\.pullRequest.number).sorted()
         }
@@ -95,9 +107,9 @@ public struct GitHubSyncService: Sendable {
                     + "matched from commit messages.")
         }
 
-        return UnreleasedChanges(
+        let changes = UnreleasedChanges(
             baseTag: resolvedBase,
-            headRef: branch,
+            headRef: head,
             headSHA: commits.first?.sha,
             totalCommits: total,
             commits: commits,
@@ -106,6 +118,7 @@ public struct GitHubSyncService: Sendable {
             pullRequestsComplete: complete,
             compareURL: compareURL
         )
+        return (changes, notes)
     }
 }
 

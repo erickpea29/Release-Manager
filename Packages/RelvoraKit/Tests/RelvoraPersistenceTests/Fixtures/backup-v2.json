@@ -1,0 +1,222 @@
+{
+  "appVersion": "0.3.0",
+  "exportedAt": "2026-10-21T08:00:00.000Z",
+  "formatVersion": 2,
+  "projects": [
+    {
+      "archivedAt": "2026-02-20T17:30:00.000Z",
+      "columns": [
+        {
+          "createdAt": "2026-02-01T09:00:00.000Z",
+          "id": "00000000-0000-0000-0000-000000000111",
+          "isCompletionColumn": false,
+          "name": "To Do",
+          "sortOrder": 1,
+          "updatedAt": "2026-02-01T09:00:00.000Z"
+        },
+        {
+          "createdAt": "2026-02-01T09:00:00.000Z",
+          "id": "00000000-0000-0000-0000-000000000112",
+          "isCompletionColumn": true,
+          "name": "Done",
+          "sortOrder": 2,
+          "updatedAt": "2026-02-01T09:00:00.000Z"
+        }
+      ],
+      "createdAt": "2026-02-01T09:00:00.000Z",
+      "details": "Marketing site refresh.",
+      "id": "00000000-0000-0000-0000-000000000002",
+      "name": "Website Redesign",
+      "releasePlans": [],
+      "repositoryConnections": [],
+      "tasks": [
+        {
+          "checklist": [],
+          "columnID": "00000000-0000-0000-0000-000000000112",
+          "completedAt": "2026-02-15T12:00:00.000Z",
+          "createdAt": "2026-02-02T10:00:00.000Z",
+          "id": "00000000-0000-0000-0000-000000000305",
+          "labels": [
+            "Design"
+          ],
+          "priority": "medium",
+          "sortOrder": 1,
+          "title": "Hero section",
+          "type": "feature",
+          "updatedAt": "2026-02-15T12:00:00.000Z"
+        }
+      ],
+      "updatedAt": "2026-02-20T17:30:00.000Z"
+    },
+    {
+      "columns": [
+        {
+          "createdAt": "2026-03-01T09:00:00.000Z",
+          "id": "00000000-0000-0000-0000-000000000101",
+          "isCompletionColumn": false,
+          "name": "Backlog",
+          "sortOrder": 1,
+          "updatedAt": "2026-03-01T09:00:00.000Z"
+        },
+        {
+          "createdAt": "2026-03-01T09:00:00.000Z",
+          "id": "00000000-0000-0000-0000-000000000102",
+          "isCompletionColumn": false,
+          "name": "Doing",
+          "sortOrder": 2,
+          "updatedAt": "2026-03-01T09:00:00.000Z"
+        },
+        {
+          "createdAt": "2026-03-04T15:20:00.250Z",
+          "id": "00000000-0000-0000-0000-000000000103",
+          "isCompletionColumn": false,
+          "name": "QA",
+          "sortOrder": 2.5,
+          "updatedAt": "2026-03-04T15:20:00.250Z"
+        },
+        {
+          "createdAt": "2026-03-01T09:00:00.000Z",
+          "id": "00000000-0000-0000-0000-000000000104",
+          "isCompletionColumn": true,
+          "name": "Done",
+          "sortOrder": 3,
+          "updatedAt": "2026-03-01T09:00:00.000Z"
+        }
+      ],
+      "createdAt": "2026-03-01T09:00:00.000Z",
+      "details": "Native macOS release planning.",
+      "id": "00000000-0000-0000-0000-000000000001",
+      "name": "Relvora",
+      "releasePlans": [
+        {
+          "changelogMarkdown": "## Fixes\n- Sidebar no longer opens collapsed.",
+          "createdAt": "2026-03-01T09:30:00.000Z",
+          "id": "00000000-0000-0000-0000-000000000201",
+          "releasedAt": "2026-03-10T18:00:00.000Z",
+          "status": "published",
+          "targetBranch": "main",
+          "targetCommitSHA": "30f1b4beb91bf009385967301cc0548f1770f6ea",
+          "title": "First preview",
+          "updatedAt": "2026-03-10T18:00:00.000Z",
+          "version": "0.1.0"
+        },
+        {
+          "changelogMarkdown": "",
+          "createdAt": "2026-03-11T08:00:00.000Z",
+          "details": "Kanban and backups.",
+          "id": "00000000-0000-0000-0000-000000000202",
+          "plannedDate": "2026-04-01T00:00:00.000Z",
+          "status": "planned",
+          "targetBranch": "main",
+          "updatedAt": "2026-03-11T08:00:00.000Z",
+          "version": "0.2.0-beta.1"
+        },
+        {
+          "changelogMarkdown": "",
+          "createdAt": "2026-03-12T08:00:00.000Z",
+          "id": "00000000-0000-0000-0000-000000000203",
+          "status": "cancelled",
+          "updatedAt": "2026-03-13T08:00:00.000Z",
+          "version": "Spring Preview"
+        }
+      ],
+      "repositoryConnections": [
+        {
+          "createdAt": "2026-10-20T09:00:00.000Z",
+          "defaultBranch": "main",
+          "githubRepositoryID": 1429211413,
+          "htmlURL": "https://github.com/erickpea29/Release-Manager",
+          "id": "00000000-0000-0000-0000-000000000501",
+          "isPrivate": true,
+          "lastSyncedAt": "2026-10-21T07:45:00.125Z",
+          "name": "Release-Manager",
+          "owner": "erickpea29",
+          "updatedAt": "2026-10-21T07:45:00.125Z"
+        }
+      ],
+      "tasks": [
+        {
+          "checklist": [
+            {
+              "id": "00000000-0000-0000-0000-000000000401",
+              "isDone": true,
+              "sortOrder": 1,
+              "title": "Fractional index"
+            },
+            {
+              "id": "00000000-0000-0000-0000-000000000402",
+              "isDone": false,
+              "sortOrder": 2,
+              "title": "Renormalize"
+            }
+          ],
+          "columnID": "00000000-0000-0000-0000-000000000102",
+          "createdAt": "2026-03-02T10:00:00.000Z",
+          "details": "Use **midpoints** between neighbours.",
+          "id": "00000000-0000-0000-0000-000000000301",
+          "labels": [
+            "Board",
+            "Persistence"
+          ],
+          "priority": "high",
+          "releasePlanID": "00000000-0000-0000-0000-000000000202",
+          "sortOrder": 1,
+          "title": "Persist board order",
+          "type": "feature",
+          "updatedAt": "2026-03-05T10:00:00.000Z"
+        },
+        {
+          "checklist": [],
+          "columnID": "00000000-0000-0000-0000-000000000104",
+          "completedAt": "2026-03-09T12:00:00.000Z",
+          "createdAt": "2026-03-03T10:00:00.000Z",
+          "id": "00000000-0000-0000-0000-000000000302",
+          "labels": [
+            "UI"
+          ],
+          "priority": "urgent",
+          "releasePlanID": "00000000-0000-0000-0000-000000000201",
+          "sortOrder": 1.5,
+          "title": "Fix sidebar collapse",
+          "type": "bugFix",
+          "updatedAt": "2026-03-09T12:00:00.000Z"
+        },
+        {
+          "checklist": [],
+          "columnID": "00000000-0000-0000-0000-000000000101",
+          "createdAt": "2026-03-04T10:00:00.000Z",
+          "id": "00000000-0000-0000-0000-000000000303",
+          "labels": [],
+          "priority": "low",
+          "sortOrder": 2,
+          "title": "Write backup docs",
+          "type": "documentation",
+          "updatedAt": "2026-03-04T10:00:00.000Z"
+        },
+        {
+          "checklist": [
+            {
+              "id": "00000000-0000-0000-0000-000000000403",
+              "isDone": true,
+              "sortOrder": 1,
+              "title": "Light mode"
+            }
+          ],
+          "columnID": "00000000-0000-0000-0000-000000000103",
+          "createdAt": "2026-03-05T10:00:00.000Z",
+          "id": "00000000-0000-0000-0000-000000000304",
+          "labels": [
+            "QA"
+          ],
+          "priority": "medium",
+          "releasePlanID": "00000000-0000-0000-0000-000000000202",
+          "sortOrder": 3,
+          "title": "QA pass",
+          "type": "maintenance",
+          "updatedAt": "2026-03-05T10:00:00.000Z"
+        }
+      ],
+      "updatedAt": "2026-03-05T10:00:00.000Z"
+    }
+  ]
+}

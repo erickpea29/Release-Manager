@@ -27,7 +27,7 @@ A native macOS app for one developer managing several software projects: plan re
 
 ## 3. Release lifecycle (user-visible states)
 
-`Planned` → `Draft created` → `Published` (verified on GitHub). `Needs reconciliation` is entered whenever a remote outcome is unknown, and is left only after re-reading GitHub. A plan can be `Cancelled` from Planned or Draft created. State rules live in [DATA_MODEL.md §3](DATA_MODEL.md#3-state-machines).
+`Planned` → `Draft created` → `Published` (verified on GitHub). `Needs reconciliation` is entered whenever a remote outcome is unknown (including while the create request is in flight) or the published release differs from what was reviewed, and is left only after re-reading GitHub. A plan can be `Cancelled` from Planned; a drafted plan returns to Planned when its draft is deleted on GitHub (M04, [ADR 0010](decisions/0010-release-workflow-and-reconciliation.md)). State rules live in [DATA_MODEL.md §3](DATA_MODEL.md#3-state-machines).
 
 ## 4. Non-negotiable safety rules
 
@@ -51,12 +51,12 @@ Each item has a proposed default, used unless the owner decides otherwise.
 | # | Gap or contradiction | Proposed default |
 |---|---|---|
 | G1 | **Minimum macOS** not specified | **Decided: macOS 26** ([ADR 0003](decisions/0003-minimum-macos-target.md)) |
-| G2 | **Snapshot timing vs. immutability.** §6 step 13 creates the snapshot after publication, but the plan also says to preserve notes "even if the GitHub draft is later edited", and the snapshot has a changing `releaseState` | Create the snapshot **at draft creation**, freezing tasks, notes, tag, and SHA as reviewed. Only lifecycle fields may change, once each, through allowed transitions (`publishedAt`, URL, published notes if they differ). Content fields are write-once |
-| G3 | **ReleasePlan has no repository link,** but a release targets one repository | Add `repositoryConnectionID`; one repository per release plan in the MVP |
+| G2 | **Snapshot timing vs. immutability.** §6 step 13 creates the snapshot after publication, but the plan also says to preserve notes "even if the GitHub draft is later edited", and the snapshot has a changing `releaseState` | **Decided (M04):** the snapshot is created **when the draft is requested** (as `pending`, before the request), freezing tasks, notes, tag, and SHA as reviewed. Only lifecycle fields change, once each (`publishedAt`, URL, published notes if they differ) ([ADR 0010](decisions/0010-release-workflow-and-reconciliation.md)) |
+| G3 | **ReleasePlan has no repository link,** but a release targets one repository | **Decided (M04):** `repositoryConnectionID` (schema V3); one repository per release plan |
 | G4 | `Task.statusID` refers to a board column | Rename to `columnID` |
 | G5 | "Browse repositories accessible to the authorized user". A GitHub App user token only sees repositories where the app is **installed** | UI lists installed repositories, with an "Add repositories on GitHub…" link to the install page |
 | G6 | "Disconnection revokes credentials". Revocation needs the client secret | Delete local tokens; link to GitHub's *Authorized GitHub Apps* page to revoke |
-| G7 | **A draft does not create its tag** (verified in M00), and GitHub accepts duplicate drafts for one tag. The same tag could also be created elsewhere between draft and publication | Before creating a draft, check for an existing tag *and* for existing releases or drafts with that `tag_name`. On reconciliation, verify the published tag resolves to the reviewed SHA. If not, mark the plan `Needs reconciliation` and warn |
+| G7 | **A draft does not create its tag** (verified in M00), and GitHub accepts duplicate drafts for one tag. The same tag could also be created elsewhere between draft and publication | **Implemented (M04):** before creating a draft, check the tag *and* releases or drafts with that `tag_name`; the create is sent once; on reconciliation, verify the published tag resolves to the reviewed SHA, else `Needs reconciliation` with both values shown ([ADR 0010](decisions/0010-release-workflow-and-reconciliation.md)) |
 | G8 | Merged-PR retrieval has no single REST endpoint, and API `2026-03-10` drops `merge_commit_sha` | Per-commit `GET /commits/{sha}/pulls` with a request budget, plus PR-number parsing from merge/squash commit messages as a fallback. Choose the API version in M03 |
 | G9 | Target commits changing `.github/workflows/*` need the Workflows permission | Excluded; show an actionable error |
 | G10 | Final bundle ID, app name, GitHub App name, license | **Decided:** product, app, and GitHub App are named **Relvora**; bundle ID `com.erickpea29.Relvora` (with `.dev`/`.adhoc` suffixes for local builds). License still open |

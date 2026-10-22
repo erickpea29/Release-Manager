@@ -3,7 +3,7 @@ import Testing
 
 @testable import GitHubIntegration
 
-/// Opt-in checks against real GitHub. Skipped unless both variables are set; never run in CI.
+/// Opt-in, read-only checks against real GitHub. Skipped unless both variables are set; never run in CI.
 ///
 ///     RELVORA_LIVE_GITHUB_TOKEN=ghu_… RELVORA_LIVE_GITHUB_REPOSITORY_ID=1429211413 swift test --filter LiveGitHub
 ///
@@ -29,5 +29,17 @@ struct LiveGitHubTests {
         let snapshot = try await GitHubSyncService(api: api).snapshot(repositoryID: Self.repositoryID!)
         #expect(snapshot.repository.id == Self.repositoryID)
         #expect(snapshot.unreleased != nil || snapshot.repository.defaultBranch == nil)
+
+        // M04 reads only: never creates a release.
+        let repository = snapshot.repository
+        let branches = try await api.branches(of: repository).items
+        #expect(branches.contains { $0.name == repository.defaultBranch })
+        let remote = GitHubReleaseRemote(api: api)
+        #expect(try await remote.tagCommitSHA(of: repository, tag: "relvora-live-test-missing-tag") == nil)
+        if let tag = snapshot.tags.first {
+            #expect(try await remote.tagCommitSHA(of: repository, tag: tag.name) != nil)
+        }
+        let releases = try await remote.releases(of: repository).items
+        #expect(releases.count >= snapshot.releases.count)
     }
 }

@@ -123,6 +123,18 @@ public struct RemoteTag: Sendable, Hashable, Codable {
     }
 }
 
+public struct RemoteBranch: Sendable, Hashable, Codable, Identifiable {
+    public let name: String
+    public let commitSHA: String
+
+    public var id: String { name }
+
+    public init(name: String, commitSHA: String) {
+        self.name = name
+        self.commitSHA = commitSHA
+    }
+}
+
 public struct RemoteCommit: Sendable, Hashable, Identifiable, Codable {
     public let sha: String
     public let message: String
@@ -171,7 +183,8 @@ public struct RemotePullRequest: Sendable, Hashable, Identifiable, Codable {
     }
 }
 
-/// Commits on the default branch since the latest published release.
+/// Commits from a base tag to a head (the default branch for "unreleased", or a release's target commit), with
+/// their merged pull requests.
 public struct UnreleasedChanges: Sendable, Hashable, Codable {
     /// Tag of the latest published release; `nil` when the repository has no release or tag yet.
     public let baseTag: String?

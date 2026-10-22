@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// Schema version 2 (M03): adds GitHub repository connections to projects.
-/// Frozen once merged to `main`; every later change adds a new `VersionedSchema` and a migration stage.
+/// Frozen: shipped in M03. Never edit; migrations read old stores through these definitions.
 enum RelvoraSchemaV2: VersionedSchema {
     static var versionIdentifier: Schema.Version { Schema.Version(2, 0, 0) }
     static var models: [any PersistentModel.Type] {

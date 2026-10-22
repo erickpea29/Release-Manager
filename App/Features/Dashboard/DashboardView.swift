@@ -72,6 +72,14 @@ struct ProjectSummaryCard: View {
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
+            if let release = stats.lastRelease, let date = release.publishedAt {
+                Label(
+                    "Released \(release.version) \(date.formatted(.relative(presentation: .named)))",
+                    systemImage: "checkmark.seal"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .panel()

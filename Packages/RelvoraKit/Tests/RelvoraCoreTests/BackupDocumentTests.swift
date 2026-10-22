@@ -20,7 +20,7 @@ struct BackupDocumentTests {
         let document = BackupDocument(bundles: [sampleBundle()], exportedAt: .now, appVersion: "0.2.0")
         let data = try document.encoded()
         let text = String(decoding: data, as: UTF8.self)
-        #expect(text.contains("\"formatVersion\" : 2"))
+        #expect(text.contains("\"formatVersion\" : 3"))
         #expect(text.contains("\"priority\" : \"medium\""))
         #expect(text.contains(".123Z"))
 
@@ -31,8 +31,8 @@ struct BackupDocumentTests {
 
     @Test("Newer formats and non-backup files are rejected with specific errors")
     func rejection() {
-        #expect(throws: BackupError.unsupportedFormatVersion(found: 3, supported: 2)) {
-            try BackupDocument.decode(Data(#"{"formatVersion": 3}"#.utf8))
+        #expect(throws: BackupError.unsupportedFormatVersion(found: 4, supported: 3)) {
+            try BackupDocument.decode(Data(#"{"formatVersion": 4}"#.utf8))
         }
         #expect(throws: BackupError.self) { try BackupDocument.decode(Data("not json".utf8)) }
         #expect(throws: BackupError.self) { try BackupDocument.decode(Data(#"{"formatVersion": 1}"#.utf8)) }

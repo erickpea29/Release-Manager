@@ -17,6 +17,7 @@ public enum BackupValidator {
         var planIDs = Set<UUID>()
         var checklistIDs = Set<UUID>()
         var connectionIDs = Set<UUID>()
+        var snapshotIDs = Set<UUID>()
 
         for project in document.projects {
             guard projectIDs.insert(project.id).inserted else { throw .invalid("a project appears twice.") }
@@ -60,6 +61,25 @@ public enum BackupValidator {
                 }
                 guard !connection.owner.isEmpty, !connection.name.isEmpty else {
                     throw .invalid("a repository connection has no owner or name.")
+                }
+            }
+
+            var openSnapshotPlans = Set<UUID>()
+            for snapshot in project.releaseSnapshots {
+                guard snapshotIDs.insert(snapshot.id).inserted else { throw .invalid("a release appears twice.") }
+                guard let state = ReleaseSnapshotState(rawValue: snapshot.state),
+                    ReleaseSnapshotOrigin(rawValue: snapshot.origin) != nil
+                else { throw .invalid("release \(snapshot.version) has an unknown state.") }
+                guard GitRefName.isFullCommitSHA(snapshot.targetCommitSHA), !snapshot.tagName.isEmpty else {
+                    throw .invalid("release \(snapshot.version) has an invalid tag or commit.")
+                }
+                guard state == .pending || snapshot.githubReleaseID != nil else {
+                    throw .invalid("release \(snapshot.version) has no GitHub release.")
+                }
+                if state.isOpen, let planID = snapshot.releasePlanID {
+                    guard openSnapshotPlans.insert(planID).inserted else {
+                        throw .invalid("release plan \(snapshot.version) has more than one open draft.")
+                    }
                 }
             }
 

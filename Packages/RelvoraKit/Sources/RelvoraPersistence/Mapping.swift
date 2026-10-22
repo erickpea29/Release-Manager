@@ -91,8 +91,11 @@ extension ReleasePlan {
             title: entity.title,
             details: entity.details,
             status: ReleasePlanStatus(rawValue: entity.statusRaw) ?? .reconciliationNeeded,
+            repositoryConnectionID: entity.repositoryConnectionID,
             targetBranch: entity.targetBranch,
             targetCommitSHA: entity.targetCommitSHA,
+            tagName: entity.tagName,
+            compareBaseTag: entity.compareBaseTag,
             plannedDate: entity.plannedDate,
             changelogMarkdown: entity.changelogMarkdown,
             createdAt: entity.createdAt,
@@ -139,11 +142,106 @@ extension ReleasePlanEntity {
         title = plan.title
         details = plan.details
         statusRaw = plan.status.rawValue
+        repositoryConnectionID = plan.repositoryConnectionID
         targetBranch = plan.targetBranch
         targetCommitSHA = plan.targetCommitSHA
+        tagName = plan.tagName
+        compareBaseTag = plan.compareBaseTag
         plannedDate = plan.plannedDate
         changelogMarkdown = plan.changelogMarkdown
         updatedAt = plan.updatedAt
         releasedAt = plan.releasedAt
+    }
+}
+
+/// The parts of a snapshot stored as one JSON value. Frozen with the snapshot; never rewritten.
+struct SnapshotPayload: Codable {
+    var tasks: [TaskSnapshot]
+    var changes: ReleaseChangeSummary?
+
+    static func encode(_ snapshot: ReleaseSnapshot) -> Data {
+        // Encoding plain Codable values with no custom code cannot fail.
+        (try? JSONEncoder().encode(SnapshotPayload(tasks: snapshot.tasks, changes: snapshot.changes))) ?? Data()
+    }
+}
+
+extension ReleaseSnapshot {
+    /// `nil` for a row whose project link is missing. An unreadable payload keeps the record without its tasks.
+    init?(_ entity: ReleaseSnapshotEntity) {
+        guard let projectID = entity.project?.id, let repositoryURL = URL(string: entity.repositoryURL) else {
+            return nil
+        }
+        let payload: SnapshotPayload
+        do {
+            payload = try JSONDecoder().decode(SnapshotPayload.self, from: entity.contentPayload)
+        } catch {
+            Log.persistence.error("Unreadable snapshot payload: \(String(describing: error), privacy: .private)")
+            payload = SnapshotPayload(tasks: [], changes: nil)
+        }
+        self.init(
+            id: entity.id,
+            projectID: projectID,
+            releasePlanID: entity.releasePlanID,
+            origin: ReleaseSnapshotOrigin(rawValue: entity.originRaw) ?? .relvoraDraft,
+            version: entity.version,
+            title: entity.title,
+            releaseName: entity.releaseName,
+            tagName: entity.tagName,
+            targetCommitSHA: entity.targetCommitSHA,
+            targetBranch: entity.targetBranch,
+            isPrerelease: entity.isPrerelease,
+            releaseNotesMarkdown: entity.releaseNotesMarkdown,
+            tasks: payload.tasks,
+            changes: payload.changes,
+            githubRepositoryID: entity.githubRepositoryID,
+            repositoryFullName: entity.repositoryFullName,
+            repositoryURL: repositoryURL,
+            snapshotCreatedAt: entity.snapshotCreatedAt,
+            state: ReleaseSnapshotState(rawValue: entity.stateRaw) ?? .pending,
+            githubReleaseID: entity.githubReleaseID,
+            githubReleaseURL: entity.githubReleaseURL.flatMap(URL.init(string:)),
+            publishedAt: entity.publishedAt,
+            publishedNotesMarkdown: entity.publishedNotesMarkdown,
+            publishedTagName: entity.publishedTagName,
+            publishedCommitSHA: entity.publishedCommitSHA,
+            stateChangedAt: entity.stateChangedAt
+        )
+    }
+}
+
+extension ReleaseSnapshotEntity {
+    convenience init(_ snapshot: ReleaseSnapshot) {
+        self.init(
+            id: snapshot.id,
+            originRaw: snapshot.origin.rawValue,
+            version: snapshot.version,
+            releaseName: snapshot.releaseName,
+            tagName: snapshot.tagName,
+            targetCommitSHA: snapshot.targetCommitSHA,
+            releaseNotesMarkdown: snapshot.releaseNotesMarkdown,
+            contentPayload: SnapshotPayload.encode(snapshot),
+            githubRepositoryID: snapshot.githubRepositoryID,
+            repositoryFullName: snapshot.repositoryFullName,
+            repositoryURL: snapshot.repositoryURL.absoluteString,
+            snapshotCreatedAt: snapshot.snapshotCreatedAt,
+            stateRaw: snapshot.state.rawValue
+        )
+        releasePlanID = snapshot.releasePlanID
+        title = snapshot.title
+        targetBranch = snapshot.targetBranch
+        isPrerelease = snapshot.isPrerelease
+        applyLifecycle(snapshot)
+    }
+
+    /// Copies lifecycle fields only. Content columns are never written after insert.
+    func applyLifecycle(_ snapshot: ReleaseSnapshot) {
+        stateRaw = snapshot.state.rawValue
+        githubReleaseID = snapshot.githubReleaseID
+        githubReleaseURL = snapshot.githubReleaseURL?.absoluteString
+        publishedAt = snapshot.publishedAt
+        publishedNotesMarkdown = snapshot.publishedNotesMarkdown
+        publishedTagName = snapshot.publishedTagName
+        publishedCommitSHA = snapshot.publishedCommitSHA
+        stateChangedAt = snapshot.stateChangedAt
     }
 }

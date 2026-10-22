@@ -1,13 +1,14 @@
 import Foundation
 import RelvoraCore
 
-/// Typed, read-only GitHub REST client for the signed-in user.
+/// Typed GitHub REST client for the signed-in user. Its only write is creating a draft release.
 ///
 /// - Sends `Authorization`, `Accept: application/vnd.github+json`, and the pinned `X-GitHub-Api-Version`.
 /// - Follows `Link: rel="next"` pagination up to a page limit, and only to the API host (the token never
 ///   goes anywhere else).
-/// - Retries idempotent requests twice on transient failures (5xx, timeouts) with backoff, and once after
-///   a short `Retry-After`; refreshes the token once after a 401.
+/// - Retries reads twice on transient failures (5xx, timeouts, dropped connections) with backoff.
+/// - Repeats any request once after a short `Retry-After` and once after a 401 with a refreshed token: GitHub
+///   rejects those before acting. A write that fails in a way GitHub may have acted on is never repeated.
 public struct GitHubAPIClient: Sendable {
     public typealias Sleeper = @Sendable (_ seconds: Double) async throws -> Void
 
@@ -105,6 +106,59 @@ public struct GitHubAPIClient: Sendable {
         return items.map(\.model)
     }
 
+    /// One commit by SHA (short or full), branch, or tag; returns the full SHA.
+    public func commit(of repository: GitHubRepository, ref: String) async throws(GitHubError) -> RemoteCommit {
+        try await get(CommitDTO.self, path: "repos/\(repository.fullName)/commits/\(ref)").model
+    }
+
+    public func branches(of repository: GitHubRepository, maxPages: Int = 3) async throws(GitHubError)
+        -> (items: [RemoteBranch], truncated: Bool)
+    {
+        let result = try await paged(BranchDTO.self, path: "repos/\(repository.fullName)/branches", maxPages: maxPages)
+        return (result.items.map(\.model), result.truncated)
+    }
+
+    /// A release by ID, drafts included. Throws `notFound` when it was deleted.
+    public func release(of repository: GitHubRepository, id: Int64) async throws(GitHubError) -> RemoteRelease {
+        try await get(ReleaseDTO.self, path: "repos/\(repository.fullName)/releases/\(id)").model
+    }
+
+    /// The commit a tag points at, following annotated tags; `nil` when the tag doesn't exist.
+    public func tagCommitSHA(of repository: GitHubRepository, tag: String) async throws(GitHubError) -> String? {
+        var object: GitObjectDTO
+        do {
+            object = try await get(GitRefDTO.self, path: "repos/\(repository.fullName)/git/ref/tags/\(tag)").object
+        } catch .notFound {
+            return nil
+        }
+        // An annotated tag points at a tag object, which may point at another tag.
+        for _ in 0..<4 where object.type == "tag" {
+            object = try await get(GitTagDTO.self, path: "repos/\(repository.fullName)/git/tags/\(object.sha)").object
+        }
+        return object.type == "commit" ? object.sha : nil
+    }
+
+    /// Creates a **draft** release. Sent once: on a timeout, dropped connection, or server error the outcome is
+    /// unknown and the caller must read GitHub before trying again (GitHub accepts duplicate drafts for one tag).
+    public func createDraftRelease(in repository: GitHubRepository, _ request: DraftReleaseRequest)
+        async throws(GitHubError) -> RemoteRelease
+    {
+        let body = CreateReleaseDTO(
+            tagName: request.tagName, targetCommitish: request.targetCommitSHA, name: request.name,
+            body: request.body, draft: true, prerelease: request.isPrerelease, generateReleaseNotes: false)
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        let data: Data
+        do {
+            data = try encoder.encode(body)
+        } catch {
+            throw .invalidResponse("Request encoding failed")
+        }
+        return try await send(
+            ReleaseDTO.self, url: url("repos/\(repository.fullName)/releases"), method: "POST", body: data
+        ).body.model
+    }
+
     /// Pull requests that contain `sha`.
     public func pullRequests(of repository: GitHubRepository, containing sha: String) async throws(GitHubError)
         -> [(pullRequest: RemotePullRequest, baseRef: String?)]
@@ -149,15 +203,16 @@ public struct GitHubAPIClient: Sendable {
         return (items, next != nil)
     }
 
-    private func send<Body: Decodable>(_ type: Body.Type, url: URL) async throws(GitHubError)
-        -> (body: Body, response: HTTPURLResponse)
-    {
+    private func send<Body: Decodable>(
+        _ type: Body.Type, url: URL, method: String = "GET", body: Data? = nil
+    ) async throws(GitHubError) -> (body: Body, response: HTTPURLResponse) {
+        let isRead = method == "GET"
         var token = try await session.accessToken()
         var refreshedAfterUnauthorized = false
         var attempt = 0
         while true {
             attempt += 1
-            let outcome = await perform(url: url, token: token)
+            let outcome = await perform(url: url, method: method, body: body, token: token)
             switch outcome {
             case .success(let data, let response):
                 do {
@@ -173,11 +228,12 @@ public struct GitHubAPIClient: Sendable {
                 token = try await session.tokenAfterUnauthorized(rejected: token)
             case .failure(.rateLimited(let resetAt)) where attempt == 1 && (resetAt?.timeIntervalSinceNow ?? 60) <= 5:
                 try? await sleep(max(resetAt?.timeIntervalSinceNow ?? 1, 1))
-            case .failure(let error) where error.isTransient && attempt <= 2:
+            case .failure(let error) where isRead && error.isTransient && attempt <= 2:
                 try? await sleep(Double(attempt) * 0.5)
             case .failure(let error):
                 Log.github.error(
-                    "GET \(url.path(), privacy: .private) failed: \(String(describing: error), privacy: .public)")
+                    "\(method, privacy: .public) \(url.path(), privacy: .private) failed: \(String(describing: error), privacy: .public)"
+                )
                 throw error
             }
         }
@@ -188,9 +244,13 @@ public struct GitHubAPIClient: Sendable {
         case failure(GitHubError)
     }
 
-    private func perform(url: URL, token: Secret) async -> Outcome {
+    private func perform(url: URL, method: String, body: Data?, token: Secret) async -> Outcome {
         var request = URLRequest(url: url)
-        request.httpMethod = "GET"
+        request.httpMethod = method
+        if let body {
+            request.httpBody = body
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue(configuration.apiVersion, forHTTPHeaderField: "X-GitHub-Api-Version")
         request.setValue("Bearer \(token.rawValue)", forHTTPHeaderField: "Authorization")
@@ -310,6 +370,39 @@ struct CompareDTO: Decodable {
     let totalCommits: Int
     let commits: [CommitDTO]
     let htmlUrl: URL?
+}
+
+struct BranchDTO: Decodable {
+    struct Commit: Decodable {
+        let sha: String
+    }
+    let name: String
+    let commit: Commit
+
+    var model: RemoteBranch { RemoteBranch(name: name, commitSHA: commit.sha) }
+}
+
+struct GitObjectDTO: Decodable {
+    let type: String
+    let sha: String
+}
+
+struct GitRefDTO: Decodable {
+    let object: GitObjectDTO
+}
+
+struct GitTagDTO: Decodable {
+    let object: GitObjectDTO
+}
+
+struct CreateReleaseDTO: Encodable {
+    let tagName: String
+    let targetCommitish: String
+    let name: String
+    let body: String
+    let draft: Bool
+    let prerelease: Bool
+    let generateReleaseNotes: Bool
 }
 
 struct PullRequestDTO: Decodable {

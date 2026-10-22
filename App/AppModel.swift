@@ -16,6 +16,15 @@ struct AppEnvironment: Sendable {
     var repositoryConnections: RepositoryConnectionService {
         RepositoryConnectionService(repository: store.repositoryConnections)
     }
+
+    /// `nil` when this build has no GitHub App configured.
+    var releaseWorkflow: ReleaseWorkflow? {
+        github.map {
+            ReleaseWorkflow(
+                plans: store.releasePlans, snapshots: store.releaseSnapshots, board: store.board,
+                connections: store.repositoryConnections, remote: $0.releases)
+        }
+    }
 }
 
 /// Launch arguments, honored in Debug builds only, e.g. `-RelvoraInMemoryStore YES`.
@@ -30,6 +39,10 @@ struct LaunchOptions {
     var startGitHubConnect = false
     /// Connects this repository (`owner/name`) to the initial project once signed in.
     var connectRepository: String?
+    /// Uses the in-memory `DemoGitHub` instead of github.com (UI checks of the release workflow).
+    var demoGitHub = false
+    /// Runs a `DemoScenario` on the first release plan shown.
+    var demoScenario: String?
 
     static func current(_ defaults: UserDefaults = .standard) -> LaunchOptions {
         var options = LaunchOptions()
@@ -41,6 +54,8 @@ struct LaunchOptions {
             options.initialTab = defaults.string(forKey: "RelvoraInitialTab")
             options.startGitHubConnect = defaults.bool(forKey: "RelvoraStartGitHubConnect")
             options.connectRepository = defaults.string(forKey: "RelvoraConnectRepository")
+            options.demoGitHub = defaults.bool(forKey: "RelvoraDemoGitHub")
+            options.demoScenario = defaults.string(forKey: "RelvoraDemoScenario")
         #endif
         return options
     }
@@ -75,6 +90,8 @@ struct ProjectStats: Equatable {
     var taskCount = 0
     var completedCount = 0
     var activePlanVersion: String?
+    /// The newest verified publication.
+    var lastRelease: ReleaseSnapshot?
 
     var progress: Double? { taskCount == 0 ? nil : Double(completedCount) / Double(taskCount) }
 }
@@ -117,6 +134,12 @@ final class AppModel {
     var isExportingBackup = false
     var isChoosingBackup = false
     var pendingRestore: PendingRestore?
+    /// Every project's release snapshots, for Release History.
+    private(set) var releaseHistory: [ReleaseSnapshot] = []
+    /// The snapshot Release History shows.
+    var historySelection: UUID?
+    /// A sidebar destination requested from inside a view (for example "Show in Release History").
+    var navigationRequest: SidebarItem?
 
     let environment: AppEnvironment?
     let options: LaunchOptions
@@ -132,7 +155,11 @@ final class AppModel {
                 options.inMemoryStore
                 ? try PersistentStore.inMemory()
                 : try PersistentStore.open(at: PersistentStore.defaultURL(name: options.storeName))
-            environment = AppEnvironment(store: store, github: GitHubServices.live())
+            var github = GitHubServices.live()
+            #if DEBUG
+                if options.demoGitHub { github = .demo() }
+            #endif
+            environment = AppEnvironment(store: store, github: github)
             startupError = nil
         } catch {
             // Typed throws: `error` is a PersistenceError.
@@ -175,10 +202,14 @@ final class AppModel {
         do {
             let state = try await environment.board.load(projectID: projectID)
             let plans = try await environment.releasePlans.plans(projectID: projectID)
+            let snapshots = try await environment.store.releaseSnapshots.snapshots(projectID: projectID)
             stats[projectID] = ProjectStats(
                 taskCount: state.tasks.count,
                 completedCount: state.tasks.filter { $0.completedAt != nil }.count,
-                activePlanVersion: plans.first(where: \.status.isActive)?.version
+                activePlanVersion: plans.first(where: \.status.isActive)?.version,
+                lastRelease: snapshots.filter { $0.state == .published }.max {
+                    ($0.publishedAt ?? .distantPast) < ($1.publishedAt ?? .distantPast)
+                }
             )
         } catch {
             stats[projectID] = nil
@@ -219,6 +250,22 @@ final class AppModel {
         } catch {
             alert = AppAlert(title: "Couldn’t delete project", error: error)
         }
+    }
+
+    // MARK: Release history
+
+    func loadHistory() async {
+        guard let environment else { return }
+        do {
+            releaseHistory = try await environment.store.releaseSnapshots.allSnapshots()
+        } catch {
+            alert = AppAlert(title: "Couldn’t load release history", error: error)
+        }
+    }
+
+    func showInHistory(_ snapshotID: UUID) {
+        historySelection = snapshotID
+        navigationRequest = .history
     }
 
     private func replace(_ project: Project) {

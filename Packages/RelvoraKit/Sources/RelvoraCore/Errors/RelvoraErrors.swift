@@ -15,6 +15,9 @@ public enum ValidationError: Error, Sendable, Equatable, LocalizedError {
     case cannotDeleteLastColumn
     case unknownColumn
     case repositoryAlreadyConnected(String)
+    case invalidTagName(String)
+    case invalidCommitSHA(String)
+    case releaseNotesTooLong(maximum: Int)
 
     public var errorDescription: String? {
         switch self {
@@ -31,6 +34,9 @@ public enum ValidationError: Error, Sendable, Equatable, LocalizedError {
         case .cannotDeleteLastColumn: "A board needs at least one column."
         case .unknownColumn: "That column doesn’t belong to this project."
         case .repositoryAlreadyConnected(let name): "\(name) is already connected to this project."
+        case .invalidTagName(let name): "“\(name)” can’t be used as a Git tag."
+        case .invalidCommitSHA(let sha): "“\(sha)” isn’t a full commit SHA."
+        case .releaseNotesTooLong(let maximum): "Release notes can be at most \(maximum) characters."
         }
     }
 
@@ -49,6 +55,9 @@ public enum ValidationError: Error, Sendable, Equatable, LocalizedError {
         case .cannotDeleteLastColumn: "Add another column before deleting this one."
         case .unknownColumn: "Reload the board and try again."
         case .repositoryAlreadyConnected: "Choose a different repository."
+        case .invalidTagName: "Use letters, digits, dots, hyphens, and slashes, such as v1.4.0."
+        case .invalidCommitSHA: "Choose the target commit from the branch’s commits."
+        case .releaseNotesTooLong: "Shorten the notes, or link to a longer changelog."
         }
     }
 }
@@ -60,6 +69,8 @@ public enum PersistenceError: Error, Sendable, Equatable, LocalizedError {
     case integrityViolation(String)
     case fetchFailed(reason: String)
     case saveFailed(reason: String)
+    /// The record changed since it was read (for example, another window already started the same release).
+    case outdated(entity: String)
 
     public var errorDescription: String? {
         switch self {
@@ -68,6 +79,7 @@ public enum PersistenceError: Error, Sendable, Equatable, LocalizedError {
         case .integrityViolation: "That change would leave your data inconsistent, so it wasn’t saved."
         case .fetchFailed: "Relvora couldn’t read your data."
         case .saveFailed: "Relvora couldn’t save your changes."
+        case .outdated(let entity): "The \(entity) changed in the meantime, so nothing was saved."
         }
     }
 
@@ -76,6 +88,7 @@ public enum PersistenceError: Error, Sendable, Equatable, LocalizedError {
         case .storeUnavailable: "Quit and reopen Relvora. If this keeps happening, restore from a backup."
         case .notFound: "It may have been deleted. Refresh and try again."
         case .integrityViolation, .fetchFailed, .saveFailed: "Try again. If this keeps happening, restart Relvora."
+        case .outdated: "Review the current state and try again."
         }
     }
 }

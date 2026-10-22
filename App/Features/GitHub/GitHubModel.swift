@@ -11,6 +11,20 @@ struct GitHubServices: Sendable {
     let api: GitHubAPIClient
     let sync: GitHubSyncService
     let cache: SnapshotCache
+    let releases: GitHubReleaseRemote
+
+    init(
+        configuration: GitHubConfiguration, transport: any HTTPTransport, credentials: any CredentialStore,
+        cache: SnapshotCache
+    ) {
+        self.configuration = configuration
+        deviceFlow = DeviceFlowClient(configuration: configuration, transport: transport)
+        session = GitHubSession(store: credentials, deviceFlow: deviceFlow)
+        api = GitHubAPIClient(configuration: configuration, session: session, transport: transport)
+        sync = GitHubSyncService(api: api)
+        self.cache = cache
+        releases = GitHubReleaseRemote(api: api)
+    }
 
     /// `nil` when the build has no client ID configured.
     static func live(bundle: Bundle = .main) -> GitHubServices? {
@@ -20,14 +34,9 @@ struct GitHubServices: Sendable {
         let slug = (bundle.object(forInfoDictionaryKey: "RelvoraGitHubAppSlug") as? String).flatMap {
             $0.isEmpty || $0.hasPrefix("$(") ? nil : $0
         }
-        let configuration = GitHubConfiguration(clientID: clientID, appSlug: slug)
-        let transport = URLSessionTransport()
-        let deviceFlow = DeviceFlowClient(configuration: configuration, transport: transport)
-        let session = GitHubSession(store: KeychainCredentialStore(), deviceFlow: deviceFlow)
-        let api = GitHubAPIClient(configuration: configuration, session: session, transport: transport)
         return GitHubServices(
-            configuration: configuration, session: session, deviceFlow: deviceFlow, api: api,
-            sync: GitHubSyncService(api: api), cache: SnapshotCache(directory: SnapshotCache.defaultDirectory))
+            configuration: GitHubConfiguration(clientID: clientID, appSlug: slug), transport: URLSessionTransport(),
+            credentials: KeychainCredentialStore(), cache: SnapshotCache(directory: SnapshotCache.defaultDirectory))
     }
 }
 
@@ -61,6 +70,10 @@ final class GitHubModel {
     private(set) var syncStates: [Int64: SyncState] = [:]
     let services: GitHubServices?
     private var connectTask: Task<Void, Never>?
+    /// Current repository metadata per GitHub ID, fetched once per launch for release preparation.
+    private var repositories: [Int64: GitHubRepository] = [:]
+    /// Changes between a base and a target commit, per repository; release preparation reads these repeatedly.
+    private var changesCache: [String: (changes: UnreleasedChanges, notes: [String])] = [:]
 
     init(services: GitHubServices?) {
         self.services = services
@@ -172,6 +185,78 @@ final class GitHubModel {
             syncStates[repositoryID] = .failed(AppAlert.message(for: error))
             return nil
         }
+    }
+
+    // MARK: Release preparation
+
+    /// The repository as GitHub reports it now (renames and transfers included).
+    func repository(id: Int64) async throws -> GitHubRepository {
+        let services = try connectedServices()
+        if let known = repositories[id] { return known }
+        let repository = try await reading { try await services.api.repository(id: id) }
+        repositories[id] = repository
+        return repository
+    }
+
+    func branches(of repositoryID: Int64) async throws -> [RemoteBranch] {
+        let services = try connectedServices()
+        let repository = try await repository(id: repositoryID)
+        return try await reading { try await services.api.branches(of: repository).items }
+    }
+
+    /// The latest commits on `branch`, newest first.
+    func commits(of repositoryID: Int64, branch: String) async throws -> [RemoteCommit] {
+        let services = try connectedServices()
+        let repository = try await repository(id: repositoryID)
+        return try await reading { try await services.api.commits(of: repository, branch: branch, limit: 30) }
+    }
+
+    /// Resolves a short SHA, branch, or tag to a commit with its full SHA.
+    func commit(of repositoryID: Int64, ref: String) async throws -> RemoteCommit {
+        let services = try connectedServices()
+        let repository = try await repository(id: repositoryID)
+        return try await reading { try await services.api.commit(of: repository, ref: ref) }
+    }
+
+    /// Commits and merged pull requests from `base` to the target commit. Reuses the repository snapshot when the
+    /// target is the default branch's head it was built from (ADR 0009: don't re-fetch what M03 already has).
+    func changes(of repositoryID: Int64, base: String?, head: String, branch: String?) async throws
+        -> (changes: UnreleasedChanges, notes: [String])
+    {
+        if let unreleased = snapshot(for: repositoryID)?.unreleased, unreleased.headSHA == head,
+            unreleased.baseTag == base, unreleased.headRef == branch
+        {
+            return (unreleased, [])
+        }
+        let key = "\(repositoryID) \(base ?? "-") \(head)"
+        if let cached = changesCache[key] { return cached }
+        let services = try connectedServices()
+        let repository = try await repository(id: repositoryID)
+        let result = try await reading {
+            try await services.sync.changes(in: repository, base: base, head: head, branch: branch)
+        }
+        changesCache[key] = result
+        return result
+    }
+
+    private func connectedServices() throws(GitHubError) -> GitHubServices {
+        guard let services else { throw .notConnected }
+        return services
+    }
+
+    /// Notes sign-in problems from any GitHub read, so the connection status stays accurate.
+    private func reading<T>(_ body: () async throws -> T) async throws -> T {
+        do {
+            return try await body()
+        } catch {
+            noteError(error)
+            throw error
+        }
+    }
+
+    /// Workflow errors that come from GitHub update the connection status too.
+    func noteError(_ error: any Error) {
+        if let error = error as? GitHubError { noteAuthorizationProblem(error) }
     }
 
     private func noteAuthorizationProblem(_ error: GitHubError) {
