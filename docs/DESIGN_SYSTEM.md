@@ -1,6 +1,6 @@
 # Design System
 
-Status: foundations for M01; finished in M05. Material rules follow [ADR 0006](decisions/0006-window-materials.md).
+Status: finished in M05. Material rules follow [ADR 0006](decisions/0006-window-materials.md).
 
 ## 1. Principles
 
@@ -20,8 +20,8 @@ A sidebar holds **Dashboard**, **Projects** (with each project's Kanban and Rele
 | Corner radius | 6 (controls/chips), 10 (cards), 14 (panels) |
 | Typography | System text styles only: `.largeTitle` (page titles), `.title2`/`.title3` (sections), `.headline` (card titles), `.body`, `.callout`, `.caption` (metadata). Monospaced (`.monospaced()`) for SHAs, tags, and versions |
 | Color | Semantic only: `.primary`/`.secondary`/`.tertiary` labels, `Color(nsColor: .controlBackgroundColor)` and `.windowBackgroundColor` surfaces, and the app accent for emphasis. No hard-coded RGB in views |
-| Accent | User-selectable from a fixed palette that passes contrast in both appearances; defaults to the system accent |
-| Status | Planned (secondary), Draft created (blue), Published (green), Needs reconciliation (orange), Cancelled (tertiary). Always shown with an icon and text, never color alone |
+| Accent | **Settings › General**: System (default), Blue, Purple, Pink, Red, Orange, Green, Graphite. Applied with `.tint`; views use `.tint`, never `Color.accentColor`. No yellow, which fails contrast in the light appearance |
+| Status | Planned (secondary), Draft created (blue), Published (green), Needs reconciliation (orange), Cancelled (secondary). Always an icon plus text, never color alone. Badges have full-strength text, with the color on the icon and capsule. In list rows, status is an icon plus text with no capsule (`RowStatusLabel`), so it follows the selection's text color |
 
 ## 4. Appearance and materials
 
@@ -46,9 +46,36 @@ Every remote-data view defines all five states:
 
 ## 6. Accessibility and keyboard
 
-- Every interactive element has an accessibility label. Icon-only buttons use `Label` with `.labelStyle(.iconOnly)`.
-- Full keyboard paths:
-  - ⌘N new task, ⇧⌘N new project, ⌘F search, ⌘R refresh, ⌫ delete (with confirmation).
-  - Arrow keys move the selection.
-  - Moving a task never requires drag-and-drop: the card's context menu offers **Move To**, and the task editor has a **Column** picker.
-- Text meets WCAG AA contrast (4.5:1 for body text) in both appearances with the opaque material.
+- **Labels.** Every interactive element has an accessibility label.
+  - Icon-only buttons use `Label` with `.labelStyle(.iconOnly)`.
+  - Icon-only links use `GitHubLinkIcon`, which adds a tooltip and a spoken label.
+  - Containers (board columns, plan lists, the projects grid) have labels.
+- **Keyboard map.**
+
+  | Keys | Action |
+  |---|---|
+  | ⌘K | Quick actions: go to a project, tab, or view, or run an action |
+  | ⌘1 / ⌘2 | Dashboard / Release History |
+  | ⌥⌘1 / ⌥⌘2 / ⌥⌘3 | Board / Releases / GitHub of the open project |
+  | ⌘N / ⇧⌘N | New task / New project |
+  | Arrow keys (board focused) | Move the card selection, across columns with ← → |
+  | Return or Space | Open the selected card |
+  | ⌥⌘← / ⌥⌘→ | Move the selected card to the previous / next column (**Task** menu) |
+  | ⌥⌘↑ / ⌥⌘↓ | Move the selected card up / down (**Task** menu) |
+  | ⌘O | Open the selected card (**Task** menu) |
+  | ⌘⌫ or ⌫ | Delete the selected card, after confirmation |
+  | ⌘R | Refresh a repository |
+  | ⇧⌘E | Export backup |
+
+  - The board can be reached with Tab, even with macOS keyboard navigation off.
+  - Task commands are enabled only while the board itself has focus, so ⌘⌫ and ⌥⌘ arrows still work in text fields.
+  - Moving a task never requires drag-and-drop. VoiceOver users get **Move to Previous/Next Column** actions on each card.
+- **Automated audit.** UI tests run Xcode's accessibility audit on the dashboard, the board, and a release plan.
+  - Our own findings are fixed, not suppressed.
+  - Accepted platform behavior, kept narrow and listed in `UITests/AccessibilityUITests.swift`:
+    - SwiftUI pickers and menus expose "show menu" rather than "press".
+    - AppKit window and split-view containers have no description.
+    - The title-bar sidebar button reports a parent/child mismatch.
+    - The system secondary text color "nearly passes" at small sizes; Increase Contrast strengthens it.
+    - Text inside a selected list row uses the system selection colors (F24).
+- **Contrast.** Text meets WCAG AA contrast (4.5:1 for body text) in both appearances with the opaque material. Small numbers and status text use full-strength text, because small secondary text on tinted backgrounds failed the audit.

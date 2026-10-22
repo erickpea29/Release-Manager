@@ -57,14 +57,16 @@ Immutability: the repository has no content update. `record` applies only the tr
 ### GitHub cache (M03, not in the schema)
 One JSON `RepositorySnapshot` per repository (releases, tags, unreleased commits and merged PRs, notes, `fetchedAt`) under `Application Support/Relvora/GitHub Cache/`. Written only after a successful sync; excluded from backups ([ADR 0009](decisions/0009-github-integration-design.md)).
 
-### Preferences
-Stored in `UserDefaults`. M01 uses `@AppStorage` with centralized keys (`PreferenceKey`); a `PreferencesStore` protocol arrives with backup/restore in M02:
-- Appearance and accent.
-- Window material.
+### Preferences (M05)
+Stored in `UserDefaults` through one `Preferences` store in the app. Keys from M01–M04 are unchanged. Values:
+- Appearance (`system|light|dark`).
+- Accent (`system|blue|purple|pink|red|orange|green|graphite`).
+- Window (`opaque|translucent`).
 - Sidebar visibility.
-- Default columns.
-- Changelog categories (label → section mapping).
-- Last-selected project and view.
+- **Columns for new projects**: `[ColumnTemplate]` (name, isCompletion), validated by `ProjectRules.validatedTemplate` (one or more columns, exactly one completion column, names differ ignoring case).
+- **Release-note label rules**: `[ChangelogLabelRule]` (label → `ChangelogCategory` key), which win over the built-in label meanings.
+
+Backup format 4 carries these settings, except sidebar visibility, as a `preferences` record. Restore applies the known, valid values and keeps the current ones otherwise (G12). The last-selected project and tab are window state (`SceneStorage`), not preferences.
 
 ## 3. State machines
 

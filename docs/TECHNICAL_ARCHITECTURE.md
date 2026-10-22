@@ -1,6 +1,6 @@
 # Technical Architecture
 
-Status: implemented through M04. Decisions are recorded in [decisions/](decisions/).
+Status: implemented through M05. Decisions are recorded in [decisions/](decisions/).
 
 ## 1. Layout
 
@@ -18,10 +18,12 @@ release-manager/                        # repository: erickpea29/Release-Manager
 │   ├── Sources/RelvoraPersistence/     # SwiftData schema + repository implementation
 │   ├── Sources/GitHubIntegration/      # GitHub auth, REST client, sync, cache, release remote
 │   └── Tests/                          # swift test
+├── UITests/                            # XCUITest target RelvoraUITests (in-memory store, demo GitHub)
+├── scripts/release/                    # build-release.sh: archive, sign, notarize, staple (ADR 0011)
 ├── Config/                             # Shared.xcconfig, Relvora.entitlements, Local.xcconfig (git-ignored)
 ├── spikes/M00/                         # throwaway validation code
 ├── docs/
-└── .github/workflows/ci.yml
+└── .github/workflows/                  # ci.yml (lint, tests, build, UI tests), release.yml (notarized builds)
 ```
 
 `GitHubIntegration` (M03) holds GitHub auth, the REST client, sync, and the snapshot cache ([ADR 0009](decisions/0009-github-integration-design.md)). Module boundaries are added only when they pay for themselves: persistence is its own target so the compiler keeps `@Model` types out of the app and core.
@@ -56,7 +58,7 @@ App (SwiftUI views, @Observable AppModel)
 - A `VersionedSchema` and migration plan from the first release; migration tests use committed fixture stores.
 - Multi-record operations run in one `ModelContext` save, which is one transaction.
 - Release workflow writes (plan status plus one snapshot operation) go through one guarded `record` transaction that compares the plan's stored status first; snapshots are write-once ([ADR 0010](decisions/0010-release-workflow-and-reconciliation.md)).
-- Backup: versioned JSON (`BackupDocument`, format 3), independent of the schema. Restore validates the whole document, writes a safety copy, then replaces everything in one transaction ([guide](BACKUP_AND_RESTORE.md)).
+- Backup: versioned JSON (`BackupDocument`, format 4 including settings), independent of the schema. Restore validates the whole document, writes a safety copy, then replaces everything in one transaction ([guide](BACKUP_AND_RESTORE.md)).
 
 ## 5. GitHub integration
 
@@ -83,12 +85,21 @@ App (SwiftUI views, @Observable AppModel)
 ## 7. Testing and CI
 
 - `swift test` covers core and integration logic with mocks; no real GitHub account is involved.
-- `xcodebuild test` covers UI tests through a mocked `AppEnvironment` (launch argument).
+- `xcodebuild test` runs the **RelvoraUITests** target (XCUITest). Each test launches the app with:
+  - an in-memory store with sample data;
+  - the in-memory **demo GitHub**, a fake of the REST endpoints that drives the real API client, sync, and workflow;
+  - a throwaway settings suite (`-RelvoraDefaultsSuite`).
+  Tests therefore never touch real data, settings, or GitHub.
+- The UI tests cover navigation and quick actions, board editing by keyboard, the release flow (draft, publish, history), reconciliation after a timeout, offline states, settings, and an accessibility audit.
 - Live GitHub tests are opt-in only (environment variable), never run in CI.
-- CI: GitHub Actions on a macOS runner with an Xcode 26 image, running `swift test`, then `xcodebuild build test` with ad-hoc signing.
+- CI runs on GitHub Actions with the `macos-26` image:
+  - one job runs lint, `swift test`, and an ad-hoc app build;
+  - a parallel job runs the UI tests, after allowing UI automation with `automationmodetool`.
+- The **Release** workflow builds notarized Developer ID apps ([ADR 0011](decisions/0011-distribution-developer-id.md), [DISTRIBUTION.md](DISTRIBUTION.md)).
 
 ## 8. Signing and builds
 
 - The committed configuration uses ad-hoc signing.
 - Developers put `DEVELOPMENT_TEAM` and their identity in `Config/Local.xcconfig`.
 - One identity per bundle ID on a given Mac (M00 F5). Without `Local.xcconfig`, local builds must use a distinct bundle-ID suffix so they never share a sandbox container with team-signed builds.
+- Release builds use `com.erickpea29.Relvora` (no suffix), signed with Developer ID and notarized by `scripts/release/build-release.sh` in GitHub Actions. Credentials exist only as Actions secrets ([ADR 0011](decisions/0011-distribution-developer-id.md)).

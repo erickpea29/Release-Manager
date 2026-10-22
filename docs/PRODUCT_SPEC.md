@@ -60,6 +60,6 @@ Each item has a proposed default, used unless the owner decides otherwise.
 | G8 | Merged-PR retrieval has no single REST endpoint, and API `2026-03-10` drops `merge_commit_sha` | Per-commit `GET /commits/{sha}/pulls` with a request budget, plus PR-number parsing from merge/squash commit messages as a fallback. Choose the API version in M03 |
 | G9 | Target commits changing `.github/workflows/*` need the Workflows permission | Excluded; show an actionable error |
 | G10 | Final bundle ID, app name, GitHub App name, license | **Decided:** product, app, and GitHub App are named **Relvora**; bundle ID `com.erickpea29.Relvora` (with `.dev`/`.adhoc` suffixes for local builds). License still open |
-| G11 | Distribution: no Developer ID certificate | Decide in M05 (notarized Developer ID vs. local builds only) |
-| G12 | Preferences storage location | `UserDefaults` behind a `PreferencesStore` protocol, included in backups |
+| G11 | Distribution: no Developer ID certificate | **Decided (M05): notarized Developer ID**, built by GitHub Actions when a release is published ([ADR 0011](decisions/0011-distribution-developer-id.md)); the owner adds the certificate and notary key as secrets ([DISTRIBUTION.md](DISTRIBUTION.md)) |
+| G12 | Preferences storage location | **Implemented (M05):** `UserDefaults` through one app `Preferences` store; included in backups (format 4) |
 | G13 | Backup scope | Local entities and preferences as versioned JSON. Excludes credentials and the re-fetchable GitHub cache |

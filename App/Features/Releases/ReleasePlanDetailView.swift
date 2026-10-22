@@ -318,7 +318,7 @@ struct SectionTitle: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title).font(.headline)
             if let detail {
-                Text(detail).font(.caption).foregroundStyle(.secondary)
+                Text(detail).font(.callout).foregroundStyle(.secondary)
             }
         }
     }
@@ -504,8 +504,7 @@ struct ReleaseTargetSection: View {
                             Text("· \(author)")
                         }
                         if let date = commit.date { Text("· \(date.formatted(.relative(presentation: .named)))") }
-                        Link(destination: commit.htmlURL) { Image(systemName: "arrow.up.right.square") }
-                            .help("Open commit on GitHub")
+                        GitHubLinkIcon(url: commit.htmlURL, label: "Open commit on GitHub")
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -545,6 +544,7 @@ struct ReleaseTargetSection: View {
                 .frame(maxWidth: 220)
                 .focused($tagFocused)
                 .onSubmit(saveTag)
+                .accessibilityLabel("Tag")
             if plan.tagName != plan.suggestedTagName {
                 Button("Use \(plan.suggestedTagName)") {
                     tagText = plan.suggestedTagName
@@ -553,7 +553,7 @@ struct ReleaseTargetSection: View {
                 .buttonStyle(.link)
             }
             Text("Created by GitHub when you publish.")
-                .font(.caption)
+                .font(.callout)
                 .foregroundStyle(.secondary)
         }
     }

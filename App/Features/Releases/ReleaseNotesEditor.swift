@@ -22,17 +22,21 @@ struct ReleaseNotesEditor: View {
                 SectionTitle("Release Notes", detail: "Markdown, as it will appear on GitHub.")
                 Spacer()
                 if isGenerating || release.isLoadingChanges { ProgressView().controlSize(.small) }
+                // Two plain controls rather than a split button, whose arrow part has no accessible description.
+                Button("Generate", systemImage: "wand.and.stars") { Task { await generate() } }
+                    .disabled(isGenerating)
+                    .help("Generate notes from completed tasks and the GitHub changes since the compare tag")
                 Menu {
                     Toggle("Completed Tasks", isOn: $release.changelogOptions.includeTasks)
                     Toggle("Merged Pull Requests", isOn: $release.changelogOptions.includePullRequests)
                     Toggle("Other Commits", isOn: $release.changelogOptions.includeCommits)
                 } label: {
-                    Label("Generate", systemImage: "wand.and.stars")
-                } primaryAction: {
-                    Task { await generate() }
+                    Label("What to Include", systemImage: "slider.horizontal.3")
                 }
+                .labelStyle(.iconOnly)
                 .fixedSize()
-                .disabled(isGenerating)
+                .help("Choose what generated notes include")
+                .accessibilityLabel("What generated notes include")
                 .help("Generate notes from completed tasks and the GitHub changes since the compare tag")
                 Picker("Mode", selection: $mode) {
                     ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) }

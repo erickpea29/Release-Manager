@@ -18,6 +18,8 @@ public enum ValidationError: Error, Sendable, Equatable, LocalizedError {
     case invalidTagName(String)
     case invalidCommitSHA(String)
     case releaseNotesTooLong(maximum: Int)
+    case duplicateColumnName(String)
+    case needsOneCompletionColumn
 
     public var errorDescription: String? {
         switch self {
@@ -37,6 +39,8 @@ public enum ValidationError: Error, Sendable, Equatable, LocalizedError {
         case .invalidTagName(let name): "“\(name)” can’t be used as a Git tag."
         case .invalidCommitSHA(let sha): "“\(sha)” isn’t a full commit SHA."
         case .releaseNotesTooLong(let maximum): "Release notes can be at most \(maximum) characters."
+        case .duplicateColumnName(let name): "There’s already a column named “\(name)”."
+        case .needsOneCompletionColumn: "A board needs exactly one completion column."
         }
     }
 
@@ -58,6 +62,8 @@ public enum ValidationError: Error, Sendable, Equatable, LocalizedError {
         case .invalidTagName: "Use letters, digits, dots, hyphens, and slashes, such as v1.4.0."
         case .invalidCommitSHA: "Choose the target commit from the branch’s commits."
         case .releaseNotesTooLong: "Shorten the notes, or link to a longer changelog."
+        case .duplicateColumnName: "Use a different name."
+        case .needsOneCompletionColumn: "Mark one column as the completion column."
         }
     }
 }

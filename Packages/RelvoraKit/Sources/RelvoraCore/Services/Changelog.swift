@@ -1,7 +1,7 @@
 import Foundation
 
-/// Changelog sections, in the order they appear.
-public enum ChangelogCategory: Int, Sendable, CaseIterable, Comparable {
+/// Changelog sections, in the order they appear. Raw values are stable keys for settings and backups.
+public enum ChangelogCategory: String, Sendable, CaseIterable, Comparable, Codable {
     case breaking, features, improvements, fixes, documentation, maintenance, other
 
     public var title: String {
@@ -16,7 +16,9 @@ public enum ChangelogCategory: Int, Sendable, CaseIterable, Comparable {
         }
     }
 
-    public static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
+    public static func < (lhs: Self, rhs: Self) -> Bool {
+        allCases.firstIndex(of: lhs)! < allCases.firstIndex(of: rhs)!
+    }
 
     init(_ type: TaskType) {
         switch type {
@@ -37,11 +39,38 @@ public struct ChangelogOptions: Sendable, Equatable {
     public var includePullRequests: Bool
     /// Commits that aren't part of a listed pull request.
     public var includeCommits: Bool
+    /// The user's own label → section rules (Settings › Releases). They win over the built-in mapping.
+    public var labelRules: [ChangelogLabelRule]
 
-    public init(includeTasks: Bool = true, includePullRequests: Bool = true, includeCommits: Bool = true) {
+    public init(
+        includeTasks: Bool = true, includePullRequests: Bool = true, includeCommits: Bool = true,
+        labelRules: [ChangelogLabelRule] = []
+    ) {
         self.includeTasks = includeTasks
         self.includePullRequests = includePullRequests
         self.includeCommits = includeCommits
+        self.labelRules = labelRules
+    }
+}
+
+/// Puts pull requests with a label into a section, e.g. `ui` → Improvements. Labels match ignoring case.
+public struct ChangelogLabelRule: Sendable, Hashable, Codable {
+    public var label: String
+    public var category: ChangelogCategory
+
+    public init(label: String, category: ChangelogCategory) {
+        self.label = label
+        self.category = category
+    }
+
+    /// Trimmed, non-empty rules; a label listed twice keeps its first rule.
+    public static func normalized(_ rules: [ChangelogLabelRule]) -> [ChangelogLabelRule] {
+        var seen = Set<String>()
+        return rules.compactMap { rule in
+            let label = rule.label.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !label.isEmpty, seen.insert(label.lowercased()).inserted else { return nil }
+            return ChangelogLabelRule(label: label, category: rule.category)
+        }
     }
 }
 
@@ -95,7 +124,8 @@ public enum ChangelogGenerator {
 
         for pullRequest in pullRequests {
             let parsed = ConventionalTitle(pullRequest.title)
-            let category = category(labels: pullRequest.labels, title: pullRequest.title) ?? .other
+            let category =
+                category(labels: pullRequest.labels, title: pullRequest.title, rules: options.labelRules) ?? .other
             var text = "\(oneLine(parsed.description)) (#\(pullRequest.number))"
             if let author = pullRequest.authorLogin { text += " by @\(author)" }
             entries.append(ChangelogEntry(category: category, text: text))
@@ -140,9 +170,15 @@ public enum ChangelogGenerator {
         return warnings
     }
 
-    /// The section for a pull request or commit, from labels first, then a Conventional Commits prefix.
-    /// `nil` when neither gives a signal.
-    public static func category(labels: [String], title: String) -> ChangelogCategory? {
+    /// The section for a pull request or commit: the user's label rules first, then built-in label meanings, then a
+    /// Conventional Commits prefix. `nil` when nothing gives a signal.
+    public static func category(labels: [String], title: String, rules: [ChangelogLabelRule] = []) -> ChangelogCategory?
+    {
+        let custom = labels.compactMap { label in
+            rules.first { $0.label.caseInsensitiveCompare(label.trimmingCharacters(in: .whitespaces)) == .orderedSame }?
+                .category
+        }
+        if let best = custom.min() { return best }
         let labelCategories = labels.compactMap(category(label:))
         if let best = labelCategories.min() { return best }
         let parsed = ConventionalTitle(title)

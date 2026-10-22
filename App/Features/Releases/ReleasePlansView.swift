@@ -25,8 +25,10 @@ struct ReleasePlansView: View {
                     planList
                     Divider()
                     if let id = selection, model.plan(id) != nil {
-                        ReleasePlanDetailContainer(planID: id, workspace: model, github: app.github)
-                            .id(id)
+                        ReleasePlanDetailContainer(
+                            planID: id, workspace: model, github: app.github, preferences: app.preferences
+                        )
+                        .id(id)
                     } else {
                         ContentUnavailableView("Select a Release Plan", systemImage: "shippingbox")
                     }
@@ -63,7 +65,7 @@ struct ReleasePlansView: View {
     private var planList: some View {
         List(selection: $selection) {
             ForEach(model.releasePlans.reversed()) { plan in
-                ReleasePlanRow(plan: plan, taskCount: model.taskCount(for: plan))
+                ReleasePlanRow(plan: plan, taskCount: model.taskCount(for: plan), isSelected: plan.id == selection)
                     .tag(plan.id)
                     .contextMenu {
                         Button("Edit…") { model.planEditor = .edit(plan) }
@@ -76,6 +78,7 @@ struct ReleasePlansView: View {
                     }
             }
         }
+        .accessibilityLabel("Release plans")
         .frame(width: 250)
     }
 
@@ -87,6 +90,7 @@ struct ReleasePlansView: View {
 struct ReleasePlanRow: View {
     let plan: ReleasePlan
     let taskCount: Int
+    var isSelected = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xxs) {
@@ -95,16 +99,18 @@ struct ReleasePlanRow: View {
                     .font(.headline.monospaced())
                     .lineLimit(1)
                 Spacer()
-                StatusBadge(status: plan.status)
+                RowStatusLabel(plan.status, isSelected: isSelected)
             }
+            // Full-strength text when selected: secondary text failed the contrast audit on the gray (inactive)
+            // selection highlight.
             if let title = plan.title {
                 Text(title)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(isSelected ? .primary : .secondary)
                     .lineLimit(1)
             }
             Text(caption)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(isSelected ? .primary : .secondary)
         }
         .padding(.vertical, Spacing.xxs)
         .accessibilityElement(children: .combine)
@@ -125,8 +131,9 @@ struct ReleasePlanRow: View {
 private struct ReleasePlanDetailContainer: View {
     @State private var release: ReleaseModel
 
-    init(planID: UUID, workspace: WorkspaceModel, github: GitHubModel) {
-        _release = State(initialValue: ReleaseModel(planID: planID, workspace: workspace, github: github))
+    init(planID: UUID, workspace: WorkspaceModel, github: GitHubModel, preferences: Preferences) {
+        _release = State(
+            initialValue: ReleaseModel(planID: planID, workspace: workspace, github: github, preferences: preferences))
     }
 
     var body: some View {

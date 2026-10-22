@@ -14,17 +14,47 @@ public enum ProjectRules {
     /// Default board for new projects. The last column is the completion column.
     public static let defaultColumnNames = ["Backlog", "To Do", "In Progress", "Review", "Done"]
 
+    public static var defaultTemplate: [ColumnTemplate] {
+        defaultColumnNames.map { ColumnTemplate(name: $0, isCompletion: $0 == defaultColumnNames.last) }
+    }
+
     public static func defaultColumns(projectID: UUID, now: Date) -> [BoardColumn] {
-        let orders = FractionalIndex.renormalized(count: defaultColumnNames.count)
-        return zip(defaultColumnNames, orders).map { name, order in
+        columns(from: defaultTemplate, projectID: projectID, now: now)
+    }
+
+    public static func columns(from template: [ColumnTemplate], projectID: UUID, now: Date) -> [BoardColumn] {
+        let orders = FractionalIndex.renormalized(count: template.count)
+        return zip(template, orders).map { column, order in
             BoardColumn(
-                projectID: projectID,
-                name: name,
-                sortOrder: order,
-                isCompletionColumn: name == defaultColumnNames.last,
-                createdAt: now
-            )
+                projectID: projectID, name: column.name, sortOrder: order, isCompletionColumn: column.isCompletion,
+                createdAt: now)
         }
+    }
+
+    /// The board template for new projects (Settings › Board): at least one column, exactly one completion
+    /// column, valid names that differ ignoring case.
+    public static func validatedTemplate(_ template: [ColumnTemplate]) throws(ValidationError) -> [ColumnTemplate] {
+        guard !template.isEmpty else { throw .cannotDeleteLastColumn }
+        var seen = Set<String>()
+        var result: [ColumnTemplate] = []
+        for column in template {
+            let name = try BoardPlanner.validatedColumnName(column.name)
+            guard seen.insert(name.lowercased()).inserted else { throw .duplicateColumnName(name) }
+            result.append(ColumnTemplate(name: name, isCompletion: column.isCompletion))
+        }
+        guard result.filter(\.isCompletion).count == 1 else { throw .needsOneCompletionColumn }
+        return result
+    }
+}
+
+/// A column of the board new projects start with.
+public struct ColumnTemplate: Sendable, Hashable, Codable {
+    public var name: String
+    public var isCompletion: Bool
+
+    public init(name: String, isCompletion: Bool) {
+        self.name = name
+        self.isCompletion = isCompletion
     }
 }
 
@@ -38,19 +68,20 @@ public struct ProjectService: Sendable {
         self.now = now
     }
 
-    /// Creates a validated project with the default board in one transaction.
+    /// Creates a validated project and its board (the given template, else the default) in one transaction.
     /// Throws `ValidationError` for bad input or `PersistenceError` if saving fails.
-    public func create(name: String, details: String? = nil) async throws -> Project {
+    public func create(name: String, details: String? = nil, columns template: [ColumnTemplate]? = nil) async throws
+        -> Project
+    {
         let timestamp = now()
         let project = Project(
             name: try ProjectRules.validatedName(name),
             details: details?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
             createdAt: timestamp
         )
+        let template = try template.map(ProjectRules.validatedTemplate) ?? ProjectRules.defaultTemplate
         try await repository.create(
-            project,
-            columns: ProjectRules.defaultColumns(projectID: project.id, now: timestamp)
-        )
+            project, columns: ProjectRules.columns(from: template, projectID: project.id, now: timestamp))
         return project
     }
 

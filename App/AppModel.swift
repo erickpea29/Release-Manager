@@ -43,6 +43,8 @@ struct LaunchOptions {
     var demoGitHub = false
     /// Runs a `DemoScenario` on the first release plan shown.
     var demoScenario: String?
+    /// Keeps settings in this `UserDefaults` suite, emptied at launch (UI tests never touch the real settings).
+    var defaultsSuite: String?
 
     static func current(_ defaults: UserDefaults = .standard) -> LaunchOptions {
         var options = LaunchOptions()
@@ -56,6 +58,7 @@ struct LaunchOptions {
             options.connectRepository = defaults.string(forKey: "RelvoraConnectRepository")
             options.demoGitHub = defaults.bool(forKey: "RelvoraDemoGitHub")
             options.demoScenario = defaults.string(forKey: "RelvoraDemoScenario")
+            options.defaultsSuite = defaults.string(forKey: "RelvoraDefaultsSuite")
         #endif
         return options
     }
@@ -90,6 +93,8 @@ struct ProjectStats: Equatable {
     var taskCount = 0
     var completedCount = 0
     var activePlanVersion: String?
+    /// The plan in progress, if any.
+    var activePlan: ReleasePlan?
     /// The newest verified publication.
     var lastRelease: ReleaseSnapshot?
 
@@ -106,6 +111,18 @@ enum ProjectEditorRequest: Identifiable {
         case .edit(let project): project.id.uuidString
         }
     }
+}
+
+/// Something to do in a project's workspace, requested from outside it (quick actions, menus).
+struct WorkspaceRequest: Equatable {
+    enum Action: Equatable {
+        case newTask
+        case newReleasePlan
+    }
+
+    let projectID: UUID
+    var tab: WorkspaceTab?
+    var action: Action?
 }
 
 struct PendingRestore: Identifiable {
@@ -140,16 +157,29 @@ final class AppModel {
     var historySelection: UUID?
     /// A sidebar destination requested from inside a view (for example "Show in Release History").
     var navigationRequest: SidebarItem?
+    /// The project shown in the main window, if any (kept by the root view).
+    var currentProjectID: UUID?
+    var workspaceRequest: WorkspaceRequest?
+    var isShowingQuickActions = false
 
     let environment: AppEnvironment?
     let options: LaunchOptions
     let github: GitHubModel
+    let preferences: Preferences
 
     var activeProjects: [Project] { projects.filter { !$0.isArchived } }
     var archivedProjects: [Project] { projects.filter(\.isArchived) }
 
     init(options: LaunchOptions = .current()) {
         self.options = options
+        var defaults = UserDefaults.standard
+        #if DEBUG
+            if let suite = options.defaultsSuite, let isolated = UserDefaults(suiteName: suite) {
+                isolated.removePersistentDomain(forName: suite)
+                defaults = isolated
+            }
+        #endif
+        preferences = Preferences(defaults: defaults)
         do {
             let store =
                 options.inMemoryStore
@@ -207,6 +237,7 @@ final class AppModel {
                 taskCount: state.tasks.count,
                 completedCount: state.tasks.filter { $0.completedAt != nil }.count,
                 activePlanVersion: plans.first(where: \.status.isActive)?.version,
+                activePlan: plans.first(where: \.status.isActive),
                 lastRelease: snapshots.filter { $0.state == .published }.max {
                     ($0.publishedAt ?? .distantPast) < ($1.publishedAt ?? .distantPast)
                 }
@@ -221,7 +252,8 @@ final class AppModel {
     /// Throws so the editor can show validation messages inline.
     func createProject(name: String, details: String?) async throws -> Project {
         guard let environment else { throw startupError ?? .storeUnavailable(reason: "No store") }
-        let project = try await environment.projects.create(name: name, details: details)
+        let project = try await environment.projects.create(
+            name: name, details: details, columns: preferences.newProjectColumns)
         projects.append(project)
         await refreshStats(for: project.id)
         return project
@@ -268,6 +300,12 @@ final class AppModel {
         navigationRequest = .history
     }
 
+    /// Opens a project, optionally on a tab and with an action such as starting a new task.
+    func openProject(_ id: UUID, tab: WorkspaceTab? = nil, action: WorkspaceRequest.Action? = nil) {
+        navigationRequest = .project(id)
+        if tab != nil || action != nil { workspaceRequest = WorkspaceRequest(projectID: id, tab: tab, action: action) }
+    }
+
     private func replace(_ project: Project) {
         if let index = projects.firstIndex(where: { $0.id == project.id }) { projects[index] = project }
     }
@@ -277,7 +315,8 @@ final class AppModel {
     func beginBackupExport() async {
         guard let environment else { return }
         do {
-            let document = try await environment.backups.export(appVersion: Self.appVersion)
+            let document = try await environment.backups.export(
+                appVersion: Self.appVersion, preferences: preferences.record)
             backupToExport = BackupFile(data: try document.encoded())
             isExportingBackup = true
         } catch {
@@ -310,11 +349,13 @@ final class AppModel {
         guard let pending = pendingRestore, let environment else { return }
         pendingRestore = nil
         do {
-            let safety = try await environment.backups.export(appVersion: Self.appVersion)
+            let safety = try await environment.backups.export(
+                appVersion: Self.appVersion, preferences: preferences.record)
             let safetyURL = try Self.safetyBackupURL()
             try safety.encoded().write(to: safetyURL, options: .atomic)
 
             let summary = try await environment.backups.restore(pending.document)
+            if let record = pending.document.preferences { preferences.apply(record) }
             dataVersion += 1
             await loadProjects()
             alert = AppAlert(

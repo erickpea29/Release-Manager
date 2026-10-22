@@ -30,7 +30,7 @@ jobs:
           swift --version
 
       - name: Lint
-        run: xcrun swift-format lint --strict --recursive --parallel App Packages
+        run: xcrun swift-format lint --strict --recursive --parallel App Packages UITests
 
       - name: Test RelvoraKit
         working-directory: Packages/RelvoraKit
@@ -43,3 +43,32 @@ jobs:
           -project Relvora.xcodeproj -scheme Relvora -configuration Debug
           -destination "platform=macOS,arch=arm64"
           -derivedDataPath build/DerivedData
+
+  ui-tests:
+    name: UI tests (macOS 26)
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      # XCUITest drives the app through the accessibility API; allow it without an interactive prompt.
+      - name: Allow UI automation
+        run: sudo automationmodetool enable-automationmode-without-authentication
+
+      # In-memory store, demo GitHub, and a separate settings suite: no real data, account, or network.
+      - name: UI tests
+        run: >-
+          xcodebuild test -quiet
+          -project Relvora.xcodeproj -scheme Relvora
+          -destination "platform=macOS,arch=arm64"
+          -derivedDataPath build/DerivedData
+          -resultBundlePath build/UITests.xcresult
+
+      - name: Keep the test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: UITests.xcresult
+          path: build/UITests.xcresult
+          retention-days: 7
+

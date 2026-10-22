@@ -20,7 +20,7 @@ struct BackupDocumentTests {
         let document = BackupDocument(bundles: [sampleBundle()], exportedAt: .now, appVersion: "0.2.0")
         let data = try document.encoded()
         let text = String(decoding: data, as: UTF8.self)
-        #expect(text.contains("\"formatVersion\" : 3"))
+        #expect(text.contains("\"formatVersion\" : 4"))
         #expect(text.contains("\"priority\" : \"medium\""))
         #expect(text.contains(".123Z"))
 
@@ -29,10 +29,32 @@ struct BackupDocumentTests {
         #expect(try decoded.bundles().first?.tasks.first?.labels == ["UI"])
     }
 
+    @Test("Preferences travel in format 4 and older files restore without them")
+    func preferences() throws {
+        let preferences = BackupDocument.PreferencesRecord(
+            appearance: "dark", accentColor: "purple", windowMaterial: "translucent",
+            newProjectColumns: [
+                ColumnTemplate(name: "Todo", isCompletion: false), ColumnTemplate(name: "Done", isCompletion: true),
+            ],
+            changelogLabelRules: [ChangelogLabelRule(label: "ui", category: .improvements)])
+        let document = BackupDocument(bundles: [], exportedAt: .now, appVersion: nil, preferences: preferences)
+        let decoded = try BackupDocument.decode(try document.encoded())
+        #expect(decoded.preferences == preferences)
+        #expect(String(decoding: try document.encoded(), as: UTF8.self).contains("\"category\" : \"improvements\""))
+
+        let old = try BackupDocument.decode(
+            Data(#"{"formatVersion": 3, "exportedAt": "2026-03-15T08:00:00Z", "projects": []}"#.utf8))
+        #expect(old.preferences == nil)
+
+        var broken = document
+        broken.preferences?.newProjectColumns = [ColumnTemplate(name: "Only", isCompletion: false)]
+        #expect(throws: BackupError.self) { try BackupValidator.validate(broken) }
+    }
+
     @Test("Newer formats and non-backup files are rejected with specific errors")
     func rejection() {
-        #expect(throws: BackupError.unsupportedFormatVersion(found: 4, supported: 3)) {
-            try BackupDocument.decode(Data(#"{"formatVersion": 4}"#.utf8))
+        #expect(throws: BackupError.unsupportedFormatVersion(found: 5, supported: 4)) {
+            try BackupDocument.decode(Data(#"{"formatVersion": 5}"#.utf8))
         }
         #expect(throws: BackupError.self) { try BackupDocument.decode(Data("not json".utf8)) }
         #expect(throws: BackupError.self) { try BackupDocument.decode(Data(#"{"formatVersion": 1}"#.utf8)) }
@@ -143,6 +165,31 @@ struct ProjectServiceTests {
 
         await #expect(throws: ValidationError.emptyName) { try await service.update(renamed, name: " ", details: nil) }
         #expect(await repository.stored[original.id]?.name == "New")
+    }
+
+    @Test("New projects use the board template from Settings; bad templates are refused")
+    func boardTemplate() async throws {
+        let repository = InMemoryProjectRepository()
+        let template = [
+            ColumnTemplate(name: " Ideas ", isCompletion: false), ColumnTemplate(name: "Shipped", isCompletion: true),
+        ]
+        let project = try await ProjectService(repository: repository).create(name: "App", columns: template)
+        let columns = try #require(await repository.columns[project.id])
+        #expect(columns.map(\.name) == ["Ideas", "Shipped"])
+        #expect(columns.map(\.isCompletionColumn) == [false, true])
+
+        #expect(throws: ValidationError.needsOneCompletionColumn) {
+            try ProjectRules.validatedTemplate([ColumnTemplate(name: "A", isCompletion: false)])
+        }
+        #expect(throws: ValidationError.duplicateColumnName("done")) {
+            try ProjectRules.validatedTemplate([
+                ColumnTemplate(name: "Done", isCompletion: true), ColumnTemplate(name: "done", isCompletion: false),
+            ])
+        }
+        #expect(throws: ValidationError.cannotDeleteLastColumn) { try ProjectRules.validatedTemplate([]) }
+        await #expect(throws: ValidationError.self) {
+            try await ProjectService(repository: repository).create(name: "Bad", columns: [])
+        }
     }
 
     @Test("Persistence failures propagate unchanged")

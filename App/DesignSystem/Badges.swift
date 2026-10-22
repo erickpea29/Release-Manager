@@ -81,12 +81,7 @@ struct SnapshotStateBadge: View {
     let state: ReleaseSnapshotState
 
     var body: some View {
-        Label(state.title, systemImage: state.symbol)
-            .font(.caption.weight(.medium))
-            .foregroundStyle(state.tint)
-            .padding(.horizontal, Spacing.xs)
-            .padding(.vertical, 2)
-            .background(state.tint.opacity(0.12), in: Capsule())
+        StatusCapsule(title: state.title, symbol: state.symbol, tint: state.tint)
     }
 }
 
@@ -124,17 +119,77 @@ struct FactRow<Content: View>: View {
     }
 }
 
+/// An icon-only link to a page on GitHub, with a tooltip and a spoken label.
+struct GitHubLinkIcon: View {
+    let url: URL
+    let label: String
+
+    var body: some View {
+        Link(destination: url) { Image(systemName: "arrow.up.right.square") }
+            .help(label)
+            .accessibilityLabel(label)
+    }
+}
+
 /// Release status: always icon + text, never color alone.
 struct StatusBadge: View {
     let status: ReleasePlanStatus
 
     var body: some View {
-        Label(status.title, systemImage: status.symbol)
-            .font(.caption.weight(.medium))
-            .foregroundStyle(status.tint)
-            .padding(.horizontal, Spacing.xs)
-            .padding(.vertical, 2)
-            .background(status.tint.opacity(0.12), in: Capsule())
+        StatusCapsule(title: status.title, symbol: status.symbol, tint: status.tint)
+    }
+}
+
+/// Status inside a list row: icon and text without a capsule, so the text follows the row's color (white on a
+/// focused selection). A translucent capsule lightened the selection behind white text and failed the contrast audit.
+struct RowStatusLabel: View {
+    let title: String
+    let symbol: String
+    let tint: Color
+    var isSelected = false
+
+    init(_ status: ReleasePlanStatus, isSelected: Bool = false) {
+        self.init(title: status.title, symbol: status.symbol, tint: status.tint, isSelected: isSelected)
+    }
+
+    init(_ state: ReleaseSnapshotState, isSelected: Bool = false) {
+        self.init(title: state.title, symbol: state.symbol, tint: state.tint, isSelected: isSelected)
+    }
+
+    init(title: String, symbol: String, tint: Color, isSelected: Bool) {
+        self.title = title
+        self.symbol = symbol
+        self.tint = tint
+        self.isSelected = isSelected
+    }
+
+    var body: some View {
+        Label {
+            Text(title)
+        } icon: {
+            Image(systemName: symbol).foregroundStyle(isSelected ? AnyShapeStyle(.primary) : AnyShapeStyle(tint))
+        }
+        .font(.caption.weight(.medium))
+    }
+}
+
+/// Colored icon and capsule with full-strength text: colored caption text failed the contrast audit on tinted
+/// backgrounds and selected rows.
+private struct StatusCapsule: View {
+    let title: String
+    let symbol: String
+    let tint: Color
+
+    var body: some View {
+        Label {
+            Text(title).foregroundStyle(.primary)
+        } icon: {
+            Image(systemName: symbol).foregroundStyle(tint)
+        }
+        .font(.caption.weight(.medium))
+        .padding(.horizontal, Spacing.xs)
+        .padding(.vertical, 2)
+        .background(tint.opacity(0.14), in: Capsule())
     }
 }
 

@@ -12,18 +12,34 @@
 		B2000000000000000000001B /* GitHubIntegration in Frameworks */ = {isa = PBXBuildFile; productRef = B2000000000000000000001C /* GitHubIntegration */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		B20000000000000000000021 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B20000000000000000000009 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B20000000000000000000006;
+			remoteInfo = Relvora;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		B20000000000000000000001 /* Relvora.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Relvora.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20000000000000000000017 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
 		B20000000000000000000018 /* Local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text; path = Local.xcconfig.example; sourceTree = "<group>"; };
 		B20000000000000000000019 /* Relvora.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Relvora.entitlements; sourceTree = "<group>"; };
 		B2000000000000000000001D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B20000000000000000000020 /* RelvoraUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RelvoraUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		B20000000000000000000002 /* App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = App;
+			sourceTree = "<group>";
+		};
+		B20000000000000000000022 /* UITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = UITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -39,6 +55,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B20000000000000000000023 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -46,6 +69,7 @@
 			isa = PBXGroup;
 			children = (
 				B20000000000000000000002 /* App */,
+				B20000000000000000000022 /* UITests */,
 				B2000000000000000000001A /* Config */,
 				B20000000000000000000005 /* Products */,
 			);
@@ -55,6 +79,7 @@
 			isa = PBXGroup;
 			children = (
 				B20000000000000000000001 /* Relvora.app */,
+				B20000000000000000000020 /* RelvoraUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -98,6 +123,27 @@
 			productReference = B20000000000000000000001 /* Relvora.app */;
 			productType = "com.apple.product-type.application";
 		};
+		B20000000000000000000024 /* RelvoraUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B20000000000000000000025 /* Build configuration list for PBXNativeTarget "RelvoraUITests" */;
+			buildPhases = (
+				B20000000000000000000026 /* Sources */,
+				B20000000000000000000023 /* Frameworks */,
+				B20000000000000000000027 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B20000000000000000000028 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				B20000000000000000000022 /* UITests */,
+			);
+			name = RelvoraUITests;
+			productName = RelvoraUITests;
+			productReference = B20000000000000000000020 /* RelvoraUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -110,6 +156,10 @@
 				TargetAttributes = {
 					B20000000000000000000006 = {
 						CreatedOnToolsVersion = 26.0;
+					};
+					B20000000000000000000024 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = B20000000000000000000006;
 					};
 				};
 			};
@@ -131,12 +181,20 @@
 			projectRoot = "";
 			targets = (
 				B20000000000000000000006 /* Relvora */,
+				B20000000000000000000024 /* RelvoraUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		B20000000000000000000008 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B20000000000000000000027 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -153,7 +211,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B20000000000000000000026 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B20000000000000000000028 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B20000000000000000000006 /* Relvora */;
+			targetProxy = B20000000000000000000021 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		B20000000000000000000011 /* Debug */ = {
@@ -251,6 +324,34 @@
 			};
 			name = Release;
 		};
+		B20000000000000000000029 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B20000000000000000000017 /* Shared.xcconfig */;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(RELVORA_BUNDLE_ID_BASE).UITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = Relvora;
+			};
+			name = Debug;
+		};
+		B2000000000000000000002A /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B20000000000000000000017 /* Shared.xcconfig */;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(RELVORA_BUNDLE_ID_BASE).UITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = Relvora;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -268,6 +369,15 @@
 			buildConfigurations = (
 				B20000000000000000000015 /* Debug */,
 				B20000000000000000000016 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B20000000000000000000025 /* Build configuration list for PBXNativeTarget "RelvoraUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B20000000000000000000029 /* Debug */,
+				B2000000000000000000002A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

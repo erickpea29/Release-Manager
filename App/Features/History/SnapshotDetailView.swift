@@ -174,8 +174,7 @@ struct SnapshotDetailView: View {
                     if let author = pullRequest.authorLogin {
                         Text("@\(author)").font(.caption).foregroundStyle(.secondary)
                     }
-                    Link(destination: pullRequest.htmlURL) { Image(systemName: "arrow.up.right.square") }
-                        .help("Open pull request on GitHub")
+                    GitHubLinkIcon(url: pullRequest.htmlURL, label: "Open pull request on GitHub")
                 }
                 .accessibilityElement(children: .combine)
             }

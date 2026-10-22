@@ -20,6 +20,8 @@ enum WorkspaceTab: String, CaseIterable, Identifiable {
 extension FocusedValues {
     /// Present while a project board is focused; drives File › New Task (⌘N).
     @Entry var newTaskAction: (@MainActor () -> Void)?
+    /// The open project's tab, for Go › Board / Releases / GitHub.
+    @Entry var workspaceTab: Binding<String>?
 }
 
 /// A project's board and release plans.
@@ -79,6 +81,25 @@ struct ProjectWorkspaceView: View {
             }
         }
         .task(id: "\(project.id)-\(app.dataVersion)") { await makeModel() }
+        .onChange(of: app.workspaceRequest) { handleRequest() }
+        .focusedSceneValue(\.workspaceTab, $tabID)
+    }
+
+    /// Applies a request from quick actions or menus once this project's model exists.
+    private func handleRequest() {
+        guard let request = app.workspaceRequest, request.projectID == project.id, let model else { return }
+        app.workspaceRequest = nil
+        if let tab = request.tab { tabID = tab.rawValue }
+        switch request.action {
+        case .newTask?:
+            tabID = WorkspaceTab.board.rawValue
+            model.beginNewTask()
+        case .newReleasePlan?:
+            tabID = WorkspaceTab.releases.rawValue
+            if model.activePlan == nil { model.planEditor = .new }
+        case nil:
+            break
+        }
     }
 
     private func makeModel() async {
@@ -92,6 +113,7 @@ struct ProjectWorkspaceView: View {
         }
         self.model = model
         await model.load()
+        handleRequest()
         #if DEBUG
             if let fullName = app.options.connectRepository, app.github.isConnected,
                 !model.connections.contains(where: { $0.fullName == fullName }),
