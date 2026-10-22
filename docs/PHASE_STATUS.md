@@ -5,7 +5,7 @@
 | M00 — Technical Validation | **Complete** (2026-10-21) |
 | M01 — Foundation | **Complete**: merged in PR #1 ([report](M01_FOUNDATION.md)) |
 | M02 — Projects and Kanban | **Complete**: merged in PR #2 ([report](M02_PROJECTS_AND_KANBAN.md)) |
-| M03 — GitHub Integration | **Complete**: CI passed, live check passed; PR #3 awaiting merge ([report](M03_GITHUB_INTEGRATION.md)) |
+| M03 — GitHub Integration | **Complete**: merged in PR #3 ([report](M03_GITHUB_INTEGRATION.md)) |
 | M04 — Release Workflow and History | Next |
 | M05 — Design Polish and Distribution | Not started |
 
@@ -47,7 +47,7 @@
 - [x] Backup export and restore (validated, safety copy, atomic)
 - [x] Data-integrity tests for moves, edits, deletions
 - [x] CI on PR #2 (lint, 49/49 tests, app build)
-- [ ] Owner manual interaction checklist ([report §5](M02_PROJECTS_AND_KANBAN.md#5-not-verified-automatically-manual-checklist-for-the-owner))
+- [ ] Owner manual interaction checklist ([report §5](M02_PROJECTS_AND_KANBAN.md#5-not-verified-automatically-manual-checklist-for-the-owner)) — not reported; owner merged PR #2
 
 ## M03 checklist
 

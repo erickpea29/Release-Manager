@@ -1,6 +1,6 @@
 # M01 — Foundation Report
 
-Status: **Complete** (pending owner merge of PR #1) · 2026-10-21
+Status: **Complete**, merged in PR #1 · 2026-10-21
 
 ## 1. What was built
 

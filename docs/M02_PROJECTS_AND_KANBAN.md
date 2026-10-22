@@ -1,6 +1,6 @@
 # M02 — Projects and Kanban Report
 
-Status: **Complete pending owner manual checks** · 2026-10-22 · PR #2
+Status: **Complete**, merged in PR #2 · 2026-10-22. The §5 manual checklist was not reported back before merging.
 
 ## 1. What was built
 
