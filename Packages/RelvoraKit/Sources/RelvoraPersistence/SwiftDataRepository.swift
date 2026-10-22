@@ -126,6 +126,20 @@ actor SwiftDataRepository {
         return entity
     }
 
+    private func insertSnapshot(_ snapshot: ReleaseSnapshot, into project: ProjectEntity, in context: ModelContext) {
+        let entity = ReleaseSnapshotEntity(snapshot)
+        context.insert(entity)
+        entity.project = project
+    }
+
+    private func snapshotEntity(_ id: UUID, in context: ModelContext) throws(PersistenceError)
+        -> ReleaseSnapshotEntity?
+    {
+        var descriptor = FetchDescriptor<ReleaseSnapshotEntity>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try fetch(descriptor, in: context).first
+    }
+
     private func insertTask(
         _ task: ProjectTask,
         project: ProjectEntity,
@@ -349,11 +363,18 @@ extension SwiftDataRepository: ReleasePlanRepository {
     }
 
     func save(_ plan: ReleasePlan) throws(PersistenceError) {
+        guard plan.status == .planned || plan.status == .cancelled else {
+            throw .integrityViolation("Release states after planning are recorded by the release workflow.")
+        }
         try transaction { context throws(PersistenceError) in
             let project = try projectEntity(plan.projectID, in: context)
             if let existing = try planEntity(plan.id, in: context) {
                 guard existing.project?.id == plan.projectID else {
                     throw .integrityViolation("A release plan cannot move to another project.")
+                }
+                // Later states belong to the release workflow (`record`); an edit must never overwrite them.
+                guard existing.statusRaw == ReleasePlanStatus.planned.rawValue else {
+                    throw .outdated(entity: "release plan")
                 }
                 existing.apply(plan)
             } else {
@@ -367,6 +388,8 @@ extension SwiftDataRepository: ReleasePlanRepository {
             guard let entity = try planEntity(id, in: context) else {
                 throw .notFound(entity: "release plan", id: id)
             }
+            let status = ReleasePlanStatus(rawValue: entity.statusRaw)
+            guard status == .planned || status == .cancelled else { throw .outdated(entity: "release plan") }
             context.delete(entity)
         }
     }
@@ -388,6 +411,9 @@ extension SwiftDataRepository: BackupRepository {
                     },
                     repositoryConnections: entity.repositoryConnections.compactMap(RepositoryConnection.init).sorted {
                         $0.createdAt < $1.createdAt
+                    },
+                    releaseSnapshots: entity.releaseSnapshots.compactMap(ReleaseSnapshot.init).sorted {
+                        $0.snapshotCreatedAt < $1.snapshotCreatedAt
                     }
                 )
             }
@@ -411,6 +437,9 @@ extension SwiftDataRepository: BackupRepository {
                 }
                 for connection in bundle.repositoryConnections {
                     insertConnection(connection, into: project, in: context)
+                }
+                for snapshot in bundle.releaseSnapshots {
+                    insertSnapshot(snapshot, into: project, in: context)
                 }
                 for task in bundle.tasks {
                     guard let column = columns[task.columnID] else {
@@ -470,6 +499,79 @@ extension SwiftDataRepository: RepositoryConnectionRepository {
                 throw .notFound(entity: "repository connection", id: id)
             }
             context.delete(entity)
+        }
+    }
+}
+
+// MARK: - Release snapshots
+
+extension SwiftDataRepository: ReleaseSnapshotRepository {
+    func snapshots(projectID: UUID) throws(PersistenceError) -> [ReleaseSnapshot] {
+        try read { context throws(PersistenceError) in
+            try projectEntity(projectID, in: context).releaseSnapshots.compactMap(ReleaseSnapshot.init)
+                .sorted { $0.snapshotCreatedAt < $1.snapshotCreatedAt }
+        }
+    }
+
+    func allSnapshots() throws(PersistenceError) -> [ReleaseSnapshot] {
+        try read { context throws(PersistenceError) in
+            try fetch(
+                FetchDescriptor<ReleaseSnapshotEntity>(sortBy: [SortDescriptor(\.snapshotCreatedAt)]), in: context
+            )
+            .compactMap(ReleaseSnapshot.init)
+        }
+    }
+
+    func record(_ record: ReleaseRecord) throws(PersistenceError) {
+        try transaction { context throws(PersistenceError) in
+            guard let plan = try planEntity(record.planID, in: context), let project = plan.project else {
+                throw .notFound(entity: "release plan", id: record.planID)
+            }
+            // Compare-and-set: a second attempt that read the same state fails here instead of acting twice.
+            guard plan.statusRaw == record.expectedStatus.rawValue else { throw .outdated(entity: "release plan") }
+
+            switch record.operation {
+            case .none:
+                break
+            case .insert(let snapshot):
+                guard snapshot.projectID == project.id, snapshot.releasePlanID == plan.id else {
+                    throw .integrityViolation("A release snapshot must belong to its plan's project.")
+                }
+                switch (snapshot.origin, snapshot.state) {
+                case (.relvoraDraft, .pending), (.external, .published): break
+                default:
+                    throw .integrityViolation("A new release snapshot starts as pending, or published from GitHub.")
+                }
+                guard try snapshotEntity(snapshot.id, in: context) == nil else {
+                    throw .integrityViolation("A release snapshot can only be created once.")
+                }
+                let hasOpen = project.releaseSnapshots.contains {
+                    $0.releasePlanID == plan.id && ReleaseSnapshotState(rawValue: $0.stateRaw)?.isOpen == true
+                }
+                guard !hasOpen else { throw .outdated(entity: "release plan") }
+                insertSnapshot(snapshot, into: project, in: context)
+            case .transition(let id, let transition):
+                guard let entity = try snapshotEntity(id, in: context), entity.project?.id == project.id,
+                    entity.releasePlanID == plan.id, let current = ReleaseSnapshot(entity)
+                else { throw .notFound(entity: "release snapshot", id: id) }
+                guard let next = current.applying(transition, at: record.date) else {
+                    throw .integrityViolation("Release snapshots can't change that way.")
+                }
+                entity.applyLifecycle(next)
+            case .discardPending(let id):
+                guard let entity = try snapshotEntity(id, in: context), entity.project?.id == project.id,
+                    entity.releasePlanID == plan.id
+                else { throw .notFound(entity: "release snapshot", id: id) }
+                guard entity.stateRaw == ReleaseSnapshotState.pending.rawValue else {
+                    throw .integrityViolation("Only an unconfirmed release snapshot can be discarded.")
+                }
+                context.delete(entity)
+            }
+
+            plan.statusRaw = record.newStatus.rawValue
+            if let releasedAt = record.releasedAt { plan.releasedAt = releasedAt }
+            if let sha = record.targetCommitSHA { plan.targetCommitSHA = sha }
+            plan.updatedAt = record.date
         }
     }
 }

@@ -2,7 +2,7 @@
 
 A native, local-first macOS app for planning software releases: projects, Kanban boards, GitHub release data, changelogs, GitHub draft releases, and an immutable release history.
 
-**Status:** M00–M03 complete; M04 (Release Workflow and History) is next. See [docs/PHASE_STATUS.md](docs/PHASE_STATUS.md).
+**Status:** M00–M03 complete; M04 (Release Workflow and History) implemented and awaiting review. See [docs/PHASE_STATUS.md](docs/PHASE_STATUS.md).
 
 ## Requirements
 
@@ -44,8 +44,12 @@ Team-signed builds use bundle ID `com.erickpea29.Relvora.dev`. The two never sha
 | `-RelvoraInitialTab board\|releases\|github` | Opens that project tab |
 | `-RelvoraStartGitHubConnect YES` | Starts the GitHub sign-in at launch |
 | `-RelvoraConnectRepository owner/name` | Connects that repository to the initial project once signed in |
+| `-RelvoraDemoGitHub YES` | Uses an in-memory fake GitHub (`relvora-demo/relvora`) instead of github.com; **Demo GitHub › Publish Drafts** publishes its drafts |
+| `-RelvoraDemoScenario <name>` | Steps the first release plan through the workflow: `prepare`, `review`, `draft`, `published`, `mismatch`, `timeout`, `history` |
 
 Example: `open build/DerivedData/Build/Products/Debug/Relvora.app --args -RelvoraStoreName Demo -RelvoraSeedSampleData YES`
+
+Release workflow without a GitHub account: `… --args -RelvoraInMemoryStore YES -RelvoraSeedSampleData YES -RelvoraDemoGitHub YES -RelvoraInitialProject Relvora -RelvoraInitialTab releases -RelvoraConnectRepository relvora-demo/relvora`
 
 ## Test and lint
 
@@ -72,6 +76,7 @@ CI (`.github/workflows/ci.yml`) runs lint, tests, and an ad-hoc app build on a m
 | Document | Purpose |
 |---|---|
 | [docs/PHASE_STATUS.md](docs/PHASE_STATUS.md) | Phase checklist and current status |
+| [docs/M04_RELEASE_WORKFLOW.md](docs/M04_RELEASE_WORKFLOW.md) | M04 report: release preparation, changelog, drafts, reconciliation, history |
 | [docs/M03_GITHUB_INTEGRATION.md](docs/M03_GITHUB_INTEGRATION.md) | M03 report: GitHub sign-in, repositories, sync, cache |
 | [docs/M02_PROJECTS_AND_KANBAN.md](docs/M02_PROJECTS_AND_KANBAN.md) | M02 report: projects, Kanban, release plans, backup |
 | [docs/BACKUP_AND_RESTORE.md](docs/BACKUP_AND_RESTORE.md) | How to back up, restore, and recover |

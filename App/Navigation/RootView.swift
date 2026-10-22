@@ -107,6 +107,11 @@ struct RootView: View {
         } message: { alert in
             Text(alert.message)
         }
+        .onChange(of: model.navigationRequest) { _, request in
+            guard let request else { return }
+            select(request)
+            model.navigationRequest = nil
+        }
         .task {
             await model.start()
             if let name = model.options.initialProjectName,

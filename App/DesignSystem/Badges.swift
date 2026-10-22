@@ -56,6 +56,74 @@ extension ReleasePlanStatus {
     }
 }
 
+extension ReleaseSnapshotState {
+    var symbol: String {
+        switch self {
+        case .pending: "exclamationmark.arrow.triangle.2.circlepath"
+        case .draftCreated: "doc.badge.clock"
+        case .published: "checkmark.seal.fill"
+        case .abandoned: "trash"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .pending: .orange
+        case .draftCreated: .blue
+        case .published: .green
+        case .abandoned: .secondary
+        }
+    }
+}
+
+/// Snapshot state: icon + text, like `StatusBadge`.
+struct SnapshotStateBadge: View {
+    let state: ReleaseSnapshotState
+
+    var body: some View {
+        Label(state.title, systemImage: state.symbol)
+            .font(.caption.weight(.medium))
+            .foregroundStyle(state.tint)
+            .padding(.horizontal, Spacing.xs)
+            .padding(.vertical, 2)
+            .background(state.tint.opacity(0.12), in: Capsule())
+    }
+}
+
+extension ReleaseIssue.Severity {
+    var symbol: String {
+        switch self {
+        case .blocking: "xmark.octagon.fill"
+        case .warning: "exclamationmark.triangle.fill"
+        case .note: "info.circle"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .blocking: .red
+        case .warning: .orange
+        case .note: .secondary
+        }
+    }
+}
+
+/// A row of facts with a fixed-width label column.
+struct FactRow<Content: View>: View {
+    let label: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        GridRow(alignment: .firstTextBaseline) {
+            Text(label)
+                .foregroundStyle(.secondary)
+                .gridColumnAlignment(.trailing)
+            content
+                .gridColumnAlignment(.leading)
+        }
+    }
+}
+
 /// Release status: always icon + text, never color alone.
 struct StatusBadge: View {
     let status: ReleasePlanStatus

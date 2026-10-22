@@ -1,6 +1,6 @@
 # Technical Architecture
 
-Status: implemented through M01. Decisions are recorded in [decisions/](decisions/).
+Status: implemented through M04. Decisions are recorded in [decisions/](decisions/).
 
 ## 1. Layout
 
@@ -10,12 +10,13 @@ release-manager/                        # repository: erickpea29/Release-Manager
 ├── App/                                # SwiftUI app target
 │   ├── RelvoraApp.swift, AppModel.swift  # scenes, composition root, launch options
 │   ├── Navigation/                     # RootView (split view), SidebarView
-│   ├── Features/                       # Dashboard, Projects, History, Settings
+│   ├── Features/                       # Dashboard, Projects, Board, Releases, GitHub, History, Settings
 │   ├── DesignSystem/                   # tokens, panel style, window material
-│   └── Debug/                          # sample data (Debug builds only)
+│   └── Debug/                          # sample data, demo GitHub (Debug builds only)
 ├── Packages/RelvoraKit/                # local Swift package
 │   ├── Sources/RelvoraCore/            # domain, pure planners/rules, services, repository protocols, backup format
 │   ├── Sources/RelvoraPersistence/     # SwiftData schema + repository implementation
+│   ├── Sources/GitHubIntegration/      # GitHub auth, REST client, sync, cache, release remote
 │   └── Tests/                          # swift test
 ├── Config/                             # Shared.xcconfig, Relvora.entitlements, Local.xcconfig (git-ignored)
 ├── spikes/M00/                         # throwaway validation code
@@ -54,7 +55,8 @@ App (SwiftUI views, @Observable AppModel)
 - Board edits are computed by the pure `BoardPlanner` as `BoardChanges` and applied in one transaction. The store re-checks invariants (task ↔ column ↔ project, exactly one completion column, empty-before-delete), even for changes that bypass the planner.
 - A `VersionedSchema` and migration plan from the first release; migration tests use committed fixture stores.
 - Multi-record operations run in one `ModelContext` save, which is one transaction.
-- Backup: versioned JSON (`BackupDocument`, format 1), independent of the schema. Restore validates the whole document, writes a safety copy, then replaces everything in one transaction ([guide](BACKUP_AND_RESTORE.md)).
+- Release workflow writes (plan status plus one snapshot operation) go through one guarded `record` transaction that compares the plan's stored status first; snapshots are write-once ([ADR 0010](decisions/0010-release-workflow-and-reconciliation.md)).
+- Backup: versioned JSON (`BackupDocument`, format 3), independent of the schema. Restore validates the whole document, writes a safety copy, then replaces everything in one transaction ([guide](BACKUP_AND_RESTORE.md)).
 
 ## 5. GitHub integration
 
@@ -65,7 +67,8 @@ App (SwiftUI views, @Observable AppModel)
 | Headers | `Accept: application/vnd.github+json`, pinned `X-GitHub-Api-Version: 2022-11-28` (ADR 0009) |
 | Pagination | `Link` header `rel="next"` |
 | Errors | 401 → re-auth. 403 → rate-limited (`remaining=0` or `retry-after`) or forbidden (show `x-accepted-github-permissions`). 404 → missing or no access. 409 → conflict. 422 → validation. 429 → rate-limited. 5xx → transient |
-| Retries | Bounded exponential backoff for idempotent GETs and 5xx/429 only. **Never blind-retry `POST /releases`**: after a timeout, list releases and look for the tag before retrying. GitHub accepts duplicate drafts, so it will not reject a repeat (M00 F13) |
+| Retries | Reads retry twice on 5xx, timeouts, and dropped connections. **`POST /releases` is sent once** (only a 401 or short `Retry-After`, which GitHub rejects before acting, is repeated). An unknown outcome is reconciled by listing releases and matching tag + target commit, because GitHub accepts duplicate drafts (M00 F13; ADR 0010) |
+| Release workflow | `ReleaseWorkflow` (RelvoraCore) owns every release state change and talks to GitHub through the `ReleaseRemote` protocol, implemented by `GitHubReleaseRemote`. Intent is saved before the create request; publication is reported only after the tag resolves to the reviewed SHA |
 | Rate limits | 5,000/h per user, shared with the user's other tools. Make requests serially, use conditional requests (`ETag`, where 304 responses are free), and wait at least 1 s between writes |
 | Cache | Cached releases and tags stored with `fetchedAt`. Refresh replaces them only on success. The UI shows fresh vs. cached and the last sync time |
 | Identity | Stable numeric IDs (`repository.id`, `release.id`); names are display only |

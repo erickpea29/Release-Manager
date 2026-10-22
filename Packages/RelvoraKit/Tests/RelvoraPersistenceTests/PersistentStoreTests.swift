@@ -129,11 +129,25 @@ extension StoreTests {
             let store = try PersistentStore.inMemory()
             let (project, _, plan, _) = try await seed(store)
             var updated = plan
-            updated.status = .draftCreated
             updated.targetCommitSHA = String(repeating: "a", count: 40)
+            updated.tagName = "v0.2.0"
+            updated.compareBaseTag = "v0.1.0"
+            updated.repositoryConnectionID = UUID()
             updated.changelogMarkdown = "## Features\n- Board"
             try await store.releasePlans.save(updated)
             #expect(try await store.releasePlans.plans(projectID: project.id) == [updated])
+
+            // Workflow states can't be written by a plain save.
+            var drafted = updated
+            drafted.status = .draftCreated
+            await #expect(throws: PersistenceError.self) { try await store.releasePlans.save(drafted) }
+
+            updated.status = .cancelled
+            try await store.releasePlans.save(updated)
+            // A cancelled plan is a record: further edits are refused.
+            await #expect(throws: PersistenceError.outdated(entity: "release plan")) {
+                try await store.releasePlans.save(updated)
+            }
 
             try await store.releasePlans.deletePlan(id: plan.id)
             #expect(try await store.releasePlans.plans(projectID: project.id).isEmpty)

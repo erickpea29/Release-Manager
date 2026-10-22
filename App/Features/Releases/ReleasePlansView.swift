@@ -1,8 +1,11 @@
 import RelvoraCore
 import SwiftUI
 
+/// A project's release plans: the list, and the selected plan's preparation and GitHub status.
 struct ReleasePlansView: View {
+    @Environment(AppModel.self) private var app
     @Bindable var model: WorkspaceModel
+    @State private var selection: UUID?
     @State private var planToCancel: ReleasePlan?
     @State private var planToDelete: ReleasePlan?
 
@@ -18,26 +21,21 @@ struct ReleasePlansView: View {
                         .buttonStyle(.borderedProminent)
                 }
             } else {
-                List {
-                    ForEach(model.releasePlans.reversed()) { plan in
-                        ReleasePlanRow(plan: plan, taskCount: model.taskCount(for: plan))
-                            .contentShape(.rect)
-                            .onTapGesture(count: 2) {
-                                if ReleasePlanRules.isEditable(plan) { model.planEditor = .edit(plan) }
-                            }
-                            .contextMenu {
-                                Button("Edit…") { model.planEditor = .edit(plan) }
-                                    .disabled(!ReleasePlanRules.isEditable(plan))
-                                Button("Cancel Plan…") { planToCancel = plan }
-                                    .disabled(!ReleasePlanRules.isEditable(plan))
-                                Divider()
-                                Button("Delete Plan…", role: .destructive) { planToDelete = plan }
-                                    .disabled(!ReleasePlanRules.isDeletable(plan))
-                            }
+                HStack(spacing: 0) {
+                    planList
+                    Divider()
+                    if let id = selection, model.plan(id) != nil {
+                        ReleasePlanDetailContainer(planID: id, workspace: model, github: app.github)
+                            .id(id)
+                    } else {
+                        ContentUnavailableView("Select a Release Plan", systemImage: "shippingbox")
                     }
                 }
-                .listStyle(.inset)
             }
+        }
+        .onAppear { selection = selection ?? defaultSelection }
+        .onChange(of: model.releasePlans.map(\.id)) {
+            if model.plan(selection) == nil { selection = defaultSelection }
         }
         .confirmationDialog(
             "Cancel \(planToCancel?.version ?? "")?", isPresented: isPresent($planToCancel), titleVisibility: .visible,
@@ -59,6 +57,28 @@ struct ReleasePlansView: View {
         }
     }
 
+    /// The active plan, else the newest.
+    private var defaultSelection: UUID? { (model.activePlan ?? model.releasePlans.last)?.id }
+
+    private var planList: some View {
+        List(selection: $selection) {
+            ForEach(model.releasePlans.reversed()) { plan in
+                ReleasePlanRow(plan: plan, taskCount: model.taskCount(for: plan))
+                    .tag(plan.id)
+                    .contextMenu {
+                        Button("Edit…") { model.planEditor = .edit(plan) }
+                            .disabled(!ReleasePlanRules.isEditable(plan))
+                        Button("Cancel Plan…") { planToCancel = plan }
+                            .disabled(!ReleasePlanRules.isEditable(plan))
+                        Divider()
+                        Button("Delete Plan…", role: .destructive) { planToDelete = plan }
+                            .disabled(!ReleasePlanRules.isDeletable(plan))
+                    }
+            }
+        }
+        .frame(width: 250)
+    }
+
     private func isPresent(_ item: Binding<ReleasePlan?>) -> Binding<Bool> {
         Binding(get: { item.wrappedValue != nil }, set: { if !$0 { item.wrappedValue = nil } })
     }
@@ -69,33 +89,48 @@ struct ReleasePlanRow: View {
     let taskCount: Int
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                HStack(spacing: Spacing.s) {
-                    Text(plan.version)
-                        .font(.headline.monospaced())
-                    StatusBadge(status: plan.status)
-                }
-                if let title = plan.title {
-                    Text(title)
-                        .foregroundStyle(.secondary)
-                }
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(plan.version)
+                    .font(.headline.monospaced())
+                    .lineLimit(1)
+                Spacer()
+                StatusBadge(status: plan.status)
             }
-            Spacer()
-            VStack(alignment: .trailing, spacing: Spacing.xxs) {
-                if let date = plan.plannedDate {
-                    Text("Planned for \(date.formatted(date: .abbreviated, time: .omitted))")
-                }
-                if let branch = plan.targetBranch {
-                    Label(branch, systemImage: "arrow.triangle.branch")
-                }
-                Text("\(taskCount) \(taskCount == 1 ? "task" : "tasks")")
+            if let title = plan.title {
+                Text(title)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
+            Text(caption)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
         .padding(.vertical, Spacing.xxs)
         .accessibilityElement(children: .combine)
+    }
+
+    private var caption: String {
+        var parts = ["\(taskCount) \(taskCount == 1 ? "task" : "tasks")"]
+        if let released = plan.releasedAt {
+            parts.append("Released \(released.formatted(date: .abbreviated, time: .omitted))")
+        } else if let date = plan.plannedDate {
+            parts.append("Planned for \(date.formatted(date: .abbreviated, time: .omitted))")
+        }
+        return parts.joined(separator: " · ")
+    }
+}
+
+/// Owns one plan's `ReleaseModel` for as long as the plan is selected.
+private struct ReleasePlanDetailContainer: View {
+    @State private var release: ReleaseModel
+
+    init(planID: UUID, workspace: WorkspaceModel, github: GitHubModel) {
+        _release = State(initialValue: ReleaseModel(planID: planID, workspace: workspace, github: github))
+    }
+
+    var body: some View {
+        ReleasePlanDetailView(release: release)
     }
 }
 
@@ -145,7 +180,6 @@ struct ReleasePlanEditorSheet: View {
                         .font(.caption)
                         .foregroundStyle(versionHint.isError ? .red : .secondary)
                     TextField("Title", text: optional(\.title), prompt: Text("Optional"))
-                    TextField("Target branch", text: optional(\.targetBranch), prompt: Text("main"))
                     Toggle("Planned date", isOn: $hasPlannedDate)
                     if hasPlannedDate {
                         DatePicker(
@@ -177,7 +211,7 @@ struct ReleasePlanEditorSheet: View {
             }
         }
         .padding(Spacing.l)
-        .frame(width: 460, height: 500)
+        .frame(width: 460, height: 470)
     }
 
     private func optional(_ keyPath: WritableKeyPath<ReleasePlan, String?>) -> Binding<String> {

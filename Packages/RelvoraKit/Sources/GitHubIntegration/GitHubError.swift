@@ -8,6 +8,8 @@ public enum GitHubError: Error, Sendable, Equatable, LocalizedError {
     case authorizationDenied
     case deviceFlowDisabled
     case offline
+    /// The connection dropped mid-request; GitHub may or may not have received it.
+    case connectionLost
     case timedOut
     case rateLimited(resetAt: Date?)
     case forbidden(neededPermission: String?)
@@ -26,6 +28,7 @@ public enum GitHubError: Error, Sendable, Equatable, LocalizedError {
         case .authorizationDenied: "GitHub access was declined."
         case .deviceFlowDisabled: "Device sign-in is turned off for the Relvora GitHub App."
         case .offline: "You’re offline."
+        case .connectionLost: "The connection to GitHub was interrupted."
         case .timedOut: "GitHub didn’t respond in time."
         case .rateLimited: "GitHub’s request limit was reached."
         case .forbidden: "Relvora doesn’t have permission to do that on GitHub."
@@ -52,7 +55,7 @@ public enum GitHubError: Error, Sendable, Equatable, LocalizedError {
             "Turn on “Enable Device Flow” in the Relvora app’s settings on GitHub."
         case .offline:
             "Cached data is shown. Refresh when you’re back online."
-        case .timedOut:
+        case .timedOut, .connectionLost:
             "Try again in a moment. Cached data is still shown."
         case .rateLimited(let resetAt):
             resetAt.map {
@@ -82,7 +85,7 @@ public enum GitHubError: Error, Sendable, Equatable, LocalizedError {
         let remaining = header("x-ratelimit-remaining").flatMap(Int.init)
         let reset = header("x-ratelimit-reset").flatMap(TimeInterval.init).map { Date(timeIntervalSince1970: $0) }
         let retryAfter = header("retry-after").flatMap(TimeInterval.init)
-        let message = (try? JSONDecoder().decode(ErrorBody.self, from: body))?.message
+        let message = (try? JSONDecoder().decode(ErrorBody.self, from: body))?.summary
 
         switch response.statusCode {
         case 200..<300, 304:
@@ -111,9 +114,12 @@ public enum GitHubError: Error, Sendable, Equatable, LocalizedError {
 
     static func from(_ error: URLError) -> GitHubError {
         switch error.code {
-        case .notConnectedToInternet, .networkConnectionLost, .cannotFindHost, .cannotConnectToHost,
-            .dnsLookupFailed, .internationalRoamingOff, .dataNotAllowed:
+        // The request never left this Mac.
+        case .notConnectedToInternet, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed, .internationalRoamingOff,
+            .dataNotAllowed:
             .offline
+        case .networkConnectionLost:
+            .connectionLost
         case .timedOut:
             .timedOut
         default:
@@ -121,16 +127,43 @@ public enum GitHubError: Error, Sendable, Equatable, LocalizedError {
         }
     }
 
-    /// Worth retrying automatically (idempotent requests only).
+    /// Worth retrying automatically (reads only).
     var isTransient: Bool {
         switch self {
-        case .timedOut: true
+        case .timedOut, .connectionLost: true
         case .server(let status): [500, 502, 503, 504].contains(status)
         default: false
         }
     }
 
-    private struct ErrorBody: Decodable {
-        let message: String?
+    /// After a failed write: GitHub may have acted on the request, so it must be read before trying again.
+    public var mayHaveReachedGitHub: Bool {
+        switch self {
+        case .timedOut, .connectionLost, .server, .invalidResponse: true
+        default: false
+        }
     }
+
+    private struct ErrorBody: Decodable {
+        struct Detail: Decodable {
+            let field: String?
+            let code: String?
+            let message: String?
+        }
+        let message: String?
+        let errors: [Detail]?
+
+        /// "Validation Failed (tag_name already_exists)": GitHub's details say what to fix.
+        var summary: String? {
+            let details = (errors ?? []).compactMap { detail in
+                detail.message ?? [detail.field, detail.code].compactMap(\.self).joined(separator: " ").nilIfEmpty
+            }
+            guard !details.isEmpty else { return message }
+            return [message, "(\(details.joined(separator: "; ")))"].compactMap(\.self).joined(separator: " ")
+        }
+    }
+}
+
+extension String {
+    fileprivate var nilIfEmpty: String? { isEmpty ? nil : self }
 }

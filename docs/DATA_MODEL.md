@@ -1,6 +1,6 @@
 # Data Model
 
-Status: **schema V2 implemented** — V1 (M01: Project, BoardColumn, ProjectTask, ChecklistItem, ReleasePlan) + V2 (M03: RepositoryConnection). Entities marked M04 are still proposals. Changes from the plan's suggested fields are marked **Δ** and trace to [PRODUCT_SPEC §6](PRODUCT_SPEC.md#6-open-questions-and-plan-gaps).
+Status: **schema V3 implemented** — V1 (M01: Project, BoardColumn, ProjectTask, ChecklistItem, ReleasePlan) + V2 (M03: RepositoryConnection) + V3 (M04: ReleaseSnapshot, plan repository/tag/compare base). Changes from the plan's suggested fields are marked **Δ** and trace to [PRODUCT_SPEC §6](PRODUCT_SPEC.md#6-open-questions-and-plan-gaps).
 
 ## 1. Conventions
 
@@ -39,20 +39,20 @@ Owner and name are refreshed on sync; renames and transfers keep the same `githu
 Cascade-deleted with its task.
 
 ### ReleasePlan
-`id`, `projectID`, **Δ `repositoryConnectionID?`**, `version`, `title?`, `details?`, `status`, `targetBranch?`, `targetCommitSHA?` (full 40-character SHA), `plannedDate?`, **Δ `changelogMarkdown`** (working draft, kept through failures), **Δ `githubDraftReleaseID?`**, `createdAt`, `updatedAt`, `releasedAt?`
+`id`, `projectID`, **Δ `repositoryConnectionID?`** (V3), `version`, `title?`, `details?`, `status`, `targetBranch?`, `targetCommitSHA?` (full 40-character lowercase SHA), **Δ `tagName?`** (V3; Git ref rules), **Δ `compareBaseTag?`** (V3; the changelog's base, default the latest release), `plannedDate?`, **Δ `changelogMarkdown`** (working draft, kept through failures), `createdAt`, `updatedAt`, `releasedAt?`
 
-At most one plan per project in `planned | draftCreated | reconciliationNeeded` (the MVP's "one active plan"; enforced by a use case in M02). V1 stores the local fields only. `repositoryConnectionID` and `githubDraftReleaseID` arrive with M03/M04 as an additive schema change.
+At most one plan per project in `planned | draftCreated | reconciliationNeeded` (the MVP's "one active plan"; enforced by a use case in M02). **Δ** The proposed `githubDraftReleaseID` was not added: the plan's open snapshot holds the GitHub release ID.
 
-Deleting a plan unlinks its tasks; it does not delete them.
+A plain save writes only `planned` or `cancelled`, and only over a `planned` plan; every other status is set by the release workflow's guarded `record` ([ADR 0010](decisions/0010-release-workflow-and-reconciliation.md)). Deleting a plan (only `planned` or `cancelled`) unlinks its tasks; it does not delete them. Snapshots keep the plan's ID as a plain value and outlive it.
 
-### GitHubReference (M03)
-`id`, `projectID`, `taskID?`, `repositoryID: Int64`, `referenceType` (`commit|pullRequest|tag|release`), `number?`, `sha?`, `title?`, `htmlURL`, `mergedAt?`, `lastFetchedAt?`
+### GitHubReference (not implemented)
+Proposed: `id`, `projectID`, `taskID?`, `repositoryID: Int64`, `referenceType` (`commit|pullRequest|tag|release`), `number?`, `sha?`, `title?`, `htmlURL`, `mergedAt?`, `lastFetchedAt?`. **Δ** Not needed in M04: a snapshot records the pull requests of its release in its change summary. Linking tasks to pull requests remains a later option.
 
-### ReleaseSnapshot (write-once content, M04)
-- **Content, frozen at draft creation (Δ G2):** `id`, `projectID`, `releasePlanID?`, `version`, `title?`, `tagName`, `targetCommitSHA`, `releaseNotesMarkdown` (as submitted), `taskSnapshots` (an encoded `[TaskSnapshot]`: title, details, type, priority, labels, completion state, GitHub references), `repositoryID`, `snapshotCreatedAt`
-- **Lifecycle, each set at most once:** `githubReleaseID`, `githubReleaseURL`, `releaseState`, `publishedAt?`, `publishedNotesMarkdown?` (stored only if GitHub's notes differ from the submitted ones)
+### ReleaseSnapshot (M04, schema V3, write-once)
+- **Content, frozen when the draft is requested (Δ G2):** `id`, `projectID`, `releasePlanID?` (plain value), **Δ `origin`** (`relvoraDraft | external`), `version`, `title?`, **Δ `releaseName`** (title sent to GitHub), `tagName`, `targetCommitSHA`, **Δ `targetBranch?`**, **Δ `isPrerelease`**, `releaseNotesMarkdown` (as submitted), and a JSON payload with `tasks` (`[TaskSnapshot]`: source ID, title, details, type, priority, labels, completion and date, column name, checklist counts) and **Δ `changes`** (base tag, commit count, merged pull requests, compare URL, completeness). Also `githubRepositoryID`, **Δ `repositoryFullName`**, **Δ `repositoryURL`** (as they were), `snapshotCreatedAt`.
+- **Lifecycle, each set at most once:** `state`, `githubReleaseID`, `githubReleaseURL` (updated once more at publication, when GitHub moves the draft's `untagged-…` page), `publishedAt?`, `publishedNotesMarkdown?` (only if GitHub's notes differ, ignoring CRLF and trailing whitespace), **Δ `publishedTagName?`** (only if it differs and the user accepted it), **Δ `publishedCommitSHA?`** (the verified commit), **Δ `stateChangedAt`**.
 
-Immutability is enforced by the repository API, which has no update method for content fields, and covered by tests.
+Immutability: the repository has no content update. `record` applies only the transitions `ReleaseSnapshot.applying` allows and writes lifecycle columns only; a new snapshot must be `pending` (Relvora draft) or `published` (recorded from GitHub); only a `pending` one can be discarded, after GitHub showed no draft was created. Covered by store and workflow tests.
 
 ### GitHub cache (M03, not in the schema)
 One JSON `RepositorySnapshot` per repository (releases, tags, unreleased commits and merged PRs, notes, `fetchedAt`) under `Application Support/Relvora/GitHub Cache/`. Written only after a successful sync; excluded from backups ([ADR 0009](decisions/0009-github-integration-design.md)).
@@ -68,16 +68,23 @@ Stored in `UserDefaults`. M01 uses `@AppStorage` with centralized keys (`Prefere
 
 ## 3. State machines
 
-**ReleasePlanStatus**
+**ReleasePlanStatus** (implemented by `ReleaseWorkflow`, [ADR 0010](decisions/0010-release-workflow-and-reconciliation.md))
 
 ```text
-planned ──create draft (confirmed)──▶ draftCreated ──publication verified──▶ published
-   │                │                       │
-   │                └─timeout/save failure─▶ reconciliationNeeded ──re-read GitHub──▶ draftCreated | planned | published
-   └──────────────cancel──────────────▶ cancelled ◀──cancel── draftCreated
+planned ──create draft (confirmed; intent saved first)──▶ reconciliationNeeded ──GitHub confirms──▶ draftCreated
+   │                                                         │   (timeout: stays until Check GitHub)          │
+   │                                     no draft on GitHub ─┘──▶ planned                                     │
+   │                                                                                                          ▼
+   │      draft deleted on GitHub ◀────────────── draftCreated ──published, tag at reviewed SHA──▶ published
+   │      (snapshot abandoned, plan planned)          │
+   │                                                  └──published, tag/SHA differs──▶ reconciliationNeeded ──Record as Published──▶ published
+   ├──release published on GitHub for the tag ──Record Published Release──▶ published
+   └──cancel──▶ cancelled
 ```
 
-**ReleaseSnapshotState:** `draftCreated` → `published` | `abandoned` (the draft was deleted on GitHub). No other transitions.
+**Δ** A drafted plan is not cancelled locally: delete the draft on GitHub, check, then cancel or re-draft, so history never disagrees with GitHub.
+
+**ReleaseSnapshotState:** `pending` → `draftCreated` → `published` | `abandoned`. A `pending` snapshot is discarded (not kept) when GitHub shows no draft was created. External records start as `published`. No other transitions.
 
 ## 4. Migration and integrity
 
@@ -85,7 +92,8 @@ planned ──create draft (confirmed)──▶ draftCreated ──publication v
 - Delete rules in V1: a project cascades to its columns, tasks, and plans, and a task cascades to its checklist. Deleting a column or plan nullifies the link; column deletion is guarded by a domain rule (M02).
 - Integrity rules enforced by the repository: a task's column and release plan must belong to the task's project, and records never move between projects. A rejected save is rolled back completely.
 - A fixture store per frozen schema version lives in `Tests/Fixtures/`, starting with V1 when V2 is introduced. Migration tests open each fixture with the current schema in a `.serialized` suite.
-- Backup format 1 (`BackupDocument`) mirrors V1 with string enum values and millisecond ISO 8601 dates. Restore refuses newer `formatVersion`s and validates the following before replacing data:
+- Fixture stores: `RelvoraV1.store` (frozen M02) and `RelvoraV2.store` (frozen M03, generated from `backup-v2.json` before V3).
+- Backup format 3 (`BackupDocument`; 1 = V1, 2 adds connections, 3 adds snapshots and plan targets) uses string enum values and millisecond ISO 8601 dates. Restore refuses newer `formatVersion`s and validates the following before replacing data (format 3 adds: unique snapshot IDs, known states, full SHAs, a GitHub release ID for non-pending snapshots, at most one open snapshot per plan):
   - unique IDs;
   - exactly one completion column per project;
   - tasks referencing only their own project's columns and plans;

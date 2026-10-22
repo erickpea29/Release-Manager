@@ -63,8 +63,62 @@ extension BoardRepository {
 
 public protocol ReleasePlanRepository: Sendable {
     func plans(projectID: UUID) async throws(PersistenceError) -> [ReleasePlan]
+    /// Inserts a plan, or updates one that is still `planned`, as `planned` or `cancelled`. Every other state is
+    /// set only through `ReleaseSnapshotRepository.record`, so an edit can never overwrite the workflow's progress.
     func save(_ plan: ReleasePlan) async throws(PersistenceError)
+    /// Only `planned` and `cancelled` plans can be deleted.
     func deletePlan(id: UUID) async throws(PersistenceError)
+}
+
+/// One step of the release workflow, saved atomically: a plan status change guarded by the status it expects
+/// (so two concurrent attempts can't both start a draft), plus at most one snapshot operation.
+public struct ReleaseRecord: Sendable, Equatable {
+    public enum Operation: Sendable, Equatable {
+        case none
+        /// A new snapshot: `pending` for a Relvora draft, or `published` for a release recorded from GitHub.
+        case insert(ReleaseSnapshot)
+        case transition(snapshotID: UUID, SnapshotTransition)
+        /// Removes a `pending` snapshot after GitHub confirmed that no draft was created.
+        case discardPending(snapshotID: UUID)
+    }
+
+    public let planID: UUID
+    public let expectedStatus: ReleasePlanStatus
+    public let newStatus: ReleasePlanStatus
+    public var releasedAt: Date?
+    /// Replaces the plan's target commit (a release recorded from GitHub whose tag points elsewhere).
+    public var targetCommitSHA: String?
+    public let operation: Operation
+    public let date: Date
+
+    public init(
+        planID: UUID,
+        expectedStatus: ReleasePlanStatus,
+        newStatus: ReleasePlanStatus,
+        releasedAt: Date? = nil,
+        targetCommitSHA: String? = nil,
+        operation: Operation,
+        date: Date
+    ) {
+        self.planID = planID
+        self.expectedStatus = expectedStatus
+        self.newStatus = newStatus
+        self.releasedAt = releasedAt
+        self.targetCommitSHA = targetCommitSHA
+        self.operation = operation
+        self.date = date
+    }
+}
+
+/// Release snapshots are write-once: there is no update method for their content.
+public protocol ReleaseSnapshotRepository: Sendable {
+    /// One project's snapshots, oldest first.
+    func snapshots(projectID: UUID) async throws(PersistenceError) -> [ReleaseSnapshot]
+    /// Every project's snapshots, oldest first.
+    func allSnapshots() async throws(PersistenceError) -> [ReleaseSnapshot]
+    /// Applies one workflow step in a single transaction. Throws `outdated` when the plan's status isn't
+    /// `expectedStatus`, and `integrityViolation` for a transition the snapshot doesn't allow.
+    func record(_ record: ReleaseRecord) async throws(PersistenceError)
 }
 
 public protocol RepositoryConnectionRepository: Sendable {
@@ -82,19 +136,22 @@ public struct ProjectBundle: Sendable, Equatable {
     public var tasks: [ProjectTask]
     public var releasePlans: [ReleasePlan]
     public var repositoryConnections: [RepositoryConnection]
+    public var releaseSnapshots: [ReleaseSnapshot]
 
     public init(
         project: Project,
         columns: [BoardColumn],
         tasks: [ProjectTask],
         releasePlans: [ReleasePlan],
-        repositoryConnections: [RepositoryConnection] = []
+        repositoryConnections: [RepositoryConnection] = [],
+        releaseSnapshots: [ReleaseSnapshot] = []
     ) {
         self.project = project
         self.columns = columns
         self.tasks = tasks
         self.releasePlans = releasePlans
         self.repositoryConnections = repositoryConnections
+        self.releaseSnapshots = releaseSnapshots
     }
 }
 
