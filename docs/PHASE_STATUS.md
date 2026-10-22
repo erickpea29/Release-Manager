@@ -3,7 +3,7 @@
 | Phase | Status |
 |---|---|
 | M00 — Technical Validation | **Complete** (2026-10-21) |
-| M01 — Foundation | **In review**: CI first run pending ([report](M01_FOUNDATION.md)) |
+| M01 — Foundation | **Complete**: PR #1 awaiting merge ([report](M01_FOUNDATION.md)) |
 | M02 — Projects and Kanban | Next |
 | M03 — GitHub Integration | Not started |
 | M04 — Release Workflow and History | Not started |
@@ -33,5 +33,5 @@
 - [x] Schema V1 with versioned migration plan and freeze rule
 - [x] Navigation shell and design-system foundations
 - [x] Typed errors and dependency injection (`AppEnvironment`)
-- [ ] GitHub Actions CI building and testing on macOS 26: **first run pending**
+- [x] GitHub Actions CI building and testing on macOS 26 (first run passed in 54 s)
 - [x] Initial unit tests (22) and documentation

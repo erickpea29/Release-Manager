@@ -1,6 +1,6 @@
 # M01 — Foundation Report
 
-Status: **CI PENDING** · 2026-10-21
+Status: **Complete** (pending owner merge of PR #1) · 2026-10-21
 
 ## 1. What was built
 
@@ -27,7 +27,7 @@ Status: **CI PENDING** · 2026-10-21
 | App build, team-signed | `xcodebuild … build` with `Local.xcconfig` | **Succeeded, 0 warnings**; `com.erickpea29.Relvora.dev`, sandbox + network-client + user-selected-files entitlements |
 | App build, fresh clone (ad-hoc) | same, `Local.xcconfig` moved away | **Succeeded**; "Sign to Run Locally", `com.erickpea29.Relvora.adhoc` |
 | Save and restore in the real app | Launch 1 `-RelvoraStoreName M01Verification -RelvoraSeedSampleData YES`, quit; launch 2 without seeding | **3 projects restored** after relaunch; screenshots in light and dark |
-| CI on GitHub | pull request run | **PENDING** |
+| CI on GitHub | PR #1, run 39722910284 | **PASS** in 54 s on `macos-26` (macOS 26.6.2, Xcode 26.6, Swift 6.3.3): lint, 22/22 tests, app build |
 
 Test coverage highlights:
 - SemVer precedence, using the specification's own example chain.
@@ -45,7 +45,7 @@ Test coverage highlights:
 | The application launches successfully | **PASS** (sandboxed, both signing modes) |
 | Project data can be saved and restored | **PASS** (unit tests on disk + real-app relaunch) |
 | Core logic can be tested independently of the UI | **PASS** (`swift test`, no app build needed) |
-| CI builds the application and runs tests | **PENDING** first run |
+| CI builds the application and runs tests | **PASS** (run 39722910284) |
 | No credentials or personal data are committed | **PASS** (team ID only in git-ignored `Local.xcconfig`; scanned before commit) |
 
 ## 4. Known issues and notes
