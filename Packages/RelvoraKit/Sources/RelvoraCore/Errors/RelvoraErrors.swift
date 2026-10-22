@@ -14,6 +14,7 @@ public enum ValidationError: Error, Sendable, Equatable, LocalizedError {
     case cannotDeleteCompletionColumn
     case cannotDeleteLastColumn
     case unknownColumn
+    case repositoryAlreadyConnected(String)
 
     public var errorDescription: String? {
         switch self {
@@ -29,6 +30,7 @@ public enum ValidationError: Error, Sendable, Equatable, LocalizedError {
         case .cannotDeleteCompletionColumn: "The completion column can’t be deleted."
         case .cannotDeleteLastColumn: "A board needs at least one column."
         case .unknownColumn: "That column doesn’t belong to this project."
+        case .repositoryAlreadyConnected(let name): "\(name) is already connected to this project."
         }
     }
 
@@ -46,6 +48,7 @@ public enum ValidationError: Error, Sendable, Equatable, LocalizedError {
         case .cannotDeleteCompletionColumn: "Make another column the completion column first."
         case .cannotDeleteLastColumn: "Add another column before deleting this one."
         case .unknownColumn: "Reload the board and try again."
+        case .repositoryAlreadyConnected: "Choose a different repository."
         }
     }
 }

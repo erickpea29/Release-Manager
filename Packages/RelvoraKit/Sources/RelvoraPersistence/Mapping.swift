@@ -102,6 +102,37 @@ extension ReleasePlan {
     }
 }
 
+extension RepositoryConnection {
+    init?(_ entity: RepositoryConnectionEntity) {
+        guard let projectID = entity.project?.id, let url = URL(string: entity.htmlURL) else { return nil }
+        self.init(
+            id: entity.id,
+            projectID: projectID,
+            githubRepositoryID: entity.githubRepositoryID,
+            owner: entity.owner,
+            name: entity.name,
+            defaultBranch: entity.defaultBranch,
+            htmlURL: url,
+            isPrivate: entity.isPrivate,
+            lastSyncedAt: entity.lastSyncedAt,
+            createdAt: entity.createdAt,
+            updatedAt: entity.updatedAt
+        )
+    }
+}
+
+extension RepositoryConnectionEntity {
+    func apply(_ connection: RepositoryConnection) {
+        owner = connection.owner
+        name = connection.name
+        defaultBranch = connection.defaultBranch
+        htmlURL = connection.htmlURL.absoluteString
+        isPrivate = connection.isPrivate
+        lastSyncedAt = connection.lastSyncedAt
+        updatedAt = connection.updatedAt
+    }
+}
+
 extension ReleasePlanEntity {
     func apply(_ plan: ReleasePlan) {
         version = plan.version

@@ -2,7 +2,7 @@
 
 A native, local-first macOS app for planning software releases: projects, Kanban boards, GitHub release data, changelogs, GitHub draft releases, and an immutable release history.
 
-**Status:** M02 (Projects and Kanban) in review; M01 complete. See [docs/PHASE_STATUS.md](docs/PHASE_STATUS.md).
+**Status:** M03 (GitHub Integration) in review; M00–M02 complete. See [docs/PHASE_STATUS.md](docs/PHASE_STATUS.md).
 
 ## Requirements
 
@@ -41,7 +41,9 @@ Team-signed builds use bundle ID `com.erickpea29.Relvora.dev`. The two never sha
 | `-RelvoraStoreName <name>` | Uses a separate store file, e.g. for experiments |
 | `-RelvoraSeedSampleData YES` | Adds sample projects, tasks, and a release plan if the store is empty |
 | `-RelvoraInitialProject <name>` | Opens that project at launch |
-| `-RelvoraInitialTab board\|releases` | Opens that project tab |
+| `-RelvoraInitialTab board\|releases\|github` | Opens that project tab |
+| `-RelvoraStartGitHubConnect YES` | Starts the GitHub sign-in at launch |
+| `-RelvoraConnectRepository owner/name` | Connects that repository to the initial project once signed in |
 
 Example: `open build/DerivedData/Build/Products/Debug/Relvora.app --args -RelvoraStoreName Demo -RelvoraSeedSampleData YES`
 
@@ -60,7 +62,7 @@ CI (`.github/workflows/ci.yml`) runs lint, tests, and an ad-hoc app build on a m
 | Path | Contents |
 |---|---|
 | `App/` | SwiftUI app: composition root, navigation, features, design system |
-| `Packages/RelvoraKit/` | `RelvoraCore` (domain, no SwiftData) and `RelvoraPersistence` (SwiftData) |
+| `Packages/RelvoraKit/` | `RelvoraCore` (domain), `RelvoraPersistence` (SwiftData), `GitHubIntegration` (GitHub auth, API, sync) |
 | `Config/` | Build settings, entitlements, local signing template |
 | `docs/` | Spec, architecture, data model, design system, phase reports, decisions |
 | `spikes/M00/` | Throwaway validation code from M00 |
@@ -70,6 +72,7 @@ CI (`.github/workflows/ci.yml`) runs lint, tests, and an ad-hoc app build on a m
 | Document | Purpose |
 |---|---|
 | [docs/PHASE_STATUS.md](docs/PHASE_STATUS.md) | Phase checklist and current status |
+| [docs/M03_GITHUB_INTEGRATION.md](docs/M03_GITHUB_INTEGRATION.md) | M03 report: GitHub sign-in, repositories, sync, cache |
 | [docs/M02_PROJECTS_AND_KANBAN.md](docs/M02_PROJECTS_AND_KANBAN.md) | M02 report: projects, Kanban, release plans, backup |
 | [docs/BACKUP_AND_RESTORE.md](docs/BACKUP_AND_RESTORE.md) | How to back up, restore, and recover |
 | [docs/M01_FOUNDATION.md](docs/M01_FOUNDATION.md) | M01 report: what was built and verified |

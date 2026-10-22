@@ -45,6 +45,12 @@ GITHUB_APP_CLIENT_ID=<client id> swift run gh-auth-spike validate --repo <owner>
 GITHUB_APP_CLIENT_ID=<client id> swift run gh-auth-spike validate --repo <owner>/<test-repo> --write
 ```
 
+## Connecting in Relvora
+
+1. **Settings › GitHub › Connect GitHub…** (or a project's **GitHub** tab).
+2. **Copy Code and Open GitHub**, paste the code, and approve. Only approve codes you started in Relvora.
+3. In a project's **GitHub** tab: **Connect Repository…**, then choose a repository. Only repositories selected in the app's installation appear; use **Add repositories on GitHub…** to add more.
+
 ## Disconnecting
 
 The app can delete its stored tokens, but it cannot revoke them on GitHub without the client secret. To revoke fully, go to **Settings → Applications → Authorized GitHub Apps → Revoke**.

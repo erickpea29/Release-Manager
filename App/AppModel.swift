@@ -7,11 +7,15 @@ import RelvoraPersistence
 /// Everything the UI depends on, built once at launch. Previews and checks build it from an in-memory store.
 struct AppEnvironment: Sendable {
     let store: PersistentStore
+    let github: GitHubServices?
 
     var projects: ProjectService { ProjectService(repository: store.projects) }
     var board: BoardService { BoardService(repository: store.board) }
     var releasePlans: ReleasePlanService { ReleasePlanService(repository: store.releasePlans) }
     var backups: BackupService { BackupService(repository: store.backups) }
+    var repositoryConnections: RepositoryConnectionService {
+        RepositoryConnectionService(repository: store.repositoryConnections)
+    }
 }
 
 /// Launch arguments, honored in Debug builds only, e.g. `-RelvoraInMemoryStore YES`.
@@ -22,6 +26,10 @@ struct LaunchOptions {
     /// Selects this project (by name) at launch; used for UI checks.
     var initialProjectName: String?
     var initialTab: String?
+    /// Starts the GitHub device flow at launch (UI checks of the sign-in).
+    var startGitHubConnect = false
+    /// Connects this repository (`owner/name`) to the initial project once signed in.
+    var connectRepository: String?
 
     static func current(_ defaults: UserDefaults = .standard) -> LaunchOptions {
         var options = LaunchOptions()
@@ -31,6 +39,8 @@ struct LaunchOptions {
             options.seedSampleData = defaults.bool(forKey: "RelvoraSeedSampleData")
             options.initialProjectName = defaults.string(forKey: "RelvoraInitialProject")
             options.initialTab = defaults.string(forKey: "RelvoraInitialTab")
+            options.startGitHubConnect = defaults.bool(forKey: "RelvoraStartGitHubConnect")
+            options.connectRepository = defaults.string(forKey: "RelvoraConnectRepository")
         #endif
         return options
     }
@@ -110,6 +120,7 @@ final class AppModel {
 
     let environment: AppEnvironment?
     let options: LaunchOptions
+    let github: GitHubModel
 
     var activeProjects: [Project] { projects.filter { !$0.isArchived } }
     var archivedProjects: [Project] { projects.filter(\.isArchived) }
@@ -121,13 +132,14 @@ final class AppModel {
                 options.inMemoryStore
                 ? try PersistentStore.inMemory()
                 : try PersistentStore.open(at: PersistentStore.defaultURL(name: options.storeName))
-            environment = AppEnvironment(store: store)
+            environment = AppEnvironment(store: store, github: GitHubServices.live())
             startupError = nil
         } catch {
             // Typed throws: `error` is a PersistenceError.
             environment = nil
             startupError = error
         }
+        github = GitHubModel(services: environment?.github)
     }
 
     func start() async {
@@ -141,6 +153,10 @@ final class AppModel {
             }
         #endif
         await loadProjects()
+        await github.loadStatus()
+        #if DEBUG
+            if options.startGitHubConnect && !github.isConnected { github.startConnecting() }
+        #endif
     }
 
     func loadProjects() async {

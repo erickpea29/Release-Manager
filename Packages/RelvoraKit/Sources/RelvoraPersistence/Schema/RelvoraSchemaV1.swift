@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// First schema version: local planning only (projects, boards, tasks, release plans).
-/// Frozen once merged to `main`; every later change adds a new `VersionedSchema` and a migration stage.
+/// Frozen: shipped in M01–M02. Never edit; migrations read old stores through these definitions.
 enum RelvoraSchemaV1: VersionedSchema {
     static var versionIdentifier: Schema.Version { Schema.Version(1, 0, 0) }
     static var models: [any PersistentModel.Type] {
@@ -134,15 +134,4 @@ enum RelvoraSchemaV1: VersionedSchema {
             self.updatedAt = createdAt
         }
     }
-}
-
-typealias ProjectEntity = RelvoraSchemaV1.ProjectEntity
-typealias BoardColumnEntity = RelvoraSchemaV1.BoardColumnEntity
-typealias TaskEntity = RelvoraSchemaV1.TaskEntity
-typealias ChecklistItemEntity = RelvoraSchemaV1.ChecklistItemEntity
-typealias ReleasePlanEntity = RelvoraSchemaV1.ReleasePlanEntity
-
-enum RelvoraMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] { [RelvoraSchemaV1.self] }
-    static var stages: [MigrationStage] { [] }
 }

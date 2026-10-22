@@ -4,9 +4,9 @@
 |---|---|
 | M00 — Technical Validation | **Complete** (2026-10-21) |
 | M01 — Foundation | **Complete**: merged in PR #1 ([report](M01_FOUNDATION.md)) |
-| M02 — Projects and Kanban | **In review**: CI passed; owner manual checks before merging PR #2 ([report](M02_PROJECTS_AND_KANBAN.md)) |
-| M03 — GitHub Integration | Not started |
-| M04 — Release Workflow and History | Not started |
+| M02 — Projects and Kanban | **Complete**: merged in PR #2 ([report](M02_PROJECTS_AND_KANBAN.md)) |
+| M03 — GitHub Integration | **Complete**: CI passed, live check passed; PR #3 awaiting merge ([report](M03_GITHUB_INTEGRATION.md)) |
+| M04 — Release Workflow and History | Next |
 | M05 — Design Polish and Distribution | Not started |
 
 ## M00 checklist
@@ -48,3 +48,17 @@
 - [x] Data-integrity tests for moves, edits, deletions
 - [x] CI on PR #2 (lint, 49/49 tests, app build)
 - [ ] Owner manual interaction checklist ([report §5](M02_PROJECTS_AND_KANBAN.md#5-not-verified-automatically-manual-checklist-for-the-owner))
+
+## M03 checklist
+
+- [x] GitHub authorization (device flow) and Keychain storage
+- [x] Connection status and disconnection
+- [x] Repository browsing and search (installation repositories)
+- [x] Associate repositories with projects (schema V2 + migration, backup format 2)
+- [x] Fetch releases, tags, commits, merged pull requests
+- [x] Pagination and rate-limit handling
+- [x] Cache with sync timestamps (fresh vs. cached shown)
+- [x] Expired credentials, permission errors, offline, transient failures
+- [x] Mock-based tests + opt-in live test
+- [x] CI on PR #3
+- [x] Live check in the app with the owner's GitHub account (sign-in, repository, commits, merged PRs, no token leaks)

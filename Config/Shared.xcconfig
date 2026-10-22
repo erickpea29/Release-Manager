@@ -14,4 +14,9 @@ CODE_SIGN_STYLE = Manual
 CODE_SIGN_IDENTITY = -
 DEVELOPMENT_TEAM =
 
+// The Relvora GitHub App's public client ID and URL name (ADR 0002/0009). A client ID is not a secret; it ships in
+// the app. Never put a client secret or private key anywhere in this repository.
+RELVORA_GITHUB_CLIENT_ID = Iv23liBlcZeg11deMH07
+RELVORA_GITHUB_APP_SLUG = relvora
+
 #include? "Local.xcconfig"

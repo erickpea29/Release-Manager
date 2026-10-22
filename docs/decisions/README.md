@@ -10,5 +10,6 @@
 | [0006](0006-window-materials.md) | Window materials and translucency | Accepted |
 | [0007](0007-build-configuration-and-signing.md) | Build configuration and signing | Accepted |
 | [0008](0008-fresh-context-per-operation.md) | A fresh ModelContext per repository operation | Accepted |
+| [0009](0009-github-integration-design.md) | GitHub integration design (API version, tokens, cache) | Accepted |
 
 New records: copy the shape of an existing one (Status, Date, Context, Decision, Consequences, Evidence). Keep them short.

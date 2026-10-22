@@ -1,6 +1,18 @@
 import SwiftUI
 
 struct SettingsView: View {
+    var body: some View {
+        TabView {
+            GeneralSettingsView()
+                .tabItem { Label("General", systemImage: "gearshape") }
+            GitHubSettingsView()
+                .tabItem { Label("GitHub", systemImage: "link") }
+        }
+        .frame(width: 520)
+    }
+}
+
+private struct GeneralSettingsView: View {
     @AppStorage(PreferenceKey.appearance) private var appearance = AppearancePreference.system
     @AppStorage(PreferenceKey.windowMaterial) private var windowMaterial = WindowMaterial.opaque
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -20,6 +32,24 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460)
+    }
+}
+
+private struct GitHubSettingsView: View {
+    var body: some View {
+        Form {
+            Section {
+                GitHubConnectionPanel()
+            } footer: {
+                Text(
+                    "Relvora reads repository metadata, releases, tags, commits, and pull requests through the Relvora "
+                        + "GitHub App, only for repositories you install it on. Your sign-in is stored in the Keychain and "
+                        + "never leaves this Mac except to talk to GitHub."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
     }
 }
