@@ -1,6 +1,6 @@
 # M03 — GitHub Integration Report
 
-Status: **CI PENDING · live check pending** · 2026-10-22 · Branch `m03-github-integration`
+Status: **Complete pending owner merge** · 2026-10-22 · PR #3
 
 ## 1. What was built
 
@@ -27,14 +27,16 @@ Design decisions: [ADR 0009](decisions/0009-github-integration-design.md).
 | New: storage | Real **V1→V2 migration** of the frozen M02 store (`Fixtures/RelvoraV1.store`): every record intact, then a connection added and reopened. Connection lifecycle and rename sync, store-level uniqueness, cascade on project delete, connections in backups |
 | Migration on real dev data | The `M02Verification` dev store migrated on first launch: new table present, 9/9 tasks intact, dashboard and sidebar correct |
 | Strict lint / app build | **0 findings / 0 warnings**; the built Info.plist carries the client ID and slug |
-| CI | **PENDING** |
-| Live GitHub in the app | **PENDING**: needs the owner to approve one device code (see §4) |
+| CI | **PASS**: PR #3, run 39728089825 on `macos-26` (lint, 82/82 tests, 2 opt-in skipped, app build) |
+| Live GitHub in the app | **PASS** with the owner's account. Device-flow sign-in from the app; `erickpea29/Release-Manager` (private) connected and synced. It shows "No releases or tags yet", the latest 8 commits, and **merged PRs #1 and #2** found through the App's permissions |
+| Secrets after the live run | **PASS**. The sign-in is a single Keychain item (`com.erickpea29.Relvora.github`). **0** Relvora log entries mention tokens, `Bearer`, or `Authorization`. **No token string** in any file of the app container (preferences, store, cache) |
+| Relaunch with a rebuilt binary | **PASS**: still signed in with no Keychain prompt (team signing, ADR 0005/0007); the cached snapshot was shown immediately without a network call |
 
 ## 3. Acceptance criteria
 
 | Criterion | Status |
 |---|---|
-| The user can connect GitHub and browse permitted repositories | **Implemented + mocked**; live check pending |
+| The user can connect GitHub and browse permitted repositories | **PASS** (live) |
 | A project can be associated with one or more repositories | **PASS** (tests + UI) |
 | Remote data is clearly distinguished from cached data | **PASS** (status line on every repository view) |
 | A failed refresh does not erase cached information | **PASS**: only successful syncs are written (cache tests + model logic) |
@@ -47,7 +49,12 @@ Design decisions: [ADR 0009](decisions/0009-github-integration-design.md).
 2. **Connect Repository…** › `erickpea29/Release-Manager`. Unreleased changes and releases load.
 3. Turn Wi-Fi off and press **Refresh**: the cached data stays, marked as cached, with "You're offline".
 
-## 5. Known issues and notes
+## 5. Findings
+
+- **F17 — An inset can make a fixed-width column flexible.** `.frame(width:)` placed *before* a `.safeAreaInset` whose content had `maxWidth: .infinity` let the repository column grow, splitting the space with the detail view (seen in the live screenshot). Fixed by applying the width after the inset.
+- **F18 — Locale-aware times can end in a period** (`11:43 p.m.`). Message templates must not append another; fixed in the sign-in panel.
+
+## 6. Known issues and notes
 
 - No write operations yet (draft releases are M04). The Contents write permission is unused until then.
 - When a repository isn't selected in the installation, it doesn't appear in the picker. The picker links to the install page.

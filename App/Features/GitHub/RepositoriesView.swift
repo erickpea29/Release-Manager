@@ -101,7 +101,6 @@ struct RepositoriesView: View {
                 }
             }
         }
-        .frame(width: 230)
         .safeAreaInset(edge: .bottom) {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 if !github.isConnected {
@@ -115,6 +114,9 @@ struct RepositoriesView: View {
             .padding(Spacing.s)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        // Fixed width applied after the inset: the inset's flexible width would otherwise make the whole column
+        // share space with the detail view.
+        .frame(width: 230)
     }
 }
 

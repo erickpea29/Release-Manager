@@ -5,8 +5,8 @@
 | M00 — Technical Validation | **Complete** (2026-10-21) |
 | M01 — Foundation | **Complete**: merged in PR #1 ([report](M01_FOUNDATION.md)) |
 | M02 — Projects and Kanban | **Complete**: merged in PR #2 ([report](M02_PROJECTS_AND_KANBAN.md)) |
-| M03 — GitHub Integration | **In review**: CI and live check pending ([report](M03_GITHUB_INTEGRATION.md)) |
-| M04 — Release Workflow and History | Not started |
+| M03 — GitHub Integration | **Complete**: CI passed, live check passed; PR #3 awaiting merge ([report](M03_GITHUB_INTEGRATION.md)) |
+| M04 — Release Workflow and History | Next |
 | M05 — Design Polish and Distribution | Not started |
 
 ## M00 checklist
@@ -60,5 +60,5 @@
 - [x] Cache with sync timestamps (fresh vs. cached shown)
 - [x] Expired credentials, permission errors, offline, transient failures
 - [x] Mock-based tests + opt-in live test
-- [ ] CI on PR
-- [ ] Live check in the app with the owner's GitHub account
+- [x] CI on PR #3
+- [x] Live check in the app with the owner's GitHub account (sign-in, repository, commits, merged PRs, no token leaks)

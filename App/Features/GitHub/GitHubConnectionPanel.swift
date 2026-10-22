@@ -109,7 +109,7 @@ struct GitHubConnectionPanel: View {
                 HStack(spacing: Spacing.xs) {
                     ProgressView().controlSize(.small)
                     Text(
-                        "Waiting for approval. The code expires at \(expiresAt.formatted(date: .omitted, time: .shortened))."
+                        "Waiting for approval · code expires at \(expiresAt.formatted(date: .omitted, time: .shortened))"
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
