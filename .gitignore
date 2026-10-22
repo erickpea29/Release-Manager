@@ -1,0 +1,28 @@
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Local-only signing overrides (team ID, identity). Never commit.
+Config/Local.xcconfig
+
+# Local data and secrets
+*.store
+*.store-shm
+*.store-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.p12
+*.mobileprovision
+*.provisionprofile
+.env
+
+# macOS
+.DS_Store
