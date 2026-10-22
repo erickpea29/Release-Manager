@@ -1,6 +1,6 @@
 # M04 — Release Workflow and History Report
 
-Status: **Implemented, awaiting review** (PR pending) · 2026-10-22
+Status: **Implemented, awaiting review** (PR #5) · 2026-10-22
 
 ## 1. What was built
 
@@ -32,6 +32,7 @@ Status: **Implemented, awaiting review** (PR pending) · 2026-10-22
 | Strict lint / builds | **0 findings**; Debug and Release builds with 0 warnings; Release binary contains no demo code |
 | UI (demo GitHub, dark and light) | Screenshots of every state: preparation with generated notes, confirmation sheet (Create Draft disabled until incomplete tasks are confirmed), draft created, published and verified, mismatch with Record as Published, timeout needing reconciliation, Release History |
 | Live GitHub, read-only (owner's repository) | On a **copy** of the dev store (`M04Verification`, migrated V2→V3 on first open with all 9 tasks intact; the original untouched): branches, latest commit `b9fdae8` (merge of PR #4), changes with **all 4 merged PRs**, generated notes, and the full pre-draft check with no conflicts. The confirmation sheet opened; **no draft was created** |
+| CI | **PASS**: PR #5, run 39733811967 on `macos-26` (lint, 127/127 tests, 2 opt-in skipped, app build) |
 | Live draft creation | **Not run.** It writes to GitHub, so it waits for the owner's go-ahead (§4) |
 
 ## 3. Acceptance criteria
