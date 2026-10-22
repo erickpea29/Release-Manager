@@ -31,6 +31,8 @@ final class ReleaseModel {
     private(set) var commitsBranch: String?
     private(set) var isLoadingTargets = false
     private(set) var targetError: String?
+    private var targetsGeneration = 0
+    private var commitsGeneration = 0
 
     // Changes behind the notes.
     private(set) var changes: UnreleasedChanges?
@@ -174,31 +176,43 @@ final class ReleaseModel {
 
     // MARK: Reading GitHub
 
-    /// Branches and the chosen branch's latest commits, for the target pickers.
+    /// Branches and the chosen branch's latest commits, for the target pickers. A newer load supersedes an older
+    /// one: only the latest load's results are applied, so a slow load can't show another repository's commits.
     func loadTargets() async {
-        guard let connection, github.isConnected, !isLoadingTargets else { return }
+        targetsGeneration += 1
+        let generation = targetsGeneration
+        guard let connection, github.isConnected else { return }
         isLoadingTargets = true
-        defer { isLoadingTargets = false }
+        defer { if generation == targetsGeneration { isLoadingTargets = false } }
         // Tags and the latest release (the default compare base) come from the repository snapshot.
         if cachedSnapshot == nil, let remote = await github.refresh(repositoryID: connection.githubRepositoryID) {
             await workspace.recordSync(of: connection, remote: remote)
         }
         do {
-            branches = try await github.branches(of: connection.githubRepositoryID)
+            let loaded = try await github.branches(of: connection.githubRepositoryID)
+            guard generation == targetsGeneration else { return }
+            branches = loaded
             targetError = nil
         } catch {
+            guard generation == targetsGeneration else { return }
             targetError = AppAlert.message(for: error)
         }
         await loadCommits()
     }
 
+    /// The chosen branch's latest commits. Like `loadTargets`, only the latest load is applied.
     func loadCommits() async {
+        commitsGeneration += 1
+        let generation = commitsGeneration
         guard let connection, let branch = plan?.targetBranch, github.isConnected else { return }
         do {
-            commits = try await github.commits(of: connection.githubRepositoryID, branch: branch)
+            let loaded = try await github.commits(of: connection.githubRepositoryID, branch: branch)
+            guard generation == commitsGeneration else { return }
+            commits = loaded
             commitsBranch = branch
             targetError = nil
         } catch {
+            guard generation == commitsGeneration else { return }
             commits = []
             targetError = AppAlert.message(for: error)
         }

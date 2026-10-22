@@ -1,6 +1,6 @@
 # M04 — Release Workflow and History Report
 
-Status: **Implemented, awaiting review** (PR #5) · 2026-10-22
+Status: **Merged** in PR #5 (fix in PR #6) · 2026-10-22. Live publication check pending the owner (§4)
 
 ## 1. What was built
 
@@ -33,7 +33,7 @@ Status: **Implemented, awaiting review** (PR #5) · 2026-10-22
 | UI (demo GitHub, dark and light) | Screenshots of every state: preparation with generated notes, confirmation sheet (Create Draft disabled until incomplete tasks are confirmed), draft created, published and verified, mismatch with Record as Published, timeout needing reconciliation, Release History |
 | Live GitHub, read-only (owner's repository) | On a **copy** of the dev store (`M04Verification`, migrated V2→V3 on first open with all 9 tasks intact; the original untouched): branches, latest commit `b9fdae8` (merge of PR #4), changes with **all 4 merged PRs**, generated notes, and the full pre-draft check with no conflicts. The confirmation sheet opened; **no draft was created** |
 | CI | **PASS**: PR #5, run 39733811967 on `macos-26` (lint, 127/127 tests, 2 opt-in skipped, app build) |
-| Live draft creation | **Not run.** It writes to GitHub, so it waits for the owner's go-ahead (§4) |
+| Live draft creation | **PASS** (with the owner's approval, on a copy of the dev store). Release id 420378956 on `erickpea29/Release-Manager`: a **draft**, marked pre-release. Tag `v0.0.0-relvora-test` (throwaway), target `05157e7…` (full SHA), body **byte-identical** to the snapshot's notes (605 bytes). **Exactly one** release for the tag, and the tag was **not created** (404). The plan and its snapshot are `draftCreated`, linked to the release ID. The first attempt stopped safely before review (F21); nothing was sent |
 
 ## 3. Acceptance criteria
 
@@ -49,7 +49,7 @@ Status: **Implemented, awaiting review** (PR #5) · 2026-10-22
 
 ## 4. Live draft check (owner)
 
-Creating a draft is a write to `erickpea29/Release-Manager`, so it was not done without approval. To check it yourself:
+The draft `v0.0.0-relvora-test` (release 420378956) now exists. To finish the check, publish or delete it on GitHub, then choose **Check Publication** in the `M04Verification` store. To repeat the whole flow yourself:
 
 1. Run the Debug app, open **Relvora › Releases**, choose the repository, commit, and tag, and generate notes.
 2. **Create GitHub Draft…**, review, confirm. The plan shows *Draft on GitHub* with a link.
@@ -62,6 +62,7 @@ Tip: use a throwaway tag such as `v0.0.0-relvora-test` and delete the draft afte
 - **F19: A task tied to a view's identity is cancelled when that identity changes.** `.task(id: plan.status)` cancelled the demo scenario mid-request when the status changed. User actions already run in their own tasks. A cancelled create classifies as *unknown*, so the safe path holds anyway.
 - **F20: An unsynced repository has no compare base.** Preparation now syncs the repository snapshot (tags, latest release) when none is cached.
 - F18 recurred: a sentence after a localized time (`12:17 a.m..`). The published text now puts the time at the end of its own line.
+- **F21 — A skipped reload left stale target data.** Choosing a repository cleared the commit list and started a load. If the view's initial load was still running, the new load was skipped (an `isLoading` guard), and the old load later filled in its data. Seen live: the first scripted run found no commits and stopped before review, so nothing was sent. Fixed in PR #6: every branch or commit load has a generation, and only the latest one's results are applied.
 
 ## 6. Known issues and notes
 
