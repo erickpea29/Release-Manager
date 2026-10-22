@@ -1,11 +1,28 @@
 import Foundation
 
-public enum TaskPriority: String, Sendable, CaseIterable, Codable {
+public enum TaskPriority: String, Sendable, CaseIterable, Codable, Comparable {
     case low, medium, high, urgent
+
+    public var title: String { rawValue.capitalized }
+
+    public static func < (lhs: Self, rhs: Self) -> Bool {
+        allCases.firstIndex(of: lhs)! < allCases.firstIndex(of: rhs)!
+    }
 }
 
 public enum TaskType: String, Sendable, CaseIterable, Codable {
     case feature, improvement, bugFix, documentation, maintenance, other
+
+    public var title: String {
+        switch self {
+        case .feature: "Feature"
+        case .improvement: "Improvement"
+        case .bugFix: "Bug fix"
+        case .documentation: "Documentation"
+        case .maintenance: "Maintenance"
+        case .other: "Other"
+        }
+    }
 }
 
 public struct ChecklistItem: Sendable, Hashable, Identifiable {

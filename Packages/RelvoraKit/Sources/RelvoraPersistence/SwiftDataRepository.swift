@@ -2,221 +2,151 @@ import Foundation
 import RelvoraCore
 import SwiftData
 
-/// SwiftData implementation of every repository protocol. A failed save rolls back the context, so
-/// each public method is all-or-nothing.
-actor SwiftDataRepository: ModelActor {
-    nonisolated let modelExecutor: any ModelExecutor
-    nonisolated let modelContainer: ModelContainer
+/// SwiftData implementation of every repository protocol.
+///
+/// Each public method runs in its own fresh `ModelContext`. A write saves once at the end; if anything
+/// fails first, the context is discarded. M02 found that `ModelContext.rollback()` did not undo property
+/// changes on already-fetched objects, so a shared context could carry a rejected edit into a later save.
+/// The actor serializes writers.
+actor SwiftDataRepository {
+    private let container: ModelContainer
 
     init(modelContainer: ModelContainer) {
-        self.modelContainer = modelContainer
-        self.modelExecutor = DefaultSerialModelExecutor(modelContext: ModelContext(modelContainer))
+        self.container = modelContainer
     }
 
-    // MARK: - Helpers
+    // MARK: - Context helpers
 
-    private func fetch<Model: PersistentModel>(_ descriptor: FetchDescriptor<Model>) throws(PersistenceError) -> [Model]
+    private func read<Result>(_ body: (ModelContext) throws(PersistenceError) -> Result) throws(PersistenceError)
+        -> Result
+    {
+        try body(ModelContext(container))
+    }
+
+    private func transaction(_ body: (ModelContext) throws(PersistenceError) -> Void) throws(PersistenceError) {
+        let context = ModelContext(container)
+        context.autosaveEnabled = false
+        try body(context)
+        do {
+            try context.save()
+        } catch {
+            Log.persistence.error("Save failed: \(String(describing: error), privacy: .private)")
+            throw .saveFailed(reason: String(describing: error))
+        }
+    }
+
+    private func fetch<Model: PersistentModel>(_ descriptor: FetchDescriptor<Model>, in context: ModelContext)
+        throws(PersistenceError) -> [Model]
     {
         do {
-            return try modelContext.fetch(descriptor)
+            return try context.fetch(descriptor)
         } catch {
             Log.persistence.error("Fetch failed: \(String(describing: error), privacy: .private)")
             throw .fetchFailed(reason: String(describing: error))
         }
     }
 
-    private func save() throws(PersistenceError) {
-        do {
-            try modelContext.save()
-        } catch {
-            modelContext.rollback()
-            Log.persistence.error("Save failed: \(String(describing: error), privacy: .private)")
-            throw .saveFailed(reason: String(describing: error))
-        }
-    }
-
-    /// Discards unsaved changes before rethrowing, so a rejected operation leaves nothing behind.
-    private func transaction(_ body: () throws(PersistenceError) -> Void) throws(PersistenceError) {
-        do {
-            try body()
-            try save()
-        } catch {
-            modelContext.rollback()
-            throw error
-        }
-    }
-
-    private func projectEntity(_ id: UUID) throws(PersistenceError) -> ProjectEntity {
+    private func projectEntity(_ id: UUID, in context: ModelContext) throws(PersistenceError) -> ProjectEntity {
         var descriptor = FetchDescriptor<ProjectEntity>(predicate: #Predicate { $0.id == id })
         descriptor.fetchLimit = 1
-        guard let entity = try fetch(descriptor).first else { throw .notFound(entity: "project", id: id) }
+        guard let entity = try fetch(descriptor, in: context).first else { throw .notFound(entity: "project", id: id) }
         return entity
     }
 
-    private func columnEntity(_ id: UUID) throws(PersistenceError) -> BoardColumnEntity? {
+    private func columnEntity(_ id: UUID, in context: ModelContext) throws(PersistenceError) -> BoardColumnEntity? {
         var descriptor = FetchDescriptor<BoardColumnEntity>(predicate: #Predicate { $0.id == id })
         descriptor.fetchLimit = 1
-        return try fetch(descriptor).first
+        return try fetch(descriptor, in: context).first
     }
 
-    private func taskEntity(_ id: UUID) throws(PersistenceError) -> TaskEntity? {
+    private func taskEntity(_ id: UUID, in context: ModelContext) throws(PersistenceError) -> TaskEntity? {
         var descriptor = FetchDescriptor<TaskEntity>(predicate: #Predicate { $0.id == id })
         descriptor.fetchLimit = 1
-        return try fetch(descriptor).first
+        return try fetch(descriptor, in: context).first
     }
 
-    private func planEntity(_ id: UUID) throws(PersistenceError) -> ReleasePlanEntity? {
+    private func planEntity(_ id: UUID, in context: ModelContext) throws(PersistenceError) -> ReleasePlanEntity? {
         var descriptor = FetchDescriptor<ReleasePlanEntity>(predicate: #Predicate { $0.id == id })
         descriptor.fetchLimit = 1
-        return try fetch(descriptor).first
-    }
-}
-
-// MARK: - Projects
-
-extension SwiftDataRepository: ProjectRepository {
-    func projects(includeArchived: Bool) throws(PersistenceError) -> [Project] {
-        let all = try fetch(FetchDescriptor<ProjectEntity>(sortBy: [SortDescriptor(\.createdAt)]))
-        return all.filter { includeArchived || $0.archivedAt == nil }.map(Project.init)
+        return try fetch(descriptor, in: context).first
     }
 
-    func project(id: UUID) throws(PersistenceError) -> Project {
-        Project(try projectEntity(id))
+    @discardableResult
+    private func insertProject(_ project: Project, in context: ModelContext) -> ProjectEntity {
+        let entity = ProjectEntity(id: project.id, name: project.name, createdAt: project.createdAt)
+        entity.apply(project)
+        context.insert(entity)
+        return entity
     }
 
-    func create(_ project: Project, columns: [BoardColumn]) throws(PersistenceError) {
-        guard columns.allSatisfy({ $0.projectID == project.id }) else {
-            throw .integrityViolation("Columns must belong to the project being created.")
-        }
-        try transaction { () throws(PersistenceError) in
-            let entity = ProjectEntity(id: project.id, name: project.name, createdAt: project.createdAt)
-            entity.apply(project)
-            modelContext.insert(entity)
-            for column in columns {
-                let columnEntity = BoardColumnEntity(
-                    id: column.id,
-                    name: column.name,
-                    sortOrder: column.sortOrder,
-                    isCompletionColumn: column.isCompletionColumn,
-                    createdAt: column.createdAt
-                )
-                modelContext.insert(columnEntity)
-                columnEntity.project = entity
-            }
-        }
+    @discardableResult
+    private func insertColumn(_ column: BoardColumn, into project: ProjectEntity, in context: ModelContext)
+        -> BoardColumnEntity
+    {
+        let entity = BoardColumnEntity(
+            id: column.id,
+            name: column.name,
+            sortOrder: column.sortOrder,
+            isCompletionColumn: column.isCompletionColumn,
+            createdAt: column.createdAt
+        )
+        entity.updatedAt = column.updatedAt
+        context.insert(entity)
+        entity.project = project
+        return entity
     }
 
-    func update(_ project: Project) throws(PersistenceError) {
-        try transaction { () throws(PersistenceError) in
-            try projectEntity(project.id).apply(project)
-        }
+    @discardableResult
+    private func insertPlan(_ plan: ReleasePlan, into project: ProjectEntity, in context: ModelContext)
+        -> ReleasePlanEntity
+    {
+        let entity = ReleasePlanEntity(
+            id: plan.id, version: plan.version, statusRaw: plan.status.rawValue, createdAt: plan.createdAt)
+        context.insert(entity)
+        entity.project = project
+        entity.apply(plan)
+        return entity
     }
 
-    func deleteProject(id: UUID) throws(PersistenceError) {
-        try transaction { () throws(PersistenceError) in
-            modelContext.delete(try projectEntity(id))
-        }
-    }
-}
-
-// MARK: - Board
-
-extension SwiftDataRepository: BoardRepository {
-    func columns(projectID: UUID) throws(PersistenceError) -> [BoardColumn] {
-        try projectEntity(projectID).columns.map(BoardColumn.init).sorted { $0.sortOrder < $1.sortOrder }
-    }
-
-    func tasks(projectID: UUID) throws(PersistenceError) -> [ProjectTask] {
-        try projectEntity(projectID).tasks.compactMap(ProjectTask.init).sorted { $0.sortOrder < $1.sortOrder }
-    }
-
-    func save(_ column: BoardColumn) throws(PersistenceError) {
-        try transaction { () throws(PersistenceError) in
-            let project = try projectEntity(column.projectID)
-            let entity: BoardColumnEntity
-            if let existing = try columnEntity(column.id) {
-                guard existing.project?.id == column.projectID else {
-                    throw .integrityViolation("A column cannot move to another project.")
-                }
-                entity = existing
-            } else {
-                entity = BoardColumnEntity(
-                    id: column.id,
-                    name: column.name,
-                    sortOrder: column.sortOrder,
-                    isCompletionColumn: column.isCompletionColumn,
-                    createdAt: column.createdAt
-                )
-                modelContext.insert(entity)
-                entity.project = project
-            }
-            entity.name = column.name
-            entity.sortOrder = column.sortOrder
-            entity.isCompletionColumn = column.isCompletionColumn
-            entity.updatedAt = column.updatedAt
-        }
+    private func insertTask(
+        _ task: ProjectTask,
+        project: ProjectEntity,
+        column: BoardColumnEntity,
+        plan: ReleasePlanEntity?,
+        in context: ModelContext
+    ) {
+        let entity = TaskEntity(
+            id: task.id,
+            title: task.title,
+            priorityRaw: task.priority.rawValue,
+            typeRaw: task.type.rawValue,
+            sortOrder: task.sortOrder,
+            createdAt: task.createdAt
+        )
+        context.insert(entity)
+        entity.project = project
+        entity.apply(task)
+        entity.column = column
+        entity.releasePlan = plan
+        syncChecklist(of: entity, to: task.checklist, in: context)
     }
 
-    func save(_ task: ProjectTask) throws(PersistenceError) {
-        try transaction { () throws(PersistenceError) in
-            let project = try projectEntity(task.projectID)
-            guard let column = try columnEntity(task.columnID), column.project?.id == task.projectID else {
-                throw .integrityViolation("A task's column must belong to the task's project.")
-            }
-            var plan: ReleasePlanEntity?
-            if let planID = task.releasePlanID {
-                guard let found = try planEntity(planID), found.project?.id == task.projectID else {
-                    throw .integrityViolation("A task's release plan must belong to the task's project.")
-                }
-                plan = found
-            }
-
-            let entity: TaskEntity
-            if let existing = try taskEntity(task.id) {
-                guard existing.project?.id == task.projectID else {
-                    throw .integrityViolation("A task cannot move to another project.")
-                }
-                entity = existing
-            } else {
-                entity = TaskEntity(
-                    id: task.id,
-                    title: task.title,
-                    priorityRaw: task.priority.rawValue,
-                    typeRaw: task.type.rawValue,
-                    sortOrder: task.sortOrder,
-                    createdAt: task.createdAt
-                )
-                modelContext.insert(entity)
-                entity.project = project
-            }
-            entity.apply(task)
-            entity.column = column
-            entity.releasePlan = plan
-            syncChecklist(of: entity, to: task.checklist)
-        }
-    }
-
-    func deleteTask(id: UUID) throws(PersistenceError) {
-        try transaction { () throws(PersistenceError) in
-            guard let entity = try taskEntity(id) else { throw .notFound(entity: "task", id: id) }
-            modelContext.delete(entity)
-        }
-    }
-
-    private func syncChecklist(of task: TaskEntity, to items: [ChecklistItem]) {
+    private func syncChecklist(of task: TaskEntity, to items: [ChecklistItem], in context: ModelContext) {
         let wanted = Set(items.map(\.id))
         for stale in task.checklist where !wanted.contains(stale.id) {
-            modelContext.delete(stale)
+            context.delete(stale)
         }
         let existing = Dictionary(
-            uniqueKeysWithValues: task.checklist.filter { wanted.contains($0.id) }.map { ($0.id, $0) })
+            task.checklist.filter { wanted.contains($0.id) }.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         for item in items {
             let entity =
                 existing[item.id]
                 ?? {
                     let created = ChecklistItemEntity(
                         id: item.id, title: item.title, isDone: item.isDone, sortOrder: item.sortOrder)
-                    modelContext.insert(created)
+                    context.insert(created)
                     created.task = task
                     return created
                 }()
@@ -227,40 +157,246 @@ extension SwiftDataRepository: BoardRepository {
     }
 }
 
+// MARK: - Projects
+
+extension SwiftDataRepository: ProjectRepository {
+    func projects(includeArchived: Bool) throws(PersistenceError) -> [Project] {
+        try read { context throws(PersistenceError) in
+            try fetch(FetchDescriptor<ProjectEntity>(sortBy: [SortDescriptor(\.createdAt)]), in: context)
+                .filter { includeArchived || $0.archivedAt == nil }
+                .map(Project.init)
+        }
+    }
+
+    func project(id: UUID) throws(PersistenceError) -> Project {
+        try read { context throws(PersistenceError) in Project(try projectEntity(id, in: context)) }
+    }
+
+    func create(_ project: Project, columns: [BoardColumn]) throws(PersistenceError) {
+        guard columns.allSatisfy({ $0.projectID == project.id }) else {
+            throw .integrityViolation("Columns must belong to the project being created.")
+        }
+        guard columns.filter(\.isCompletionColumn).count == 1 else {
+            throw .integrityViolation("A project needs exactly one completion column.")
+        }
+        try transaction { context throws(PersistenceError) in
+            let entity = insertProject(project, in: context)
+            for column in columns {
+                insertColumn(column, into: entity, in: context)
+            }
+        }
+    }
+
+    func update(_ project: Project) throws(PersistenceError) {
+        try transaction { context throws(PersistenceError) in
+            try projectEntity(project.id, in: context).apply(project)
+        }
+    }
+
+    func deleteProject(id: UUID) throws(PersistenceError) {
+        try transaction { context throws(PersistenceError) in
+            context.delete(try projectEntity(id, in: context))
+        }
+    }
+}
+
+// MARK: - Board
+
+extension SwiftDataRepository: BoardRepository {
+    func columns(projectID: UUID) throws(PersistenceError) -> [BoardColumn] {
+        try read { context throws(PersistenceError) in
+            try projectEntity(projectID, in: context).columns.map(BoardColumn.init).sorted {
+                $0.sortOrder < $1.sortOrder
+            }
+        }
+    }
+
+    func tasks(projectID: UUID) throws(PersistenceError) -> [ProjectTask] {
+        try read { context throws(PersistenceError) in
+            try projectEntity(projectID, in: context).tasks.compactMap(ProjectTask.init)
+                .sorted { $0.sortOrder < $1.sortOrder }
+        }
+    }
+
+    func apply(_ changes: BoardChanges) throws(PersistenceError) {
+        guard !changes.isEmpty else { return }
+        try transaction { context throws(PersistenceError) in
+            // Column membership and completion flags as they will be after this batch. Tracked here instead of
+            // read back from relationships, so the checks don't depend on when inverse relationships update.
+            var columnProject: [UUID: UUID] = [:]
+            var completion: [UUID: [UUID: Bool]] = [:]
+            func track(_ entity: BoardColumnEntity, projectID: UUID) {
+                columnProject[entity.id] = projectID
+                completion[projectID, default: [:]][entity.id] = entity.isCompletionColumn
+            }
+            func trackAll(of project: ProjectEntity) {
+                for existing in project.columns where completion[project.id]?[existing.id] == nil {
+                    track(existing, projectID: project.id)
+                }
+            }
+
+            for column in changes.upsertColumns {
+                let project = try projectEntity(column.projectID, in: context)
+                trackAll(of: project)
+                let entity: BoardColumnEntity
+                if let existing = try columnEntity(column.id, in: context) {
+                    guard existing.project?.id == column.projectID else {
+                        throw .integrityViolation("A column cannot move to another project.")
+                    }
+                    entity = existing
+                } else {
+                    entity = insertColumn(column, into: project, in: context)
+                }
+                entity.name = column.name
+                entity.sortOrder = column.sortOrder
+                entity.isCompletionColumn = column.isCompletionColumn
+                entity.updatedAt = column.updatedAt
+                track(entity, projectID: project.id)
+            }
+
+            for task in changes.upsertTasks {
+                try upsert(task, columnProject: columnProject, in: context)
+            }
+
+            for id in changes.deleteTaskIDs {
+                guard let entity = try taskEntity(id, in: context) else { throw .notFound(entity: "task", id: id) }
+                context.delete(entity)
+            }
+
+            let deletedTasks = Set(changes.deleteTaskIDs)
+            let taskColumns = Dictionary(changes.upsertTasks.map { ($0.id, $0.columnID) }, uniquingKeysWith: { $1 })
+            for id in changes.deleteColumnIDs {
+                guard let entity = try columnEntity(id, in: context), let project = entity.project else {
+                    throw .notFound(entity: "column", id: id)
+                }
+                trackAll(of: project)
+                let remaining = entity.tasks.filter { task in
+                    !deletedTasks.contains(task.id) && (taskColumns[task.id] ?? id) == id
+                }
+                let arriving = changes.upsertTasks.contains { $0.columnID == id }
+                guard remaining.isEmpty, !arriving else {
+                    throw .integrityViolation("A column must be empty before it is deleted.")
+                }
+                completion[project.id]?[id] = nil
+                context.delete(entity)
+            }
+
+            for (_, columns) in completion {
+                guard !columns.isEmpty, columns.values.filter({ $0 }).count == 1 else {
+                    throw .integrityViolation("A project needs at least one column and exactly one completion column.")
+                }
+            }
+        }
+    }
+
+    private func upsert(_ task: ProjectTask, columnProject: [UUID: UUID], in context: ModelContext)
+        throws(PersistenceError)
+    {
+        let project = try projectEntity(task.projectID, in: context)
+        guard let column = try columnEntity(task.columnID, in: context),
+            (columnProject[task.columnID] ?? column.project?.id) == task.projectID
+        else {
+            throw .integrityViolation("A task's column must belong to the task's project.")
+        }
+        var plan: ReleasePlanEntity?
+        if let planID = task.releasePlanID {
+            guard let found = try planEntity(planID, in: context), found.project?.id == task.projectID else {
+                throw .integrityViolation("A task's release plan must belong to the task's project.")
+            }
+            plan = found
+        }
+
+        guard let existing = try taskEntity(task.id, in: context) else {
+            insertTask(task, project: project, column: column, plan: plan, in: context)
+            return
+        }
+        guard existing.project?.id == task.projectID else {
+            throw .integrityViolation("A task cannot move to another project.")
+        }
+        existing.apply(task)
+        existing.column = column
+        existing.releasePlan = plan
+        syncChecklist(of: existing, to: task.checklist, in: context)
+    }
+}
+
 // MARK: - Release plans
 
 extension SwiftDataRepository: ReleasePlanRepository {
     func plans(projectID: UUID) throws(PersistenceError) -> [ReleasePlan] {
-        try projectEntity(projectID).releasePlans.compactMap(ReleasePlan.init).sorted { $0.createdAt < $1.createdAt }
+        try read { context throws(PersistenceError) in
+            try projectEntity(projectID, in: context).releasePlans.compactMap(ReleasePlan.init)
+                .sorted { $0.createdAt < $1.createdAt }
+        }
     }
 
     func save(_ plan: ReleasePlan) throws(PersistenceError) {
-        try transaction { () throws(PersistenceError) in
-            let project = try projectEntity(plan.projectID)
-            let entity: ReleasePlanEntity
-            if let existing = try planEntity(plan.id) {
+        try transaction { context throws(PersistenceError) in
+            let project = try projectEntity(plan.projectID, in: context)
+            if let existing = try planEntity(plan.id, in: context) {
                 guard existing.project?.id == plan.projectID else {
                     throw .integrityViolation("A release plan cannot move to another project.")
                 }
-                entity = existing
+                existing.apply(plan)
             } else {
-                entity = ReleasePlanEntity(
-                    id: plan.id,
-                    version: plan.version,
-                    statusRaw: plan.status.rawValue,
-                    createdAt: plan.createdAt
-                )
-                modelContext.insert(entity)
-                entity.project = project
+                insertPlan(plan, into: project, in: context)
             }
-            entity.apply(plan)
         }
     }
 
     func deletePlan(id: UUID) throws(PersistenceError) {
-        try transaction { () throws(PersistenceError) in
-            guard let entity = try planEntity(id) else { throw .notFound(entity: "release plan", id: id) }
-            modelContext.delete(entity)
+        try transaction { context throws(PersistenceError) in
+            guard let entity = try planEntity(id, in: context) else {
+                throw .notFound(entity: "release plan", id: id)
+            }
+            context.delete(entity)
+        }
+    }
+}
+
+// MARK: - Backup
+
+extension SwiftDataRepository: BackupRepository {
+    func allProjectBundles() throws(PersistenceError) -> [ProjectBundle] {
+        try read { context throws(PersistenceError) in
+            try fetch(FetchDescriptor<ProjectEntity>(sortBy: [SortDescriptor(\.createdAt)]), in: context).map {
+                entity in
+                ProjectBundle(
+                    project: Project(entity),
+                    columns: entity.columns.map(BoardColumn.init).sorted { $0.sortOrder < $1.sortOrder },
+                    tasks: entity.tasks.compactMap(ProjectTask.init).sorted { $0.sortOrder < $1.sortOrder },
+                    releasePlans: entity.releasePlans.compactMap(ReleasePlan.init).sorted {
+                        $0.createdAt < $1.createdAt
+                    }
+                )
+            }
+        }
+    }
+
+    func replaceAll(with bundles: [ProjectBundle]) throws(PersistenceError) {
+        try transaction { context throws(PersistenceError) in
+            for project in try fetch(FetchDescriptor<ProjectEntity>(), in: context) {
+                context.delete(project)
+            }
+            for bundle in bundles {
+                let project = insertProject(bundle.project, in: context)
+                var columns: [UUID: BoardColumnEntity] = [:]
+                for column in bundle.columns {
+                    columns[column.id] = insertColumn(column, into: project, in: context)
+                }
+                var plans: [UUID: ReleasePlanEntity] = [:]
+                for plan in bundle.releasePlans {
+                    plans[plan.id] = insertPlan(plan, into: project, in: context)
+                }
+                for task in bundle.tasks {
+                    guard let column = columns[task.columnID] else {
+                        throw .integrityViolation("A task references a missing column.")
+                    }
+                    insertTask(
+                        task, project: project, column: column, plan: task.releasePlanID.flatMap { plans[$0] },
+                        in: context)
+                }
+            }
         }
     }
 }

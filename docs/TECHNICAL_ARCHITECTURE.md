@@ -14,7 +14,7 @@ release-manager/                        # repository: erickpea29/Release-Manager
 │   ├── DesignSystem/                   # tokens, panel style, window material
 │   └── Debug/                          # sample data (Debug builds only)
 ├── Packages/RelvoraKit/                # local Swift package
-│   ├── Sources/RelvoraCore/            # domain models, rules, use cases, repository protocols, errors
+│   ├── Sources/RelvoraCore/            # domain, pure planners/rules, services, repository protocols, backup format
 │   ├── Sources/RelvoraPersistence/     # SwiftData schema + repository implementation
 │   └── Tests/                          # swift test
 ├── Config/                             # Shared.xcconfig, Relvora.entitlements, Local.xcconfig (git-ignored)
@@ -50,9 +50,11 @@ App (SwiftUI views, @Observable AppModel)
 ## 4. Persistence
 
 - SwiftData, with an on-disk store in the sandbox container's Application Support directory.
+- Every repository call uses a fresh `ModelContext`; failed writes are discarded, never rolled back in place ([ADR 0008](decisions/0008-fresh-context-per-operation.md)).
+- Board edits are computed by the pure `BoardPlanner` as `BoardChanges` and applied in one transaction. The store re-checks invariants (task ↔ column ↔ project, exactly one completion column, empty-before-delete), even for changes that bypass the planner.
 - A `VersionedSchema` and migration plan from the first release; migration tests use committed fixture stores.
 - Multi-record operations run in one `ModelContext` save, which is one transaction.
-- Backup: versioned JSON envelope (`formatVersion`, `exportedAt`, entities). Restore validates fully before replacing anything.
+- Backup: versioned JSON (`BackupDocument`, format 1), independent of the schema. Restore validates the whole document, writes a safety copy, then replaces everything in one transaction ([guide](BACKUP_AND_RESTORE.md)).
 
 ## 5. GitHub integration
 

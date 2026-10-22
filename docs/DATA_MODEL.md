@@ -26,7 +26,7 @@ Owner and name are refreshed on sync; renames and transfers keep the same `githu
 
 - Exactly one completion column per project.
 - A column cannot be deleted while it holds tasks; the user picks a destination column first.
-- New projects get the default columns Backlog, To Do, In Progress, Review, and Done (the completion column). They are fixed in M01; making them configurable in preferences comes in M02.
+- New projects get the default columns Backlog, To Do, In Progress, Review, and Done (the completion column). Making the defaults configurable in Settings is deferred to M05 (per-project columns are fully editable since M02).
 
 ### ProjectTask **Δ** (plan: `Task`, renamed so it doesn't shadow Swift's `Task`)
 `id`, `projectID`, `releasePlanID?`, **Δ `columnID`** (was `statusID`), `title`, `details?` (Markdown), `priority` (`low|medium|high|urgent`), `type` (`feature|improvement|bugFix|documentation|maintenance|other`), `labels: [String]` (trimmed, case-insensitive unique), `sortOrder`, `createdAt`, `updatedAt`, `completedAt?`
@@ -85,4 +85,9 @@ planned ──create draft (confirmed)──▶ draftCreated ──publication v
 - Delete rules in V1: a project cascades to its columns, tasks, and plans, and a task cascades to its checklist. Deleting a column or plan nullifies the link; column deletion is guarded by a domain rule (M02).
 - Integrity rules enforced by the repository: a task's column and release plan must belong to the task's project, and records never move between projects. A rejected save is rolled back completely.
 - A fixture store per frozen schema version lives in `Tests/Fixtures/`, starting with V1 when V2 is introduced. Migration tests open each fixture with the current schema in a `.serialized` suite.
-- A backup JSON envelope carries `formatVersion`. Restore refuses unknown future versions and validates referential integrity before replacing data.
+- Backup format 1 (`BackupDocument`) mirrors V1 with string enum values and millisecond ISO 8601 dates. Restore refuses newer `formatVersion`s and validates the following before replacing data:
+  - unique IDs;
+  - exactly one completion column per project;
+  - tasks referencing only their own project's columns and plans;
+  - valid enums and versions;
+  - at most one active plan.

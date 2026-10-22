@@ -28,8 +28,8 @@ public enum ProjectRules {
     }
 }
 
-/// Creates a validated project with the default board in one transaction.
-public struct CreateProject: Sendable {
+/// Project lifecycle: create, edit, archive, delete.
+public struct ProjectService: Sendable {
     private let repository: any ProjectRepository
     private let now: @Sendable () -> Date
 
@@ -38,17 +38,42 @@ public struct CreateProject: Sendable {
         self.now = now
     }
 
+    /// Creates a validated project with the default board in one transaction.
     /// Throws `ValidationError` for bad input or `PersistenceError` if saving fails.
-    public func callAsFunction(name: String, details: String? = nil) async throws -> Project {
+    public func create(name: String, details: String? = nil) async throws -> Project {
         let timestamp = now()
-        let trimmedDetails = details?.trimmingCharacters(in: .whitespacesAndNewlines)
         let project = Project(
             name: try ProjectRules.validatedName(name),
-            details: trimmedDetails?.isEmpty == false ? trimmedDetails : nil,
+            details: details?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
             createdAt: timestamp
         )
         try await repository.create(
-            project, columns: ProjectRules.defaultColumns(projectID: project.id, now: timestamp))
+            project,
+            columns: ProjectRules.defaultColumns(projectID: project.id, now: timestamp)
+        )
         return project
+    }
+
+    public func update(_ project: Project, name: String, details: String?) async throws -> Project {
+        var updated = project
+        updated.name = try ProjectRules.validatedName(name)
+        updated.details = details?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        updated.updatedAt = now()
+        try await repository.update(updated)
+        return updated
+    }
+
+    public func setArchived(_ project: Project, _ archived: Bool) async throws -> Project {
+        guard project.isArchived != archived else { return project }
+        var updated = project
+        let timestamp = now()
+        updated.archivedAt = archived ? timestamp : nil
+        updated.updatedAt = timestamp
+        try await repository.update(updated)
+        return updated
+    }
+
+    public func delete(_ projectID: UUID) async throws {
+        try await repository.deleteProject(id: projectID)
     }
 }

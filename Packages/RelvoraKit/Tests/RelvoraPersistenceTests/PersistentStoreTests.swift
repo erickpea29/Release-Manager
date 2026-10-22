@@ -18,7 +18,8 @@ struct PersistentStoreTests {
 
     /// Creates a project with its default board, a release plan, and one task with a checklist.
     private func seed(_ store: PersistentStore) async throws -> (Project, [BoardColumn], ReleasePlan, ProjectTask) {
-        let project = try await CreateProject(repository: store.projects)(name: "Relvora", details: "Release planning")
+        let project = try await ProjectService(repository: store.projects).create(
+            name: "Relvora", details: "Release planning")
         let columns = try await store.board.columns(projectID: project.id)
         let plan = ReleasePlan(projectID: project.id, version: "1.0.0", title: "First release")
         try await store.releasePlans.save(plan)
@@ -56,7 +57,7 @@ struct PersistentStoreTests {
     @Test("Archived projects are hidden unless requested")
     func archiving() async throws {
         let store = try PersistentStore.inMemory()
-        var project = try await CreateProject(repository: store.projects)(name: "Old")
+        var project = try await ProjectService(repository: store.projects).create(name: "Old")
         project.archivedAt = .now
         try await store.projects.update(project)
 
@@ -87,7 +88,7 @@ struct PersistentStoreTests {
     func crossProjectIntegrity() async throws {
         let store = try PersistentStore.inMemory()
         let (first, _, _, _) = try await seed(store)
-        let second = try await CreateProject(repository: store.projects)(name: "Other")
+        let second = try await ProjectService(repository: store.projects).create(name: "Other")
         let foreignColumn = try #require(try await store.board.columns(projectID: second.id).first)
 
         let stray = ProjectTask(projectID: first.id, columnID: foreignColumn.id, title: "Stray", sortOrder: 9)
@@ -102,7 +103,7 @@ struct PersistentStoreTests {
         let url = try temporaryStoreURL()
         let store = try PersistentStore.open(at: url)
         let (project, _, _, _) = try await seed(store)
-        let survivor = try await CreateProject(repository: store.projects)(name: "Survivor")
+        let survivor = try await ProjectService(repository: store.projects).create(name: "Survivor")
 
         try await store.projects.deleteProject(id: project.id)
 

@@ -6,13 +6,16 @@ struct DashboardView: View {
     let openProject: (UUID) -> Void
 
     var body: some View {
-        if model.hasLoaded && model.projects.isEmpty {
+        if model.hasLoaded && model.activeProjects.isEmpty {
             ContentUnavailableView {
                 Label("No Projects", systemImage: "shippingbox")
             } description: {
-                Text("Create a project to plan its releases.")
+                Text(
+                    model.archivedProjects.isEmpty
+                        ? "Create a project to plan its releases."
+                        : "All projects are archived. Create a new one or unarchive one from the sidebar.")
             } actions: {
-                Button("New Project") { model.isPresentingNewProject = true }
+                Button("New Project") { model.projectEditor = .new }
                     .buttonStyle(.borderedProminent)
             }
         } else {
@@ -20,12 +23,12 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: Spacing.l) {
                     Text("Dashboard")
                         .font(.largeTitle.bold())
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 240), spacing: Spacing.m)], spacing: Spacing.m) {
-                        ForEach(model.projects) { project in
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: Spacing.m)], spacing: Spacing.m) {
+                        ForEach(model.activeProjects) { project in
                             Button {
                                 openProject(project.id)
                             } label: {
-                                ProjectSummaryCard(project: project)
+                                ProjectSummaryCard(project: project, stats: model.stats[project.id] ?? ProjectStats())
                             }
                             .buttonStyle(.plain)
                         }
@@ -40,17 +43,35 @@ struct DashboardView: View {
 
 struct ProjectSummaryCard: View {
     let project: Project
+    let stats: ProjectStats
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            Label(project.name, systemImage: project.iconName ?? "shippingbox")
-                .font(.headline)
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            HStack {
+                Label(project.name, systemImage: project.iconName ?? "shippingbox")
+                    .font(.headline)
+                Spacer()
+                if let version = stats.activePlanVersion {
+                    Text("Next: \(version)")
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                }
+            }
             Text(project.details ?? "No description")
                 .foregroundStyle(.secondary)
                 .lineLimit(2, reservesSpace: true)
-            Text("Created \(project.createdAt.formatted(date: .abbreviated, time: .omitted))")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            if let progress = stats.progress {
+                ProgressView(value: progress)
+                    .accessibilityLabel("Progress")
+                    .accessibilityValue("\(stats.completedCount) of \(stats.taskCount) tasks done")
+                Text("\(stats.completedCount) of \(stats.taskCount) tasks done")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("No tasks yet")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .panel()

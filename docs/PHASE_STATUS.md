@@ -3,8 +3,8 @@
 | Phase | Status |
 |---|---|
 | M00 — Technical Validation | **Complete** (2026-10-21) |
-| M01 — Foundation | **Complete**: PR #1 awaiting merge ([report](M01_FOUNDATION.md)) |
-| M02 — Projects and Kanban | Next |
+| M01 — Foundation | **Complete**: merged in PR #1 ([report](M01_FOUNDATION.md)) |
+| M02 — Projects and Kanban | **In review**: CI pending, owner manual checks ([report](M02_PROJECTS_AND_KANBAN.md)) |
 | M03 — GitHub Integration | Not started |
 | M04 — Release Workflow and History | Not started |
 | M05 — Design Polish and Distribution | Not started |
@@ -35,3 +35,16 @@
 - [x] Typed errors and dependency injection (`AppEnvironment`)
 - [x] GitHub Actions CI building and testing on macOS 26 (first run passed in 54 s)
 - [x] Initial unit tests (22) and documentation
+
+## M02 checklist
+
+- [x] Project creation, editing, archiving, deletion, and search
+- [x] Release-plan creation, editing, cancel, delete (one active plan per project)
+- [x] Configurable Kanban columns (add, rename, reorder, completion column, delete with task move)
+- [x] Drag-and-drop with persistent ordering (plus menu-based moves)
+- [x] Task editing: priority, type, labels, notes, checklist, release
+- [x] Filters and empty states
+- [x] Backup export and restore (validated, safety copy, atomic)
+- [x] Data-integrity tests for moves, edits, deletions
+- [ ] CI on PR: **pending**
+- [ ] Owner manual interaction checklist ([report §5](M02_PROJECTS_AND_KANBAN.md#5-not-verified-automatically-manual-checklist-for-the-owner))
