@@ -53,6 +53,8 @@ Status: **Implemented, awaiting review** (PR pending) · 2026-10-22
 - **F25 — The UI test runner is sandboxed.** It can't write files elsewhere, so screenshots and the accessibility tree are XCTest attachments, read with `xcrun xcresulttool export attachments`.
 - **F26 — Settings reopens on the last tab used, across launches.** Tests select their tab explicitly.
 - **F27 — A shared demo cache leaked stale data between launches.** One run showed another run's snapshot as "Cached data from 8 hours ago". The demo cache is now per launch.
+- **F29 — CI renders at 1x, where the contrast audit misreads small text.** GitHub's macOS runners use a non-Retina virtual display (1024×674 screenshots). Black text on a light-gray sidebar was flagged there, though the same screens pass on Retina displays. On 1x displays, contrast is not audited; every other check still runs. Contrast is enforced locally.
+- **F30 — Sidebar and toolbar contrast varies from run to run.** On macOS 26 they are Liquid Glass drawn over whatever is behind the window. The sidebar row "Website Redesign" and the window title failed intermittently (1 of 3 runs). Contrast findings in those system-chrome areas are accepted; the detail content is fully audited. It was stable in 4 of 4 runs afterwards.
 - **F28 — My verification captured the owner's own Relvora window.** A capture by app name picked the owner's window. Test instances are now launched, captured, and quit only by their own process ID; the stray image was deleted.
 
 ## 6. Known issues and notes

@@ -78,4 +78,6 @@ Every remote-data view defines all five states:
     - The title-bar sidebar button reports a parent/child mismatch.
     - The system secondary text color "nearly passes" at small sizes; Increase Contrast strengthens it.
     - Text inside a selected list row uses the system selection colors (F24).
+    - Sidebar and toolbar contrast varies with what is behind the window, because they are drawn on Liquid Glass (F30).
+  - Contrast is audited on Retina displays only. On CI's 1x display, small text measures low even when it is black on light gray (F29).
 - **Contrast.** Text meets WCAG AA contrast (4.5:1 for body text) in both appearances with the opaque material. Small numbers and status text use full-strength text, because small secondary text on tinted backgrounds failed the audit.
