@@ -3,7 +3,8 @@ import Foundation
 /// The on-disk backup format: versioned JSON, independent of the database schema.
 /// Enum values are stored as strings so the format stays readable and stable.
 public struct BackupDocument: Codable, Sendable, Equatable {
-    public static let currentFormatVersion = 1
+    /// 1: M02 (projects, boards, tasks, plans). 2: M03 adds repository connections; version 1 files still restore.
+    public static let currentFormatVersion = 2
 
     public var formatVersion: Int
     public var exportedAt: Date
@@ -22,6 +23,21 @@ public struct BackupDocument: Codable, Sendable, Equatable {
         public var columns: [ColumnRecord]
         public var tasks: [TaskRecord]
         public var releasePlans: [ReleasePlanRecord]
+        /// Absent in format 1.
+        public var repositoryConnections: [RepositoryConnectionRecord]
+    }
+
+    public struct RepositoryConnectionRecord: Codable, Sendable, Equatable {
+        public var id: UUID
+        public var githubRepositoryID: Int64
+        public var owner: String
+        public var name: String
+        public var defaultBranch: String?
+        public var htmlURL: URL
+        public var isPrivate: Bool
+        public var lastSyncedAt: Date?
+        public var createdAt: Date
+        public var updatedAt: Date
     }
 
     public struct ColumnRecord: Codable, Sendable, Equatable {
@@ -178,6 +194,12 @@ extension BackupDocument.ProjectRecord {
                     targetBranch: $0.targetBranch, targetCommitSHA: $0.targetCommitSHA, plannedDate: $0.plannedDate,
                     changelogMarkdown: $0.changelogMarkdown, createdAt: $0.createdAt, updatedAt: $0.updatedAt,
                     releasedAt: $0.releasedAt)
+            },
+            repositoryConnections: bundle.repositoryConnections.sorted { $0.createdAt < $1.createdAt }.map {
+                .init(
+                    id: $0.id, githubRepositoryID: $0.githubRepositoryID, owner: $0.owner, name: $0.name,
+                    defaultBranch: $0.defaultBranch, htmlURL: $0.htmlURL, isPrivate: $0.isPrivate,
+                    lastSyncedAt: $0.lastSyncedAt, createdAt: $0.createdAt, updatedAt: $0.updatedAt)
             }
         )
     }
@@ -218,6 +240,35 @@ extension BackupDocument.ProjectRecord {
                     changelogMarkdown: record.changelogMarkdown, createdAt: record.createdAt,
                     updatedAt: record.updatedAt, releasedAt: record.releasedAt))
         }
-        return ProjectBundle(project: project, columns: columns, tasks: tasks, releasePlans: plans)
+        let connections = repositoryConnections.map {
+            RepositoryConnection(
+                id: $0.id, projectID: id, githubRepositoryID: $0.githubRepositoryID, owner: $0.owner, name: $0.name,
+                defaultBranch: $0.defaultBranch, htmlURL: $0.htmlURL, isPrivate: $0.isPrivate,
+                lastSyncedAt: $0.lastSyncedAt, createdAt: $0.createdAt, updatedAt: $0.updatedAt)
+        }
+        return ProjectBundle(
+            project: project, columns: columns, tasks: tasks, releasePlans: plans, repositoryConnections: connections)
+    }
+}
+
+extension BackupDocument.ProjectRecord {
+    /// Decodes format 1 files, which have no `repositoryConnections`.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        details = try container.decodeIfPresent(String.self, forKey: .details)
+        iconName = try container.decodeIfPresent(String.self, forKey: .iconName)
+        accentColor = try container.decodeIfPresent(String.self, forKey: .accentColor)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+        archivedAt = try container.decodeIfPresent(Date.self, forKey: .archivedAt)
+        columns = try container.decode([BackupDocument.ColumnRecord].self, forKey: .columns)
+        tasks = try container.decode([BackupDocument.TaskRecord].self, forKey: .tasks)
+        releasePlans = try container.decode([BackupDocument.ReleasePlanRecord].self, forKey: .releasePlans)
+        repositoryConnections =
+            try container.decodeIfPresent(
+                [BackupDocument.RepositoryConnectionRecord].self, forKey: .repositoryConnections)
+            ?? []
     }
 }

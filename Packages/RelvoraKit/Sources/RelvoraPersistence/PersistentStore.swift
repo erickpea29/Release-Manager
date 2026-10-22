@@ -9,6 +9,7 @@ public struct PersistentStore: Sendable {
     public let board: any BoardRepository
     public let releasePlans: any ReleasePlanRepository
     public let backups: any BackupRepository
+    public let repositoryConnections: any RepositoryConnectionRepository
 
     /// `~/Library/Containers/<bundle id>/Data/Library/Application Support/Relvora/<name>.store` when sandboxed.
     public static func defaultURL(name: String = "Relvora") -> URL {
@@ -31,7 +32,7 @@ public struct PersistentStore: Sendable {
         try make(ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none))
     }
 
-    private static let schema = Schema(versionedSchema: RelvoraSchemaV1.self)
+    private static let schema = Schema(versionedSchema: CurrentSchema.self)
 
     private static func make(_ configuration: ModelConfiguration) throws(PersistenceError) -> PersistentStore {
         let container: ModelContainer
@@ -46,7 +47,9 @@ public struct PersistentStore: Sendable {
         }
         // One actor (one ModelContext) for all repositories, so cross-repository work stays serialized.
         let repository = SwiftDataRepository(modelContainer: container)
-        return PersistentStore(projects: repository, board: repository, releasePlans: repository, backups: repository)
+        return PersistentStore(
+            projects: repository, board: repository, releasePlans: repository, backups: repository,
+            repositoryConnections: repository)
     }
 
     private static func unavailable(_ error: any Error) -> PersistenceError {

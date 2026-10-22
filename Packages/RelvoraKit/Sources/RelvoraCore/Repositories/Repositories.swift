@@ -67,18 +67,34 @@ public protocol ReleasePlanRepository: Sendable {
     func deletePlan(id: UUID) async throws(PersistenceError)
 }
 
+public protocol RepositoryConnectionRepository: Sendable {
+    /// Connections of one project, in the order they were added.
+    func connections(projectID: UUID) async throws(PersistenceError) -> [RepositoryConnection]
+    /// Inserts or updates. A project can connect a given GitHub repository only once.
+    func save(_ connection: RepositoryConnection) async throws(PersistenceError)
+    func deleteConnection(id: UUID) async throws(PersistenceError)
+}
+
 /// Everything a project owns, as plain values. Used for backup and restore.
 public struct ProjectBundle: Sendable, Equatable {
     public var project: Project
     public var columns: [BoardColumn]
     public var tasks: [ProjectTask]
     public var releasePlans: [ReleasePlan]
+    public var repositoryConnections: [RepositoryConnection]
 
-    public init(project: Project, columns: [BoardColumn], tasks: [ProjectTask], releasePlans: [ReleasePlan]) {
+    public init(
+        project: Project,
+        columns: [BoardColumn],
+        tasks: [ProjectTask],
+        releasePlans: [ReleasePlan],
+        repositoryConnections: [RepositoryConnection] = []
+    ) {
         self.project = project
         self.columns = columns
         self.tasks = tasks
         self.releasePlans = releasePlans
+        self.repositoryConnections = repositoryConnections
     }
 }
 

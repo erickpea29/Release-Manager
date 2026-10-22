@@ -108,6 +108,24 @@ actor SwiftDataRepository {
         return entity
     }
 
+    @discardableResult
+    private func insertConnection(
+        _ connection: RepositoryConnection, into project: ProjectEntity, in context: ModelContext
+    ) -> RepositoryConnectionEntity {
+        let entity = RepositoryConnectionEntity(
+            id: connection.id,
+            githubRepositoryID: connection.githubRepositoryID,
+            owner: connection.owner,
+            name: connection.name,
+            htmlURL: connection.htmlURL.absoluteString,
+            createdAt: connection.createdAt
+        )
+        context.insert(entity)
+        entity.project = project
+        entity.apply(connection)
+        return entity
+    }
+
     private func insertTask(
         _ task: ProjectTask,
         project: ProjectEntity,
@@ -367,6 +385,9 @@ extension SwiftDataRepository: BackupRepository {
                     tasks: entity.tasks.compactMap(ProjectTask.init).sorted { $0.sortOrder < $1.sortOrder },
                     releasePlans: entity.releasePlans.compactMap(ReleasePlan.init).sorted {
                         $0.createdAt < $1.createdAt
+                    },
+                    repositoryConnections: entity.repositoryConnections.compactMap(RepositoryConnection.init).sorted {
+                        $0.createdAt < $1.createdAt
                     }
                 )
             }
@@ -388,6 +409,9 @@ extension SwiftDataRepository: BackupRepository {
                 for plan in bundle.releasePlans {
                     plans[plan.id] = insertPlan(plan, into: project, in: context)
                 }
+                for connection in bundle.repositoryConnections {
+                    insertConnection(connection, into: project, in: context)
+                }
                 for task in bundle.tasks {
                     guard let column = columns[task.columnID] else {
                         throw .integrityViolation("A task references a missing column.")
@@ -397,6 +421,55 @@ extension SwiftDataRepository: BackupRepository {
                         in: context)
                 }
             }
+        }
+    }
+}
+
+// MARK: - Repository connections
+
+extension SwiftDataRepository: RepositoryConnectionRepository {
+    func connections(projectID: UUID) throws(PersistenceError) -> [RepositoryConnection] {
+        try read { context throws(PersistenceError) in
+            try projectEntity(projectID, in: context).repositoryConnections.compactMap(RepositoryConnection.init)
+                .sorted { $0.createdAt < $1.createdAt }
+        }
+    }
+
+    func save(_ connection: RepositoryConnection) throws(PersistenceError) {
+        try transaction { context throws(PersistenceError) in
+            let project = try projectEntity(connection.projectID, in: context)
+            let duplicate = project.repositoryConnections.contains {
+                $0.githubRepositoryID == connection.githubRepositoryID && $0.id != connection.id
+            }
+            guard !duplicate else {
+                throw .integrityViolation("A project can connect a GitHub repository only once.")
+            }
+            if let existing = project.repositoryConnections.first(where: { $0.id == connection.id }) {
+                guard existing.githubRepositoryID == connection.githubRepositoryID else {
+                    throw .integrityViolation("A connection cannot change its GitHub repository.")
+                }
+                existing.apply(connection)
+            } else {
+                let connectionID = connection.id
+                var descriptor = FetchDescriptor<RepositoryConnectionEntity>(
+                    predicate: #Predicate { $0.id == connectionID })
+                descriptor.fetchLimit = 1
+                guard try fetch(descriptor, in: context).isEmpty else {
+                    throw .integrityViolation("A connection cannot move to another project.")
+                }
+                insertConnection(connection, into: project, in: context)
+            }
+        }
+    }
+
+    func deleteConnection(id: UUID) throws(PersistenceError) {
+        try transaction { context throws(PersistenceError) in
+            var descriptor = FetchDescriptor<RepositoryConnectionEntity>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            guard let entity = try fetch(descriptor, in: context).first else {
+                throw .notFound(entity: "repository connection", id: id)
+            }
+            context.delete(entity)
         }
     }
 }

@@ -4,6 +4,7 @@ import SwiftUI
 enum WorkspaceTab: String, CaseIterable, Identifiable {
     case board
     case releases
+    case github
 
     var id: Self { self }
 
@@ -11,6 +12,7 @@ enum WorkspaceTab: String, CaseIterable, Identifiable {
         switch self {
         case .board: "Board"
         case .releases: "Releases"
+        case .github: "GitHub"
         }
     }
 }
@@ -59,6 +61,8 @@ struct ProjectWorkspaceView: View {
                         .disabled(model?.activePlan != nil)
                         .help(
                             model?.activePlan.map { "Finish or cancel \($0.version) first" } ?? "New Release Plan")
+                case .github:
+                    EmptyView()
                 }
             }
             ToolbarItem {
@@ -88,6 +92,14 @@ struct ProjectWorkspaceView: View {
         }
         self.model = model
         await model.load()
+        #if DEBUG
+            if let fullName = app.options.connectRepository, app.github.isConnected,
+                !model.connections.contains(where: { $0.fullName == fullName }),
+                let remote = try? await app.github.installationRepositories().first(where: { $0.fullName == fullName })
+            {
+                _ = try? await model.connect(remote)
+            }
+        #endif
     }
 }
 
@@ -140,6 +152,8 @@ private struct WorkspaceContent: View {
                 BoardView(model: model)
             case .releases:
                 ReleasePlansView(model: model)
+            case .github:
+                RepositoriesView(model: model)
             }
         }
     }

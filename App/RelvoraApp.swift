@@ -31,6 +31,7 @@ struct RelvoraApp: App {
 
         Settings {
             SettingsView()
+                .environment(model)
                 .preferredColorScheme(appearance.colorScheme)
         }
     }

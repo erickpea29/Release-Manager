@@ -24,13 +24,14 @@ Safety copies are kept in Relvora's data folder:
 | Included | Not included |
 |---|---|
 | Projects, including archived ones | App settings (appearance, window material, sidebar) |
-| Board columns and their order | GitHub sign-in (never exported; arrives in M03) |
-| Tasks: notes, labels, priority, type, checklist, order, completion | Cached GitHub data (re-downloadable; M03) |
+| Board columns and their order | GitHub sign-in (never exported; it stays in the Keychain) |
+| Tasks: notes, labels, priority, type, checklist, order, completion | Cached GitHub data (re-downloadable) |
 | Release plans and their status | |
+| GitHub repository connections (format 2) | |
 
 ## File format
 
-Pretty-printed JSON with `"formatVersion": 1`, ISO 8601 dates (millisecond precision), and readable enum values (`"priority": "high"`). Files are stable across export → restore → export.
+Pretty-printed JSON with `"formatVersion": 2` (format 1 files from earlier versions still restore), ISO 8601 dates (millisecond precision), and readable enum values (`"priority": "high"`). Files are stable across export → restore → export.
 
 A newer app may write a higher `formatVersion`; older apps refuse such files instead of misreading them.
 

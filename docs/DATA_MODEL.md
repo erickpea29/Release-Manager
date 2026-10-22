@@ -1,6 +1,6 @@
 # Data Model
 
-Status: **schema V1 implemented in M01** (Project, BoardColumn, ProjectTask, ChecklistItem, ReleasePlan without GitHub fields). Entities marked M03/M04 are still proposals. Changes from the plan's suggested fields are marked **Δ** and trace to [PRODUCT_SPEC §6](PRODUCT_SPEC.md#6-open-questions-and-plan-gaps).
+Status: **schema V2 implemented** — V1 (M01: Project, BoardColumn, ProjectTask, ChecklistItem, ReleasePlan) + V2 (M03: RepositoryConnection). Entities marked M04 are still proposals. Changes from the plan's suggested fields are marked **Δ** and trace to [PRODUCT_SPEC §6](PRODUCT_SPEC.md#6-open-questions-and-plan-gaps).
 
 ## 1. Conventions
 
@@ -16,10 +16,10 @@ Status: **schema V1 implemented in M01** (Project, BoardColumn, ProjectTask, Che
 
 Owns columns, tasks, repository connections, release plans, and snapshots. Archive is the default. Hard delete cascades and requires confirmation; snapshots are deleted only with their project.
 
-### RepositoryConnection (M03)
+### RepositoryConnection (M03, schema V2)
 `id`, `projectID`, `githubRepositoryID` (unique per project), `owner`, `name`, `fullName`, `defaultBranch?`, `htmlURL`, `lastSyncedAt?`, `createdAt`, `updatedAt`
 
-Owner and name are refreshed on sync; renames and transfers keep the same `githubRepositoryID`.
+Owner and name are refreshed on sync; renames and transfers keep the same `githubRepositoryID`. Stored fields: plus `isPrivate`; `fullName` is derived. Cascade-deleted with the project; unique per project by `githubRepositoryID`.
 
 ### BoardColumn
 `id`, `projectID`, `name`, `sortOrder`, `isCompletionColumn`, `createdAt`, `updatedAt`
@@ -54,8 +54,8 @@ Deleting a plan unlinks its tasks; it does not delete them.
 
 Immutability is enforced by the repository API, which has no update method for content fields, and covered by tests.
 
-### GitHub cache (M03)
-`CachedRelease` and `CachedTag`, keyed by (`repositoryID`, GitHub ID or name), with `fetchedAt`. A refresh replaces a repository's rows only after a successful full fetch.
+### GitHub cache (M03, not in the schema)
+One JSON `RepositorySnapshot` per repository (releases, tags, unreleased commits and merged PRs, notes, `fetchedAt`) under `Application Support/Relvora/GitHub Cache/`. Written only after a successful sync; excluded from backups ([ADR 0009](decisions/0009-github-integration-design.md)).
 
 ### Preferences
 Stored in `UserDefaults`. M01 uses `@AppStorage` with centralized keys (`PreferenceKey`); a `PreferencesStore` protocol arrives with backup/restore in M02:

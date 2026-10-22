@@ -8,13 +8,17 @@ let package = Package(
     products: [
         .library(name: "RelvoraCore", targets: ["RelvoraCore"]),
         .library(name: "RelvoraPersistence", targets: ["RelvoraPersistence"]),
+        .library(name: "GitHubIntegration", targets: ["GitHubIntegration"]),
     ],
     targets: [
         // Domain types, rules, use cases, and repository protocols. Must not import SwiftData.
         .target(name: "RelvoraCore"),
         // SwiftData implementation of the repository protocols. Its @Model types stay internal.
         .target(name: "RelvoraPersistence", dependencies: ["RelvoraCore"]),
+        // GitHub App auth, REST client, sync, and cache. DTOs stay internal; results are RelvoraCore values.
+        .target(name: "GitHubIntegration", dependencies: ["RelvoraCore"]),
         .testTarget(name: "RelvoraCoreTests", dependencies: ["RelvoraCore"]),
+        .testTarget(name: "GitHubIntegrationTests", dependencies: ["GitHubIntegration", "RelvoraCore"]),
         .testTarget(
             name: "RelvoraPersistenceTests",
             dependencies: ["RelvoraCore", "RelvoraPersistence"],

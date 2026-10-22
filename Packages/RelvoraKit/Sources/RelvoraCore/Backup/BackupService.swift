@@ -16,6 +16,7 @@ public enum BackupValidator {
         var taskIDs = Set<UUID>()
         var planIDs = Set<UUID>()
         var checklistIDs = Set<UUID>()
+        var connectionIDs = Set<UUID>()
 
         for project in document.projects {
             guard projectIDs.insert(project.id).inserted else { throw .invalid("a project appears twice.") }
@@ -47,6 +48,19 @@ public enum BackupValidator {
             }
             guard activePlans <= 1 else {
                 throw .invalid("project “\(project.name)” has more than one active release plan.")
+            }
+
+            var githubIDs = Set<Int64>()
+            for connection in project.repositoryConnections {
+                guard connectionIDs.insert(connection.id).inserted else {
+                    throw .invalid("a repository connection appears twice.")
+                }
+                guard githubIDs.insert(connection.githubRepositoryID).inserted else {
+                    throw .invalid("project “\(project.name)” connects \(connection.owner)/\(connection.name) twice.")
+                }
+                guard !connection.owner.isEmpty, !connection.name.isEmpty else {
+                    throw .invalid("a repository connection has no owner or name.")
+                }
             }
 
             for task in project.tasks {

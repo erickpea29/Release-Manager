@@ -19,6 +19,8 @@ Config/Local.xcconfig
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+# Frozen schema fixtures for migration tests are committed on purpose.
+!Packages/RelvoraKit/Tests/RelvoraPersistenceTests/Fixtures/*.store
 *.p12
 *.mobileprovision
 *.provisionprofile

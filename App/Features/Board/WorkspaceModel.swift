@@ -45,6 +45,7 @@ final class WorkspaceModel {
     let projectID: UUID
     private(set) var state = BoardState(columns: [], tasks: [])
     private(set) var releasePlans: [ReleasePlan] = []
+    private(set) var connections: [RepositoryConnection] = []
     private(set) var loadState = LoadState.loading
     var filter = TaskFilter()
     var alert: AppAlert?
@@ -53,6 +54,7 @@ final class WorkspaceModel {
 
     private let board: BoardService
     private let plans: ReleasePlanService
+    private let connectionService: RepositoryConnectionService
     /// Lets the dashboard refresh its numbers after changes.
     private let didChange: @MainActor () async -> Void
 
@@ -60,6 +62,7 @@ final class WorkspaceModel {
         self.projectID = projectID
         self.board = environment.board
         self.plans = environment.releasePlans
+        self.connectionService = environment.repositoryConnections
         self.didChange = didChange
     }
 
@@ -87,6 +90,7 @@ final class WorkspaceModel {
         do {
             state = try await board.load(projectID: projectID)
             releasePlans = try await plans.plans(projectID: projectID)
+            connections = try await connectionService.connections(projectID: projectID)
             loadState = .loaded
         } catch {
             loadState = .failed(AppAlert.message(for: error))
@@ -179,6 +183,34 @@ final class WorkspaceModel {
     func deletePlan(_ plan: ReleasePlan) async {
         await performPlans("Couldn’t delete the plan") { try await self.plans.delete(plan) }
         state = (try? await board.load(projectID: projectID)) ?? state
+    }
+
+    // MARK: Repository connections
+
+    /// Throws so the picker can show the problem inline.
+    func connect(_ remote: GitHubRepository) async throws -> RepositoryConnection {
+        let connection = try await connectionService.connect(remote, to: projectID)
+        connections.append(connection)
+        return connection
+    }
+
+    func disconnect(_ connection: RepositoryConnection) async {
+        do {
+            try await connectionService.disconnect(connection)
+            connections.removeAll { $0.id == connection.id }
+        } catch {
+            alert = AppAlert(title: "Couldn’t disconnect the repository", error: error)
+        }
+    }
+
+    /// Stores the sync time and any rename or transfer GitHub reported.
+    func recordSync(of connection: RepositoryConnection, remote: GitHubRepository) async {
+        do {
+            let updated = try await connectionService.recordSync(connection, remote: remote, at: .now)
+            if let index = connections.firstIndex(where: { $0.id == updated.id }) { connections[index] = updated }
+        } catch {
+            alert = AppAlert(title: "Couldn’t save the sync result", error: error)
+        }
     }
 
     // MARK: Helpers

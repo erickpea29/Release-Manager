@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		B2000000000000000000000B /* RelvoraCore in Frameworks */ = {isa = PBXBuildFile; productRef = B2000000000000000000000E /* RelvoraCore */; };
 		B2000000000000000000000C /* RelvoraPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = B2000000000000000000000F /* RelvoraPersistence */; };
+		B2000000000000000000001B /* GitHubIntegration in Frameworks */ = {isa = PBXBuildFile; productRef = B2000000000000000000001C /* GitHubIntegration */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -16,6 +17,7 @@
 		B20000000000000000000017 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
 		B20000000000000000000018 /* Local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text; path = Local.xcconfig.example; sourceTree = "<group>"; };
 		B20000000000000000000019 /* Relvora.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Relvora.entitlements; sourceTree = "<group>"; };
+		B2000000000000000000001D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -33,6 +35,7 @@
 			files = (
 				B2000000000000000000000B /* RelvoraCore in Frameworks */,
 				B2000000000000000000000C /* RelvoraPersistence in Frameworks */,
+				B2000000000000000000001B /* GitHubIntegration in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -62,6 +65,7 @@
 				B20000000000000000000017 /* Shared.xcconfig */,
 				B20000000000000000000018 /* Local.xcconfig.example */,
 				B20000000000000000000019 /* Relvora.entitlements */,
+				B2000000000000000000001D /* Info.plist */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -88,6 +92,7 @@
 			packageProductDependencies = (
 				B2000000000000000000000E /* RelvoraCore */,
 				B2000000000000000000000F /* RelvoraPersistence */,
+				B2000000000000000000001C /* GitHubIntegration */,
 			);
 			productName = Relvora;
 			productReference = B20000000000000000000001 /* Relvora.app */;
@@ -202,6 +207,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Relvora;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -228,6 +234,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Relvora;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -282,6 +289,10 @@
 		B2000000000000000000000F /* RelvoraPersistence */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RelvoraPersistence;
+		};
+		B2000000000000000000001C /* GitHubIntegration */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = GitHubIntegration;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

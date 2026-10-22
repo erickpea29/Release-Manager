@@ -23,7 +23,7 @@ release-manager/                        # repository: erickpea29/Release-Manager
 └── .github/workflows/ci.yml
 ```
 
-`GitHubIntegration` joins the package in M03. Module boundaries are added only when they pay for themselves: persistence is its own target so the compiler keeps `@Model` types out of the app and core.
+`GitHubIntegration` (M03) holds GitHub auth, the REST client, sync, and the snapshot cache ([ADR 0009](decisions/0009-github-integration-design.md)). Module boundaries are added only when they pay for themselves: persistence is its own target so the compiler keeps `@Model` types out of the app and core.
 
 ## 2. Dependency rules
 
@@ -62,7 +62,7 @@ App (SwiftUI views, @Observable AppModel)
 |---|---|
 | Auth | Device flow, client ID only, refresh without secret ([ADR 0002](decisions/0002-github-app-device-flow-no-backend.md)) |
 | Transport | `HTTPTransport` protocol. Production uses an ephemeral `URLSession` with `urlCache = nil`; tests use a mock |
-| Headers | `Accept: application/vnd.github+json`, pinned `X-GitHub-Api-Version` (decide `2022-11-28` vs `2026-03-10` in M03) |
+| Headers | `Accept: application/vnd.github+json`, pinned `X-GitHub-Api-Version: 2022-11-28` (ADR 0009) |
 | Pagination | `Link` header `rel="next"` |
 | Errors | 401 → re-auth. 403 → rate-limited (`remaining=0` or `retry-after`) or forbidden (show `x-accepted-github-permissions`). 404 → missing or no access. 409 → conflict. 422 → validation. 429 → rate-limited. 5xx → transient |
 | Retries | Bounded exponential backoff for idempotent GETs and 5xx/429 only. **Never blind-retry `POST /releases`**: after a timeout, list releases and look for the tag before retrying. GitHub accepts duplicate drafts, so it will not reject a repeat (M00 F13) |
