@@ -1,6 +1,6 @@
 # M04 — Release Workflow and History Report
 
-Status: **Merged** in PR #5 (fix in PR #6) · 2026-10-22. Live publication check pending the owner (§4)
+Status: **Complete**, merged in PR #5 (fix in PR #6) · 2026-10-22. Live draft and publication verified (§2)
 
 ## 1. What was built
 
@@ -34,6 +34,7 @@ Status: **Merged** in PR #5 (fix in PR #6) · 2026-10-22. Live publication check
 | Live GitHub, read-only (owner's repository) | On a **copy** of the dev store (`M04Verification`, migrated V2→V3 on first open with all 9 tasks intact; the original untouched): branches, latest commit `b9fdae8` (merge of PR #4), changes with **all 4 merged PRs**, generated notes, and the full pre-draft check with no conflicts. The confirmation sheet opened; **no draft was created** |
 | CI | **PASS**: PR #5, run 39733811967 on `macos-26` (lint, 127/127 tests, 2 opt-in skipped, app build) |
 | Live draft creation | **PASS** (with the owner's approval, on a copy of the dev store). Release id 420378956 on `erickpea29/Release-Manager`: a **draft**, marked pre-release. Tag `v0.0.0-relvora-test` (throwaway), target `05157e7…` (full SHA), body **byte-identical** to the snapshot's notes (605 bytes). **Exactly one** release for the tag, and the tag was **not created** (404). The plan and its snapshot are `draftCreated`, linked to the release ID. The first attempt stopped safely before review (F21); nothing was sent |
+| Live publication | **PASS**. The owner published the draft on GitHub. Independently, the release shows `draft: false` and the tag `v0.0.0-relvora-test` was created as a commit ref at `05157e7…`. In the app, opening the plan checked GitHub: the plan became **Published**, "Verified: v0.0.0-relvora-test points at 05157e7". The snapshot shows `published`, with the published commit `05157e7…` and the release URL moved from `untagged-…` to the tag page. No published notes were stored separately: GitHub had re-saved the body with CRLF line endings (F22), and the comparison correctly ignored that |
 
 ## 3. Acceptance criteria
 
@@ -49,7 +50,7 @@ Status: **Merged** in PR #5 (fix in PR #6) · 2026-10-22. Live publication check
 
 ## 4. Live draft check (owner)
 
-The draft `v0.0.0-relvora-test` (release 420378956) now exists. To finish the check, publish or delete it on GitHub, then choose **Check Publication** in the `M04Verification` store. To repeat the whole flow yourself:
+Done on 2026-10-22: the draft `v0.0.0-relvora-test` (release 420378956) was created by the app, published by the owner on GitHub, and verified by the app (§2). To repeat the whole flow yourself:
 
 1. Run the Debug app, open **Relvora › Releases**, choose the repository, commit, and tag, and generate notes.
 2. **Create GitHub Draft…**, review, confirm. The plan shows *Draft on GitHub* with a link.
@@ -63,6 +64,7 @@ Tip: use a throwaway tag such as `v0.0.0-relvora-test` and delete the draft afte
 - **F20: An unsynced repository has no compare base.** Preparation now syncs the repository snapshot (tags, latest release) when none is cached.
 - F18 recurred: a sentence after a localized time (`12:17 a.m..`). The published text now puts the time at the end of its own line.
 - **F21 — A skipped reload left stale target data.** Choosing a repository cleared the commit list and started a load. If the view's initial load was still running, the new load was skipped (an `isLoading` guard), and the old load later filled in its data. Seen live: the first scripted run found no commits and stopped before review, so nothing was sent. Fixed in PR #6: every branch or commit load has a generation, and only the latest one's results are applied.
+- **F22 — Publishing from GitHub's web form re-saves the body with CRLF line endings.** Every line of the submitted LF notes came back as CRLF, with no visible change. Release notes are compared after normalizing line endings and trailing whitespace, so this didn't count as an edit (confirmed live).
 
 ## 6. Known issues and notes
 
