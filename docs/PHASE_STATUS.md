@@ -6,7 +6,7 @@
 | M01 — Foundation | **Complete**: merged in PR #1 ([report](M01_FOUNDATION.md)) |
 | M02 — Projects and Kanban | **Complete**: merged in PR #2 ([report](M02_PROJECTS_AND_KANBAN.md)) |
 | M03 — GitHub Integration | **Complete**: merged in PR #3 ([report](M03_GITHUB_INTEGRATION.md)) |
-| M04 — Release Workflow and History | **Implemented, awaiting review** (PR #5; [report](M04_RELEASE_WORKFLOW.md)) |
+| M04 — Release Workflow and History | **Merged** in PR #5, fix in PR #6 ([report](M04_RELEASE_WORKFLOW.md)); live publication check pending |
 | M05 — Design Polish and Distribution | Not started |
 
 ## M00 checklist
@@ -77,4 +77,5 @@
 - [x] Tests: duplicate requests, failed saves, conflicting tags, external publication (127 tests)
 - [x] Live read-only check with the owner's repository (no draft created)
 - [x] CI on PR #5 (lint, 127/127 tests, 2 opt-in skipped, app build)
-- [ ] Owner: live draft creation and publication check ([report §4](M04_RELEASE_WORKFLOW.md#4-live-draft-check-owner))
+- [x] Live draft creation on the owner's repository, with approval (release 420378956, tag `v0.0.0-relvora-test`)
+- [ ] Owner: publish or delete that draft on GitHub, then verify **Check Publication** ([report §4](M04_RELEASE_WORKFLOW.md#4-live-draft-check-owner))

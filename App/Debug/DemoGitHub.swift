@@ -308,9 +308,12 @@
                 try? await Task.sleep(for: .milliseconds(100))
             }
             guard let connection = release.workspace.connections.first else { return }
-            await release.setRepository(connection.id)
-            await release.loadTargets()
-            await release.setTargetCommit(release.commits.first?.sha)
+            await release.setRepository(connection.id)  // loads branches and commits
+            guard let latest = release.commits.first?.sha else {
+                release.errorMessage = "Demo scenario: no commits loaded."
+                return
+            }
+            await release.setTargetCommit(latest)
             if let notes = await release.generatedNotes() { release.notesText = notes }
             await release.runCheck()
             guard self != .prepare else { return }
