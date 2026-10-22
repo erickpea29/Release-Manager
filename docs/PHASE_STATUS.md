@@ -7,7 +7,7 @@
 | M02 — Projects and Kanban | **Complete**: merged in PR #2 ([report](M02_PROJECTS_AND_KANBAN.md)) |
 | M03 — GitHub Integration | **Complete**: merged in PR #3 ([report](M03_GITHUB_INTEGRATION.md)) |
 | M04 — Release Workflow and History | **Complete**: merged in PR #5, fix in PR #6 ([report](M04_RELEASE_WORKFLOW.md)) |
-| M05 — Design Polish and Distribution | **Implemented, awaiting review** ([report](M05_DESIGN_POLISH_AND_DISTRIBUTION.md)) |
+| M05 — Design Polish and Distribution | **Implemented, awaiting review** (PR #8; [report](M05_DESIGN_POLISH_AND_DISTRIBUTION.md)) |
 
 ## M00 checklist
 
@@ -91,6 +91,6 @@
 - [x] Installation, backups, recovery, and GitHub authorization documented ([INSTALLATION.md](INSTALLATION.md))
 - [x] Signing and notarization instructions ([DISTRIBUTION.md](DISTRIBUTION.md))
 - [x] Release build automation (notarized Developer ID, [ADR 0011](decisions/0011-distribution-developer-id.md))
-- [x] macOS versions: minimum 26.0 (deployment target), tested on 26.6.2 locally and on the CI image
-- [ ] CI on the M05 PR
+- [x] macOS versions: minimum 26.0 (deployment target), tested on 26.6.2 locally and on the CI image (26.6.2 25G83)
+- [x] CI on PR #8 (lint, 130 package tests, build, 12 UI tests; Release dry run)
 - [ ] Owner: Developer ID certificate, notary key, and GitHub secrets ([DISTRIBUTION.md §1](DISTRIBUTION.md#1-one-time-setup-owner))

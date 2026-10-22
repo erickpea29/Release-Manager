@@ -1,6 +1,6 @@
 # M05 — Design Polish and Distribution Report
 
-Status: **Implemented, awaiting review** (PR pending) · 2026-10-22
+Status: **Implemented, awaiting review** (PR #8) · 2026-10-22
 
 ## 1. What was built
 
@@ -27,8 +27,8 @@ Status: **Implemented, awaiting review** (PR pending) · 2026-10-22
 | Release pipeline, locally | The ad-hoc path built a **universal** (arm64 and x86_64) app, `com.erickpea29.Relvora`, version 0.0.0, with the hardened runtime and sandbox entitlements, the public client ID, and **no demo code**. The signed and notarized path needs the owner's secrets |
 | Settings isolation | After the UI tests, the owner's `.dev` settings were unchanged: appearance `system`, no accent written. The tests used their own suite |
 | Strict lint and builds | **0 findings** (now including `UITests`); Debug and Release builds with 0 warnings |
-| macOS versions | Minimum **26.0** (deployment target, `LSMinimumSystemVersion` 26.0). Tested on **26.6.2** (this Mac) and on the CI `macos-26` image (version in the CI log). 26.0 itself wasn't run: it would need a macOS 26.0 virtual machine. The compiler checks every API against the 26.0 deployment target |
-| CI | Pending on the M05 pull request |
+| macOS versions | Minimum **26.0** (deployment target, `LSMinimumSystemVersion` 26.0). Tested on **26.6.2** on this Mac and on the CI `macos-26` image (26.6.2, 25G83). 26.0 itself wasn't run: it would need a macOS 26.0 virtual machine. The compiler checks every API against the 26.0 deployment target |
+| CI | **PASS** on PR #8: run 39812534915 on `macos-26` (macOS 26.6.2 25G83, Xcode 26.6), with lint, 130/130 package tests, the app build, and **12/12 UI tests**. Release dry run 39812534868 **PASS** (an unsigned package, since no secrets are set). The first attempt was cancelled when GitHub had no free macOS runner; the second found F29 |
 
 ## 3. Acceptance criteria
 
