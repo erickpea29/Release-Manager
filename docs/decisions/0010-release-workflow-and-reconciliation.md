@@ -1,6 +1,6 @@
 # 0010 — Release workflow: intent first, reconcile by reading GitHub
 
-- **Status:** Accepted (M04)
+- **Status:** Accepted (M04). Amended by [ADR 0015](0015-publish-from-relvora.md): Relvora can also publish a draft, after a second confirmation.
 - **Date:** 2026-10-22
 
 ## Context

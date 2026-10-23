@@ -9,6 +9,7 @@
 | M04 — Release Workflow and History | **Complete**: merged in PR #5, fix in PR #6 ([report](M04_RELEASE_WORKFLOW.md)) |
 | M05 — Design Polish and Distribution | **Complete**: merged in PR #8 ([report](M05_DESIGN_POLISH_AND_DISTRIBUTION.md)) |
 | First-release polish | **Complete**: merged in PR #9 ([report](FIRST_RELEASE_POLISH.md)) |
+| 0.1.1 — Project groups, publishing from Relvora | **In review** ([ADR 0014](decisions/0014-project-groups.md), [ADR 0015](decisions/0015-publish-from-relvora.md)) |
 
 ## M00 checklist
 
@@ -103,5 +104,17 @@
 - [x] Automatic GitHub refresh (Settings › GitHub)
 - [x] Fixes: Release History centering, centered release details, accessibility labels and contrast
 - [x] Tests: 140 package tests, 16 UI tests
-- [ ] Owner: first real release (v0.1.0) made in Relvora
+- [x] Owner: first real release (v0.1.0) made in Relvora (published 2026-10-23; release run 40005880104 attached the notarized app)
 - [ ] Owner: choose a licence (PRODUCT_SPEC G10)
+
+## 0.1.1 checklist
+
+- [x] Project groups: schema V4 (lightweight migration, V3 fixture), backup format 5 ([ADR 0014](decisions/0014-project-groups.md))
+- [x] Sidebar sections, Move to Group, drag and drop, group menu; grouped Dashboard, collapsed sidebar, quick actions, and Release History filter
+- [x] Publish a draft from Relvora after a second confirmation; blocked when the draft no longer matches the review ([ADR 0015](decisions/0015-publish-from-relvora.md))
+- [x] App icon from the owner's logo (`Design/logo.png`, `scripts/make-app-icon.swift`)
+- [x] Package tests: 161 (21 new)
+- [x] Migration checked on a copy of an M04 test store opened by the new build
+- [x] UI tests: 18 pass locally, two new (groups: create, drag, Move to Group, delete; publishing from Relvora). They caught ⌥⌘N never firing (⌥N is a dead key), so New Group is ⌃⌘N
+- [ ] CI on the PR
+- [ ] Owner: release v0.1.1 from Relvora

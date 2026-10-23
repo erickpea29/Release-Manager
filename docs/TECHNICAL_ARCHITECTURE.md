@@ -91,7 +91,7 @@ App (SwiftUI views, @Observable AppModel)
   - the in-memory **demo GitHub**, a fake of the REST endpoints that drives the real API client, sync, and workflow;
   - a throwaway settings suite (`-RelvoraDefaultsSuite`).
   Tests therefore never touch real data, settings, or GitHub.
-- The UI tests cover navigation and quick actions, board editing by keyboard, the release flow (draft, publish, history), reconciliation after a timeout, offline states, settings, and an accessibility audit.
+- The UI tests cover navigation and quick actions, board editing by keyboard, the release flow (draft, publishing on GitHub or from Relvora, history), reconciliation after a timeout, project groups, offline states, settings, and an accessibility audit.
 - Live GitHub tests are opt-in only (environment variable), never run in CI.
 - CI runs on GitHub Actions with the `macos-26` image:
   - one job runs lint, `swift test`, and an ad-hoc app build;

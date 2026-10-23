@@ -13,5 +13,9 @@
 | [0009](0009-github-integration-design.md) | GitHub integration design (API version, tokens, cache) | Accepted |
 | [0010](0010-release-workflow-and-reconciliation.md) | Release workflow: intent first, reconcile by reading GitHub | Accepted |
 | [0011](0011-distribution-developer-id.md) | Distribution: notarized Developer ID builds from GitHub Actions | Accepted |
+| [0012](0012-backlog-tab-and-version-board.md) | Backlog tab and a Board for the version being planned | Accepted |
+| [0013](0013-custom-sidebar-container.md) | Relvora's own sidebar instead of NavigationSplitView | Accepted |
+| [0014](0014-project-groups.md) | Project groups | Accepted |
+| [0015](0015-publish-from-relvora.md) | Publishing a release from Relvora | Accepted |
 
 New records: copy the shape of an existing one (Status, Date, Context, Decision, Consequences, Evidence). Keep them short.
