@@ -34,6 +34,9 @@ struct ReleasePlanDetailView: View {
                     CreateDraftSheet(release: release, review: review, check: check)
                 }
             }
+            .sheet(item: $release.publishPreview) { preview in
+                PublishReleaseSheet(release: release, preview: preview)
+            }
             .confirmationDialog(
                 "Record the published release?", isPresented: $isConfirmingRecord, titleVisibility: .visible
             ) {
@@ -134,7 +137,8 @@ struct ReleasePlanDetailView: View {
     private var checkSection: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             HStack {
-                SectionTitle("Check and Create Draft", detail: "Relvora only creates drafts. You publish on GitHub.")
+                SectionTitle(
+                    "Check and Create Draft", detail: "A release starts as a draft. You publish it here or on GitHub.")
                 Spacer()
                 if release.isChecking { ProgressView().controlSize(.small) }
                 Button("Check on GitHub", systemImage: "checklist") { Task { await release.runCheck() } }
@@ -192,12 +196,17 @@ struct ReleasePlanDetailView: View {
                 .foregroundStyle(.blue)
             if let snapshot = release.openSnapshot {
                 Text(
-                    "Review and publish the draft on GitHub. Relvora records the release once GitHub shows it "
-                        + "published and the tag \(snapshot.tagName) points at \(snapshot.targetCommitSHA.prefix(7))."
+                    "Publish the draft here, or review and publish it on GitHub. Relvora records the release once "
+                        + "GitHub shows it published and the tag \(snapshot.tagName) points at "
+                        + "\(snapshot.targetCommitSHA.prefix(7))."
                 )
                 .fixedSize(horizontal: false, vertical: true)
             }
-            actionRow(checkTitle: "Check Publication")
+            actionRow(checkTitle: "Check Publication") {
+                Button("Publish Release…") { Task { await release.beginPublish() } }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(release.isWorking || !app.github.isConnected)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .panel()
@@ -251,7 +260,9 @@ struct ReleasePlanDetailView: View {
         }
     }
 
-    private func actionRow(checkTitle: String) -> some View {
+    private func actionRow(checkTitle: String, @ViewBuilder primary: () -> some View = { EmptyView() })
+        -> some View
+    {
         HStack(spacing: Spacing.m) {
             if let url = release.openSnapshot?.githubReleaseURL {
                 Link(destination: url) { Label("Open on GitHub", systemImage: "arrow.up.right.square") }
@@ -260,6 +271,7 @@ struct ReleasePlanDetailView: View {
             if release.isWorking { ProgressView().controlSize(.small) }
             Button(checkTitle, systemImage: "arrow.triangle.2.circlepath") { Task { await release.reconcile() } }
                 .disabled(release.isWorking || !app.github.isConnected)
+            primary()
         }
     }
 

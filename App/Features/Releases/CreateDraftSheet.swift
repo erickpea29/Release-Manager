@@ -21,7 +21,7 @@ struct CreateDraftSheet: View {
                 Text("Create GitHub Draft").font(.title2.bold())
                 Text(
                     "Relvora creates a draft release. Nothing is published, and the tag isn’t created until you "
-                        + "publish the draft on GitHub."
+                        + "publish the draft, here or on GitHub."
                 )
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

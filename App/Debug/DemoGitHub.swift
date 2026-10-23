@@ -88,11 +88,14 @@
 
         /// Publishes every draft, as a person would on github.com.
         func publishAll() {
-            for index in releases.indices where releases[index].draft {
-                releases[index].draft = false
-                releases[index].publishedAt = .now
-                if tags[releases[index].tag] == nil { tags[releases[index].tag] = releases[index].target }
-            }
+            for index in releases.indices where releases[index].draft { publish(at: index) }
+        }
+
+        /// Like GitHub, publishing creates the tag at the target commit unless the tag already exists.
+        private func publish(at index: Int) {
+            releases[index].draft = false
+            releases[index].publishedAt = .now
+            if tags[releases[index].tag] == nil { tags[releases[index].tag] = releases[index].target }
         }
 
         /// Someone pushes the tag to another commit before the draft is published.
@@ -156,6 +159,15 @@
                 let release = releases.first(where: { $0.id == id })
             {
                 return reply(request, json(release))
+            }
+            if method == "PATCH", path.hasPrefix(base + "/releases/"),
+                let id = Int(path.dropFirst((base + "/releases/").count)),
+                let index = releases.firstIndex(where: { $0.id == id })
+            {
+                let body =
+                    (try? JSONSerialization.jsonObject(with: request.httpBody ?? Data())) as? [String: Any] ?? [:]
+                if body["draft"] as? Bool == false, releases[index].draft { publish(at: index) }
+                return reply(request, json(releases[index]))
             }
             if method == "GET", path.hasPrefix(base + "/git/ref/tags/") {
                 let tag = String(path.dropFirst((base + "/git/ref/tags/").count))
@@ -305,6 +317,10 @@
         case timeout
         /// `published`, then Release History.
         case history
+        /// `draft`, then the publish confirmation.
+        case publish
+        /// The tag moved before publication: the publish confirmation shows why it can't go ahead.
+        case publishBlocked
 
         @MainActor private static var hasRun = false
 
@@ -345,6 +361,11 @@
                 if let tag = release.plan?.tagName { await DemoGitHub.shared.moveTagBeforePublishing(tag) }
                 await DemoGitHub.shared.publishAll()
                 await release.reconcile()
+            case .publish:
+                await release.beginPublish()
+            case .publishBlocked:
+                if let tag = release.plan?.tagName { await DemoGitHub.shared.moveTagBeforePublishing(tag) }
+                await release.beginPublish()
             default:
                 break
             }

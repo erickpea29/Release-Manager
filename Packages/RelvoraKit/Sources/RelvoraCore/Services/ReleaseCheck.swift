@@ -216,6 +216,15 @@ public enum DraftCreationResult: Sendable {
     case unknown(any Error)
 }
 
+/// The outcome of one publish request, classified like a create.
+public enum ReleasePublishResult: Sendable {
+    case published(RemoteRelease)
+    /// GitHub refused the request, or it never left this Mac: the release is still a draft.
+    case rejected(any Error)
+    /// The request may have reached GitHub. Read GitHub to find out; publishing again is harmless.
+    case unknown(any Error)
+}
+
 /// The GitHub operations the release workflow needs. Implemented by `GitHubIntegration`; faked in tests.
 public protocol ReleaseRemote: Sendable {
     /// The repository as GitHub reports it now (follows renames and transfers).
@@ -229,4 +238,6 @@ public protocol ReleaseRemote: Sendable {
     /// Sends exactly one create request; never retried automatically.
     func createDraftRelease(in repository: GitHubRepository, _ request: DraftReleaseRequest) async
         -> DraftCreationResult
+    /// Publishes a draft; GitHub creates its tag at the draft's target commit unless the tag exists. Sent once.
+    func publishRelease(in repository: GitHubRepository, id: Int64) async -> ReleasePublishResult
 }

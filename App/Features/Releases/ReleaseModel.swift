@@ -57,6 +57,8 @@ final class ReleaseModel {
     var errorMessage: String?
     /// Presents the confirmation sheet.
     var review: ReleaseReview?
+    /// The draft as GitHub has it, while the user confirms publishing it.
+    var publishPreview: PublishPreview?
 
     init(planID: UUID, workspace: WorkspaceModel, github: GitHubModel, preferences: Preferences) {
         self.planID = planID
@@ -295,9 +297,50 @@ final class ReleaseModel {
             await workspace.reloadReleases()
             notice = ReleaseNotice(
                 tone: .success, title: "Draft created on GitHub",
-                details: ["Review and publish it on GitHub, then choose Check Publication."],
+                details: [
+                    "Publish it here when it’s ready. If you publish it on GitHub instead, choose Check Publication."
+                ],
                 links: snapshot.githubReleaseURL.map { [.init(title: "Open Draft on GitHub", url: $0)] } ?? [])
             check = nil
+            return .success(())
+        } catch {
+            github.noteError(error)
+            await workspace.reloadReleases()
+            return .failure(error)
+        }
+    }
+
+    /// Reads the draft from GitHub and opens the publish confirmation, or records what happened to the draft if it
+    /// was deleted or published on GitHub meanwhile.
+    func beginPublish() async {
+        guard let plan, let workflow = workspace.workflow, !isWorking else { return }
+        isWorking = true
+        do {
+            let preview = try await workflow.publishPreview(plan)
+            isWorking = false
+            errorMessage = nil
+            if let preview { publishPreview = preview } else { await reconcile() }
+        } catch {
+            isWorking = false
+            github.noteError(error)
+            errorMessage = AppAlert.message(for: error)
+        }
+    }
+
+    /// Publishes the confirmed draft. Returns failure only for errors the sheet should show; an unknown outcome
+    /// closes the sheet, and the plan view explains it.
+    func publish(_ preview: PublishPreview) async -> Result<Void, any Error> {
+        guard let plan, let workflow = workspace.workflow else { return .success(()) }
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            let outcome = try await workflow.publishDraft(plan, confirmed: preview)
+            await workspace.reloadReleases()
+            apply(outcome, quiet: false)
+            errorMessage = nil
+            return .success(())
+        } catch ReleaseWorkflowError.publishOutcomeUnknown {
+            errorMessage = AppAlert.message(for: ReleaseWorkflowError.publishOutcomeUnknown)
             return .success(())
         } catch {
             github.noteError(error)

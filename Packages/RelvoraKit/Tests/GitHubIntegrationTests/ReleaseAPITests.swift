@@ -58,6 +58,27 @@ struct ReleaseAPITests {
         #expect(await harness.sleeps.calls.isEmpty)
     }
 
+    @Test("Publishing patches only the draft flag of that release, and a failure is sent once")
+    func publish() async throws {
+        let harness = Harness()
+        await harness.mock.on(
+            "PATCH /repos/octo/app/releases/9", .init(body: Payload.release(9, tag: "v1.1.0", draft: false)))
+        let release = try await harness.api.publishRelease(in: repository, id: 9)
+        #expect(release.id == 9 && !release.isDraft)
+        let sent = try #require(await harness.mock.requests(to: "/repos/octo/app/releases/9", method: "PATCH").first)
+        let data = try #require(sent.httpBody)
+        let body = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        #expect(body.count == 1 && body["draft"] as? Bool == false)
+
+        let failing = Harness()
+        await failing.mock.on("PATCH /repos/octo/app/releases/9", .init(failure: .timedOut))
+        guard case .unknown = await GitHubReleaseRemote(api: failing.api).publishRelease(in: repository, id: 9) else {
+            Issue.record("A timeout must leave the outcome unknown")
+            return
+        }
+        #expect(await failing.mock.requests(to: "/repos/octo/app/releases/9", method: "PATCH").count == 1)
+    }
+
     @Test("GitHub's validation details are part of the message")
     func validationDetails() async throws {
         let harness = Harness()

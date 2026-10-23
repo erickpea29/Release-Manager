@@ -60,6 +60,60 @@ public struct PublicationMismatch: Sendable, Equatable {
     public let publishedCommitSHA: String?
 }
 
+/// Why a draft can't be published as it stands on GitHub.
+public enum PublishProblem: Sendable, Equatable {
+    /// The draft's tag was changed on GitHub.
+    case tagChanged(to: String)
+    /// The draft's target was changed on GitHub.
+    case targetChanged(to: String)
+    /// The tag exists at another commit. Publishing would attach the release to it, and Relvora never moves tags.
+    case tagExistsElsewhere(commitSHA: String)
+    /// Another published release already has the tag.
+    case tagAlreadyReleased
+
+    public func message(tag: String, commitSHA: String) -> String {
+        switch self {
+        case .tagChanged(let newTag): "On GitHub, the draft’s tag was changed from \(tag) to \(newTag)."
+        case .targetChanged(let target):
+            "On GitHub, the draft’s target was changed from \(commitSHA.prefix(7)) to \(target.prefix(12))."
+        case .tagExistsElsewhere(let sha):
+            "The tag \(tag) already exists at \(sha.prefix(7)), not at the reviewed commit \(commitSHA.prefix(7)). "
+                + "Relvora never moves tags."
+        case .tagAlreadyReleased: "GitHub already has a published release for \(tag)."
+        }
+    }
+}
+
+/// The draft as GitHub has it now, shown for confirmation before it is published.
+public struct PublishPreview: Sendable, Equatable, Identifiable {
+    public let snapshot: ReleaseSnapshot
+    public let draft: RemoteRelease
+    public let repository: GitHubRepository
+    /// The commit the tag already points at; `nil` when GitHub will create the tag.
+    public let existingTagCommitSHA: String?
+    /// Empty when the draft can be published.
+    public let problems: [PublishProblem]
+
+    public var id: UUID { snapshot.id }
+    public var canPublish: Bool { problems.isEmpty }
+    public var problemMessages: [String] {
+        problems.map { $0.message(tag: snapshot.tagName, commitSHA: snapshot.targetCommitSHA) }
+    }
+
+    /// The notes on GitHub differ from those Relvora put in the draft (ignoring line endings and trailing spaces).
+    public var notesEditedOnGitHub: Bool {
+        ReleaseNotes.normalized(draft.body ?? "") != ReleaseNotes.normalized(snapshot.releaseNotesMarkdown)
+    }
+
+    /// Whether GitHub still has the draft exactly as confirmed.
+    func confirms(_ current: PublishPreview) -> Bool {
+        current.snapshot.id == snapshot.id && current.draft.id == draft.id && current.draft.isDraft
+            && current.draft.tagName == draft.tagName && current.draft.targetCommitish == draft.targetCommitish
+            && current.draft.name == draft.name && current.draft.body == draft.body
+            && current.draft.isPrerelease == draft.isPrerelease
+    }
+}
+
 public struct ReconcileOutcome: Sendable, Equatable {
     public enum Kind: Sendable, Equatable {
         /// GitHub has no draft from the unconfirmed request; the plan is `planned` again.
@@ -105,6 +159,8 @@ public enum ReleaseWorkflowError: Error, Sendable, Equatable, LocalizedError {
     case draftNotSaved(URL)
     case cannotVerify(String)
     case noPublishedRelease(tag: String)
+    case cannotPublish(String)
+    case publishOutcomeUnknown
 
     public var errorDescription: String? {
         switch self {
@@ -118,6 +174,8 @@ public enum ReleaseWorkflowError: Error, Sendable, Equatable, LocalizedError {
         case .draftNotSaved: "The draft was created on GitHub, but Relvora couldn’t record it."
         case .cannotVerify(let reason): "Relvora couldn’t verify the release on GitHub: \(reason)"
         case .noPublishedRelease(let tag): "GitHub has no published release for \(tag)."
+        case .cannotPublish(let reason): "The draft can’t be published: \(reason)"
+        case .publishOutcomeUnknown: "GitHub didn’t confirm whether the release was published."
         }
     }
 
@@ -132,18 +190,25 @@ public enum ReleaseWorkflowError: Error, Sendable, Equatable, LocalizedError {
             "Choose Check GitHub. Relvora reads GitHub before anything is created again, so no duplicate is made."
         case .cannotVerify: "Try again later."
         case .noPublishedRelease: "Publish the release on GitHub first, or create a draft from Relvora."
+        case .cannotPublish:
+            "Fix the draft on GitHub, or delete it there, choose Check Publication, and create a new draft."
+        case .publishOutcomeUnknown:
+            "Choose Check Publication. Publishing again is safe: it can’t create a second release."
         }
     }
 }
 
-/// The release workflow: check, create a GitHub draft, and reconcile with GitHub until publication is verified.
+/// The release workflow: check, create a GitHub draft, publish it, and reconcile with GitHub until publication is
+/// verified.
 ///
 /// Safety rules (PRODUCT_SPEC §4):
-/// - Only drafts are created. Publication happens on GitHub and is reported only after it is verified.
+/// - A release is always a draft first. It is published only after the user confirms the draft as GitHub has it
+///   (here, or on GitHub), and reported published only after the tag is verified at the reviewed commit.
 /// - The draft's intent is saved *before* the create request (plan `reconciliationNeeded` with a `pending`
 ///   snapshot). If the app quits, times out, or fails to save afterwards, the next step reads GitHub before
-///   anything else can be created.
-/// - Tags are never created, moved, or deleted by Relvora.
+///   anything else can be created. Publishing needs no intent: it is idempotent, so GitHub is simply read again.
+/// - Relvora never moves or deletes a tag. A tag is created only by GitHub, when a draft is published, at the
+///   reviewed commit; a draft whose tag exists at another commit is never published.
 /// - Tasks are never changed.
 public struct ReleaseWorkflow: Sendable {
     private let plans: any ReleasePlanRepository
@@ -152,6 +217,8 @@ public struct ReleaseWorkflow: Sendable {
     private let connections: any RepositoryConnectionRepository
     private let remote: any ReleaseRemote
     private let now: @Sendable () -> Date
+    /// How long to wait for a just-published tag to be readable before verifying it.
+    private let tagWait: Duration
 
     public init(
         plans: any ReleasePlanRepository,
@@ -159,7 +226,8 @@ public struct ReleaseWorkflow: Sendable {
         board: any BoardRepository,
         connections: any RepositoryConnectionRepository,
         remote: any ReleaseRemote,
-        now: @escaping @Sendable () -> Date = { .now }
+        now: @escaping @Sendable () -> Date = { .now },
+        tagWait: Duration = .seconds(1)
     ) {
         self.plans = plans
         self.snapshots = snapshots
@@ -167,6 +235,7 @@ public struct ReleaseWorkflow: Sendable {
         self.connections = connections
         self.remote = remote
         self.now = now
+        self.tagWait = tagWait
     }
 
     // MARK: Checking
@@ -256,6 +325,62 @@ public struct ReleaseWorkflow: Sendable {
             throw error
         case .unknown:
             throw ReleaseWorkflowError.outcomeUnknown
+        }
+    }
+
+    // MARK: Publishing
+
+    /// The plan's draft as GitHub has it now, with anything that blocks publishing it. Reads only. `nil` when GitHub
+    /// no longer has it as a draft (deleted or already published): `reconcile` records what happened.
+    public func publishPreview(_ plan: ReleasePlan) async throws -> PublishPreview? {
+        let plan = try await currentPlan(plan.id, projectID: plan.projectID)
+        guard plan.status == .draftCreated else { throw ReleaseWorkflowError.wrongState(plan.status) }
+        guard
+            let snapshot = try await snapshots.snapshots(projectID: plan.projectID)
+                .first(where: { $0.releasePlanID == plan.id && $0.state == .draftCreated }),
+            let releaseID = snapshot.githubReleaseID
+        else { throw ReleaseWorkflowError.wrongState(plan.status) }
+        let repository = try await remote.repository(id: snapshot.githubRepositoryID)
+        guard let draft = try await remote.release(of: repository, id: releaseID), draft.isDraft else { return nil }
+
+        var problems: [PublishProblem] = []
+        if draft.tagName != snapshot.tagName { problems.append(.tagChanged(to: draft.tagName)) }
+        if draft.targetCommitish != snapshot.targetCommitSHA {
+            problems.append(.targetChanged(to: draft.targetCommitish))
+        }
+        let tagSHA = try await remote.tagCommitSHA(of: repository, tag: snapshot.tagName)
+        if let tagSHA, tagSHA != snapshot.targetCommitSHA { problems.append(.tagExistsElsewhere(commitSHA: tagSHA)) }
+        let releases = try await remote.releases(of: repository).items
+        if releases.contains(where: { $0.tagName == snapshot.tagName && !$0.isDraft && $0.id != draft.id }) {
+            problems.append(.tagAlreadyReleased)
+        }
+        return PublishPreview(
+            snapshot: snapshot, draft: draft, repository: repository, existingTagCommitSHA: tagSHA, problems: problems)
+    }
+
+    /// Publishes the draft the user confirmed, after reading GitHub again: it must still be exactly the confirmed
+    /// draft, with nothing blocking it. The request is sent once. Returns the verified outcome, normally
+    /// `.published`; if GitHub deleted or published the draft meanwhile, records that instead.
+    public func publishDraft(_ plan: ReleasePlan, confirmed: PublishPreview) async throws -> ReconcileOutcome {
+        guard let current = try await publishPreview(plan) else { return try await reconcile(plan) }
+        guard confirmed.confirms(current) else { throw ReleaseWorkflowError.reviewOutdated }
+        if let problem = current.problemMessages.first { throw ReleaseWorkflowError.cannotPublish(problem) }
+
+        switch await remote.publishRelease(in: current.repository, id: current.draft.id) {
+        case .published(let release):
+            // GitHub creates the tag as it publishes; give it a moment to be readable before verifying it.
+            var waits = 0
+            while waits < 2, try await remote.tagCommitSHA(of: current.repository, tag: release.tagName) == nil {
+                waits += 1
+                try await Task.sleep(for: tagWait)
+            }
+            return try await verifyPublication(
+                try await currentPlan(plan.id, projectID: plan.projectID), snapshot: current.snapshot,
+                repository: current.repository, release: release)
+        case .rejected(let error):
+            throw error
+        case .unknown:
+            throw ReleaseWorkflowError.publishOutcomeUnknown
         }
     }
 

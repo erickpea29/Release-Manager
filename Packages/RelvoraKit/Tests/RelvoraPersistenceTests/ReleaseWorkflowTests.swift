@@ -25,14 +25,25 @@ actor FakeReleaseRemote: ReleaseRemote {
         case timeoutWithoutCreating
     }
 
+    enum PublishBehavior {
+        case succeed
+        case reject
+        /// GitHub publishes the release but the response is lost.
+        case timeoutAfterPublishing
+        case timeoutWithoutPublishing
+    }
+
     var createBehavior = CreateBehavior.succeed
     private(set) var createRequests: [DraftReleaseRequest] = []
+    var publishBehavior = PublishBehavior.succeed
+    private(set) var publishRequests: [Int64] = []
     private(set) var releases: [RemoteRelease] = []
     private var tags: [String: String] = [:]
     private var nextID: Int64 = 100
     private var clock = Date(timeIntervalSince1970: 1_800_000_000)
 
     func setCreateBehavior(_ behavior: CreateBehavior) { createBehavior = behavior }
+    func setPublishBehavior(_ behavior: PublishBehavior) { publishBehavior = behavior }
     func setTag(_ name: String, at sha: String) { tags[name] = sha }
 
     @discardableResult
@@ -63,6 +74,16 @@ actor FakeReleaseRemote: ReleaseRemote {
     }
 
     func delete(_ id: Int64) { releases.removeAll { $0.id == id } }
+
+    /// Someone edits the draft on github.com.
+    func editDraft(_ id: Int64, tag: String? = nil, target: String? = nil, body: String? = nil) {
+        guard let index = releases.firstIndex(where: { $0.id == id }) else { return }
+        let draft = releases[index]
+        releases[index] = RemoteRelease(
+            id: draft.id, tagName: tag ?? draft.tagName, name: draft.name, isDraft: draft.isDraft,
+            isPrerelease: draft.isPrerelease, createdAt: draft.createdAt, publishedAt: draft.publishedAt,
+            targetCommitish: target ?? draft.targetCommitish, htmlURL: draft.htmlURL, body: body ?? draft.body)
+    }
 
     // MARK: ReleaseRemote
 
@@ -96,6 +117,23 @@ actor FakeReleaseRemote: ReleaseRemote {
             return .unknown(FakeGitHubError(message: "Timed out"))
         case .timeoutWithoutCreating:
             return .unknown(FakeGitHubError(message: "Timed out"))
+        }
+    }
+
+    func publishRelease(in repository: GitHubRepository, id: Int64) async -> ReleasePublishResult {
+        publishRequests.append(id)
+        switch publishBehavior {
+        case .reject:
+            return .rejected(FakeGitHubError(message: "Validation Failed"))
+        case .timeoutWithoutPublishing:
+            return .unknown(FakeGitHubError(message: "Timed out"))
+        case .succeed, .timeoutAfterPublishing:
+            guard releases.contains(where: { $0.id == id }) else {
+                return .rejected(FakeGitHubError(message: "Not Found"))
+            }
+            publish(id)
+            if publishBehavior == .timeoutAfterPublishing { return .unknown(FakeGitHubError(message: "Timed out")) }
+            return .published(releases.first { $0.id == id }!)
         }
     }
 }
@@ -178,7 +216,7 @@ struct WorkflowFixture {
             flakySave ? FlakySnapshotRepository(store.releaseSnapshots) : store.releaseSnapshots
         workflow = ReleaseWorkflow(
             plans: store.releasePlans, snapshots: snapshots, board: store.board,
-            connections: store.repositoryConnections, remote: remote)
+            connections: store.repositoryConnections, remote: remote, tagWait: .zero)
     }
 
     var review: ReleaseReview { ReleaseReview(plan: plan, connection: connection, changes: nil)! }
@@ -519,7 +557,7 @@ extension StoreTests {
             #expect(try await fixture.store.releaseSnapshots.allSnapshots().isEmpty)
         }
 
-        @Test("A V2 store migrates to V3 with every record intact")
+        @Test("A V2 store migrates to the current schema with every record intact")
         func v2ToCurrent() async throws {
             let fixture = try #require(
                 Bundle.module.url(forResource: "RelvoraV2", withExtension: "store", subdirectory: "Fixtures"))

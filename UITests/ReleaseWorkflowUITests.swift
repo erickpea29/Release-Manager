@@ -32,6 +32,22 @@ final class ReleaseWorkflowUITests: XCTestCase {
         screenshot(app, "release-history")
     }
 
+    /// Publishing from Relvora: the confirmation shows the draft as GitHub has it, and the publication is verified.
+    func testPublishTheDraftFromRelvora() {
+        let app = RelvoraApp.launchProject(tab: "releases", ["-RelvoraDemoScenario", "draft"])
+        app.text("Draft on GitHub", exact: true).wait(30)
+        app.buttons["Publish Release…"].click()
+
+        let sheet = app.sheets.firstMatch.wait(20)
+        sheet.text("New. GitHub creates it at this commit.").wait()
+        screenshot(app, "publish-confirmation")
+        sheet.buttons["Publish Release"].click()
+
+        app.text("Published on GitHub", exact: true).wait(20)
+        XCTAssertTrue(app.text("Verified:").exists)
+        screenshot(app, "published-from-relvora")
+    }
+
     func testTimeoutNeedsReconciliationAndCheckGitHubLinksTheDraft() {
         let app = RelvoraApp.launchProject(tab: "releases", ["-RelvoraDemoScenario", "timeout"])
         let check = app.buttons["Check GitHub"].wait(30)
