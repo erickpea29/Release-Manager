@@ -49,7 +49,7 @@ struct BacklogView: View {
                     }
                     .tag(task.id)
                 }
-                .dropDestination(for: String.self) { items, _ in drop(items, to: plan.id) }
+                .dropDestination(for: String.self) { items, _ in _ = drop(items, to: plan.id) }
                 if model.visibleVersionTasks.isEmpty {
                     DropPlaceholder(
                         text: model.versionTaskCount == 0
@@ -88,7 +88,7 @@ struct BacklogView: View {
                 }
                 .tag(task.id)
             }
-            .dropDestination(for: String.self) { items, _ in drop(items, to: nil) }
+            .dropDestination(for: String.self) { items, _ in _ = drop(items, to: nil) }
             if model.visibleBacklogTasks.isEmpty {
                 DropPlaceholder(text: model.backlogTasks.isEmpty ? "The Backlog is empty." : "No matching tasks") {
                     drop($0, to: nil)
