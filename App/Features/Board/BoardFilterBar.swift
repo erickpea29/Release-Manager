@@ -1,10 +1,22 @@
 import RelvoraCore
 import SwiftUI
 
+/// Filters for the Board and the Backlog tab, which share them. Which version a task is in is the tab's job.
 struct BoardFilterBar: View {
     @Bindable var model: WorkspaceModel
+    let tab: WorkspaceTab
 
-    private var visibleCount: Int { model.state.tasks.filter(model.filter.matches).count }
+    private var counts: (visible: Int, total: Int) {
+        switch tab {
+        case .backlog:
+            (
+                model.visibleVersionTasks.count + model.visibleBacklogTasks.count
+                    + model.visibleDoneOutsideVersion.count,
+                model.versionTaskCount + model.backlogTasks.count + model.doneOutsideVersion.count
+            )
+        default: (model.visibleVersionTasks.count, model.versionTaskCount)
+        }
+    }
 
     // Scrolls horizontally instead of imposing a minimum width: a wide filter bar made the split view
     // collapse the sidebar on smaller windows.
@@ -13,10 +25,19 @@ struct BoardFilterBar: View {
             controls
         }
         .scrollIndicators(.never)
+        .background(Color.chrome)
     }
 
     private var controls: some View {
         HStack(spacing: Spacing.s) {
+            if tab == .board, let plan = model.activePlan {
+                VersionBadge(
+                    plan: plan,
+                    done: model.state.tasks.filter { $0.releasePlanID == plan.id && $0.completedAt != nil }.count,
+                    total: model.versionTaskCount)
+                Divider()
+                    .frame(height: 16)
+            }
             HStack(spacing: Spacing.xxs) {
                 Image(systemName: "line.3.horizontal.decrease")
                     .foregroundStyle(.secondary)
@@ -45,20 +66,11 @@ struct BoardFilterBar: View {
             }
             .fixedSize()
             .disabled(model.allLabels.isEmpty)
-            Picker("Release", selection: $model.filter.release) {
-                Text("Any release").tag(TaskFilter.Release.any)
-                Text("No release").tag(TaskFilter.Release.unassigned)
-                ForEach(model.releasePlans.filter { $0.status != .cancelled }) { plan in
-                    Text(plan.version).tag(TaskFilter.Release.plan(plan.id))
-                }
-            }
-            .labelsHidden()
-            .fixedSize()
             Toggle("Hide completed", isOn: $model.filter.hideCompleted)
                 .toggleStyle(.checkbox)
             if model.filter.isActive {
                 Button("Clear") { model.filter = TaskFilter() }
-                Text("\(visibleCount) of \(model.state.tasks.count) tasks")
+                Text("\(counts.visible) of \(counts.total) tasks")
                     .font(.caption)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
@@ -87,5 +99,33 @@ struct BoardFilterBar: View {
                 }
             }
         )
+    }
+}
+
+/// The version on the Board, with its progress: "0.2.0 · Kanban and backups · 1 of 5 done".
+struct VersionBadge: View {
+    let plan: ReleasePlan
+    let done: Int
+    let total: Int
+
+    var body: some View {
+        HStack(spacing: Spacing.xxs) {
+            Image(systemName: "shippingbox")
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Text(plan.version)
+                .font(.callout.weight(.semibold).monospaced())
+            if let title = plan.title {
+                Text(title)
+                    .lineLimit(1)
+            }
+            Text("· \(done) of \(total) done")
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+        .font(.callout)
+        .fixedSize()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Version \(plan.version)\(plan.title.map { ", \($0)" } ?? ""), \(done) of \(total) done")
     }
 }

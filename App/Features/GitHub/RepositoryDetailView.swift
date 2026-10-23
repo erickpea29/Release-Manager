@@ -1,3 +1,4 @@
+import AppKit
 import GitHubIntegration
 import RelvoraCore
 import SwiftUI
@@ -19,6 +20,7 @@ struct RepositoryDetailView: View {
     private var github: GitHubModel { app.github }
     private var snapshot: RepositorySnapshot? { github.snapshot(for: connection.githubRepositoryID) }
     private var syncState: GitHubModel.SyncState { github.syncState(for: connection.githubRepositoryID) }
+    private var refreshInterval: GitHubRefreshInterval { app.preferences.githubRefresh }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
@@ -41,8 +43,9 @@ struct RepositoryDetailView: View {
         }
         .padding(Spacing.l)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .task(id: connection.id) {
-            if snapshot == nil && github.isConnected { await refresh() }
+        .task(id: "\(connection.id) \(refreshInterval.rawValue)") { await keepFresh() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Task { await refreshIfDue() }
         }
     }
 
@@ -64,6 +67,10 @@ struct RepositoryDetailView: View {
             Button("Refresh", systemImage: "arrow.clockwise") { Task { await refresh() } }
                 .disabled(syncState == .refreshing || !github.isConnected)
                 .keyboardShortcut("r", modifiers: .command)
+                .help(
+                    refreshInterval.seconds == nil
+                        ? "Refresh from GitHub (⌘R)"
+                        : "Refresh from GitHub now (⌘R). Relvora also refreshes \(refreshInterval.title.lowercased()).")
         }
     }
 
@@ -94,15 +101,18 @@ struct RepositoryDetailView: View {
             .font(.callout)
         case .idle:
             if let snapshot {
-                let isStale = Date.now.timeIntervalSince(snapshot.fetchedAt) > 3600
-                Label(
-                    isStale
-                        ? "Cached data from \(Self.describe(snapshot.fetchedAt))"
-                        : "Synced \(Self.describe(snapshot.fetchedAt))",
-                    systemImage: isStale ? "clock.arrow.circlepath" : "checkmark.circle"
-                )
-                .font(.callout)
-                .foregroundStyle(isStale ? .orange : .secondary)
+                // Re-rendered every 30 seconds, so "Synced … ago" stays current between refreshes.
+                TimelineView(.periodic(from: .now, by: 30)) { context in
+                    let isStale = context.date.timeIntervalSince(snapshot.fetchedAt) > 3600
+                    Label(
+                        isStale
+                            ? "Cached data from \(Self.describe(snapshot.fetchedAt))"
+                            : "Synced \(Self.describe(snapshot.fetchedAt))" + automaticNote,
+                        systemImage: isStale ? "clock.arrow.circlepath" : "checkmark.circle"
+                    )
+                    .font(.callout)
+                    .foregroundStyle(isStale ? .orange : .secondary)
+                }
             } else if !github.isConnected {
                 Label("Connect GitHub to load this repository.", systemImage: "link")
                     .font(.callout)
@@ -206,10 +216,32 @@ struct RepositoryDetailView: View {
         }
     }
 
+    private var automaticNote: String {
+        refreshInterval.seconds == nil ? "" : " · refreshes \(refreshInterval.title.lowercased())"
+    }
+
     private func refresh() async {
         if let remote = await github.refresh(repositoryID: connection.githubRepositoryID) {
             await model.recordSync(of: connection, remote: remote)
         }
+    }
+
+    /// Loads the repository the first time it is shown, then keeps it fresh on the chosen interval while it is shown
+    /// and Relvora is the active app (Settings › GitHub).
+    private func keepFresh() async {
+        if snapshot == nil && github.isConnected { await refresh() }
+        guard refreshInterval.seconds != nil else { return }
+        while !Task.isCancelled {
+            await refreshIfDue()
+            try? await Task.sleep(for: .seconds(30))
+        }
+    }
+
+    private func refreshIfDue() async {
+        guard let interval = refreshInterval.seconds, NSApplication.shared.isActive,
+            github.isRefreshDue(repositoryID: connection.githubRepositoryID, interval: interval)
+        else { return }
+        await refresh()
     }
 
     static func describe(_ date: Date) -> String {

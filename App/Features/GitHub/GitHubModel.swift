@@ -72,6 +72,10 @@ final class GitHubModel {
     private var connectTask: Task<Void, Never>?
     /// Current repository metadata per GitHub ID, fetched once per launch for release preparation.
     private var repositories: [Int64: GitHubRepository] = [:]
+    /// When each repository was last refreshed or tried, so automatic refreshes keep their interval after failures.
+    private var lastAttempts: [Int64: Date] = [:]
+    /// GitHub's rate limit is used up until then; automatic refreshes wait.
+    private var rateLimitedUntil: Date?
     /// Changes between a base and a target commit, per repository; release preparation reads these repeatedly.
     private var changesCache: [String: (changes: UnreleasedChanges, notes: [String])] = [:]
 
@@ -174,6 +178,7 @@ final class GitHubModel {
     func refresh(repositoryID: Int64) async -> GitHubRepository? {
         guard let services, syncState(for: repositoryID) != .refreshing else { return nil }
         syncStates[repositoryID] = .refreshing
+        lastAttempts[repositoryID] = .now
         do {
             let snapshot = try await services.sync.snapshot(repositoryID: repositoryID)
             try? services.cache.save(snapshot)
@@ -182,9 +187,18 @@ final class GitHubModel {
             return snapshot.repository
         } catch {
             noteAuthorizationProblem(error)
+            if case .rateLimited(let resetAt) = error { rateLimitedUntil = resetAt ?? .now.addingTimeInterval(15 * 60) }
             syncStates[repositoryID] = .failed(AppAlert.message(for: error))
             return nil
         }
+    }
+
+    /// True when an automatic refresh should fetch this repository now (`RefreshSchedule`).
+    func isRefreshDue(repositoryID: Int64, interval: TimeInterval) -> Bool {
+        guard isConnected, syncState(for: repositoryID) != .refreshing else { return false }
+        return RefreshSchedule.isDue(
+            lastSynced: snapshot(for: repositoryID)?.fetchedAt, lastAttempt: lastAttempts[repositoryID],
+            interval: interval, rateLimitedUntil: rateLimitedUntil, now: .now)
     }
 
     // MARK: Release preparation

@@ -26,7 +26,8 @@ struct ReleasePlanDetailView: View {
                 }
                 .padding(Spacing.l)
                 .frame(maxWidth: 860, alignment: .leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                // Centered in wide windows, such as with the sidebar closed.
+                .frame(maxWidth: .infinity)
             }
             .sheet(isPresented: isReviewing) {
                 if let review = release.review, let check = release.check {

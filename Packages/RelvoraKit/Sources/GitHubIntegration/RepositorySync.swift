@@ -122,6 +122,18 @@ public struct GitHubSyncService: Sendable {
     }
 }
 
+/// When a repository is due for an automatic refresh: once `interval` has passed since the last successful sync and
+/// since the last attempt (so a failure waits a full interval too), and never while GitHub's rate limit is used up.
+public enum RefreshSchedule {
+    public static func isDue(
+        lastSynced: Date?, lastAttempt: Date?, interval: TimeInterval, rateLimitedUntil: Date?, now: Date
+    ) -> Bool {
+        if let rateLimitedUntil, now < rateLimitedUntil { return false }
+        guard let last = [lastSynced, lastAttempt].compactMap(\.self).max() else { return true }
+        return now.timeIntervalSince(last) >= interval
+    }
+}
+
 /// Finds pull request numbers in commit messages written by GitHub's merge and squash buttons.
 public enum PullRequestReferences {
     public static func numbers(in message: String) -> [Int] {

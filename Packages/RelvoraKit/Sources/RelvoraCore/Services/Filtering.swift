@@ -19,6 +19,36 @@ public enum ProjectSearch {
     }
 }
 
+/// The Board and the Backlog. The Board holds the version being planned, like a sprint; the Backlog holds every
+/// unfinished task outside it. A task's release plan decides where it is; its column is its status in either.
+public enum VersionScope {
+    /// On the Board: the tasks of the version being planned. Nothing when no version is planned.
+    public static func isOnBoard(_ task: ProjectTask, activePlanID: UUID?) -> Bool {
+        activePlanID != nil && task.releasePlanID == activePlanID
+    }
+
+    /// In the Backlog: unfinished tasks outside the version being planned, including any a released or cancelled
+    /// version left unfinished.
+    public static func isInBacklog(_ task: ProjectTask, activePlanID: UUID?) -> Bool {
+        task.completedAt == nil && !isOnBoard(task, activePlanID: activePlanID)
+    }
+
+    /// Finished outside the version being planned and not part of a published release (`publishedPlanIDs`), so
+    /// neither the Board nor the release history shows it.
+    public static func isDoneOutsideVersion(
+        _ task: ProjectTask, activePlanID: UUID?, publishedPlanIDs: Set<UUID>
+    ) -> Bool {
+        guard task.completedAt != nil, !isOnBoard(task, activePlanID: activePlanID) else { return false }
+        return task.releasePlanID.map { !publishedPlanIDs.contains($0) } ?? true
+    }
+
+    /// Backlog order: most urgent first, then oldest first.
+    public static func backlogOrder(_ lhs: ProjectTask, _ rhs: ProjectTask) -> Bool {
+        if lhs.priority != rhs.priority { return lhs.priority > rhs.priority }
+        return lhs.createdAt < rhs.createdAt
+    }
+}
+
 /// Board filter. Empty sets mean "any".
 public struct TaskFilter: Sendable, Equatable {
     public enum Release: Sendable, Hashable {

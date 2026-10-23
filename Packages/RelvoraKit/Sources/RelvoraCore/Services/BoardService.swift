@@ -62,6 +62,14 @@ public struct BoardService: Sendable {
         return try await commit(changes, projectID: projectID, unchanged: state)
     }
 
+    /// Folds a board's old “Backlog” column into the next column (`BoardPlanner.retireBacklogColumns`). Returns the
+    /// new board, or `nil` when there was nothing to change.
+    public func retireBacklogColumns(projectID: UUID) async throws -> BoardState? {
+        let state = try await load(projectID: projectID)
+        guard let changes = BoardPlanner.retireBacklogColumns(in: state, now: now()) else { return nil }
+        return try await commit(changes, projectID: projectID)
+    }
+
     public func deleteTask(_ taskID: UUID, projectID: UUID) async throws -> BoardState {
         try await commit(BoardChanges(deleteTaskIDs: [taskID]), projectID: projectID)
     }

@@ -48,11 +48,20 @@ struct ProjectRulesTests {
         }
     }
 
-    @Test("The default board has five ordered columns and one completion column at the end")
+    @Test("Initials take the first letter of up to two words")
+    func initials() {
+        #expect(Project(name: "Relvora").initials == "R")
+        #expect(Project(name: "Website Redesign").initials == "WR")
+        #expect(Project(name: "mobile app v2 beta").initials == "MA")
+        #expect(Project(name: "release-manager").initials == "RM")
+        #expect(Project(name: "  ").initials == "?")
+    }
+
+    @Test("The default board has four ordered columns and one completion column at the end")
     func defaultBoard() {
         let projectID = UUID()
         let columns = ProjectRules.defaultColumns(projectID: projectID, now: .now)
-        #expect(columns.map(\.name) == ["Backlog", "To Do", "In Progress", "Review", "Done"])
+        #expect(columns.map(\.name) == ["To Do", "In Progress", "Review", "Done"])
         #expect(columns.map(\.sortOrder) == columns.map(\.sortOrder).sorted())
         #expect(columns.filter(\.isCompletionColumn).map(\.name) == ["Done"])
         #expect(columns.allSatisfy { $0.projectID == projectID })
@@ -64,7 +73,7 @@ struct ProjectRulesTests {
             ValidationError.emptyName, ValidationError.nameTooLong(maximum: 1), ValidationError.invalidVersion("x"),
             PersistenceError.storeUnavailable(reason: "r"), PersistenceError.notFound(entity: "project", id: UUID()),
             PersistenceError.integrityViolation("r"), PersistenceError.fetchFailed(reason: "r"),
-            PersistenceError.saveFailed(reason: "r"),
+            PersistenceError.saveFailed(reason: "r"), ValidationError.reservedColumnName("Backlog"),
         ]
         for error in errors {
             #expect(error.errorDescription?.isEmpty == false)

@@ -81,8 +81,49 @@ final class WorkspaceModel {
 
     var columns: [BoardColumn] { state.orderedColumns }
 
+    // MARK: Board and Backlog
+
+    /// The Board shows the version being planned, like a sprint; the Backlog has everything unfinished outside it.
+    func boardTasks(in columnID: UUID) -> [ProjectTask] {
+        state.tasks(in: columnID).filter { VersionScope.isOnBoard($0, activePlanID: activePlan?.id) }
+    }
+
     func visibleTasks(in columnID: UUID) -> [ProjectTask] {
-        state.tasks(in: columnID).filter(filter.matches)
+        boardTasks(in: columnID).filter(filter.matches)
+    }
+
+    /// The version's tasks that match the filter, in Board order: by column, then position.
+    var visibleVersionTasks: [ProjectTask] { columns.flatMap { visibleTasks(in: $0.id) } }
+
+    var versionTaskCount: Int { state.tasks.filter { VersionScope.isOnBoard($0, activePlanID: activePlan?.id) }.count }
+
+    var backlogTasks: [ProjectTask] {
+        state.tasks.filter { VersionScope.isInBacklog($0, activePlanID: activePlan?.id) }
+            .sorted(by: VersionScope.backlogOrder)
+    }
+
+    var visibleBacklogTasks: [ProjectTask] { backlogTasks.filter(filter.matches) }
+
+    /// Finished outside the version and not in a published release, so neither the Board nor the history has them.
+    var doneOutsideVersion: [ProjectTask] {
+        let published = Set(releasePlans.filter { $0.status == .published }.map(\.id))
+        return state.tasks
+            .filter {
+                VersionScope.isDoneOutsideVersion($0, activePlanID: activePlan?.id, publishedPlanIDs: published)
+            }
+            .sorted { ($0.completedAt ?? .distantPast) > ($1.completedAt ?? .distantPast) }
+    }
+
+    var visibleDoneOutsideVersion: [ProjectTask] { doneOutsideVersion.filter(filter.matches) }
+
+    /// Adds a task to the version being planned, or returns it to the Backlog (`nil`). It keeps its column.
+    func setVersion(of taskID: UUID, to planID: UUID?) async {
+        guard var task = state.task(taskID), task.releasePlanID != planID else { return }
+        task.releasePlanID = planID
+        await perform(planID == nil ? "Couldn’t move the task to the Backlog" : "Couldn’t add the task to the version")
+        {
+            try await self.board.updateTask(task)
+        }
     }
 
     /// Every label used on the board, for the filter menu.
@@ -114,6 +155,9 @@ final class WorkspaceModel {
     func load() async {
         do {
             state = try await board.load(projectID: projectID)
+            // A board from before the Backlog tab: its Backlog column folds into To Do. If that fails, the board
+            // still opens as it is.
+            if let retired = try? await board.retireBacklogColumns(projectID: projectID) { state = retired }
             releasePlans = try await plans.plans(projectID: projectID)
             connections = try await connectionService.connections(projectID: projectID)
             snapshots = try await snapshotRepository.snapshots(projectID: projectID)
@@ -125,16 +169,23 @@ final class WorkspaceModel {
 
     // MARK: Tasks
 
-    func beginNewTask(in columnID: UUID? = nil) {
+    /// A new task in the version being planned (on the Board), or in the Backlog.
+    func beginNewTask(in columnID: UUID? = nil, inVersion: Bool = true) {
         guard let column = columnID ?? columns.first?.id else { return }
         taskEditor = .new(
             ProjectTask(
-                projectID: projectID, columnID: column, releasePlanID: activePlan?.id, title: "", sortOrder: 0))
+                projectID: projectID, columnID: column, releasePlanID: inVersion ? activePlan?.id : nil, title: "",
+                sortOrder: 0))
     }
 
-    func quickAdd(title: String, to columnID: UUID) async -> Bool {
-        await perform("Couldn’t add task") {
-            try await self.board.createTask(projectID: self.projectID, columnID: columnID, title: title)
+    /// Adds a task with just a title, in the version being planned or in the Backlog, at the end of `columnID`
+    /// (the first column when `nil`).
+    func quickAdd(title: String, to columnID: UUID? = nil, inVersion: Bool) async -> Bool {
+        guard let column = columnID ?? columns.first?.id else { return false }
+        let planID = inVersion ? activePlan?.id : nil
+        return await perform("Couldn’t add task") {
+            try await self.board.createTask(
+                projectID: self.projectID, columnID: column, title: title, releasePlanID: planID)
         }
     }
 

@@ -36,6 +36,11 @@ struct QuickActionsView: View {
                 ) { $0.openProject(project.id, tab: .board) })
             items.append(
                 Item(
+                    id: "backlog-\(project.id)", title: "\(project.name) Backlog", subtitle: "Project · Backlog",
+                    symbol: "list.bullet"
+                ) { $0.openProject(project.id, tab: .backlog) })
+            items.append(
+                Item(
                     id: "releases-\(project.id)", title: "\(project.name) Releases", subtitle: "Project · Releases",
                     symbol: "doc.badge.clock"
                 ) { $0.openProject(project.id, tab: .releases) })

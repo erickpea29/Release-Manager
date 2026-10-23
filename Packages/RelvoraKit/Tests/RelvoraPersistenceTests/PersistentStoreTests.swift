@@ -75,14 +75,14 @@ extension StoreTests {
                 ChecklistItem(id: task.checklist[1].id, title: "Drag and drop", isDone: true, sortOrder: 1)
             ]
             task.labels = ["ui", "  Release "]
-            task.columnID = columns[4].id
+            task.columnID = columns[3].id
             try await store.board.save(task)
 
             let saved = try #require(try await store.board.tasks(projectID: project.id).first)
             #expect(saved.checklist.map(\.title) == ["Drag and drop"])
             #expect(saved.checklist.first?.isDone == true)
             #expect(saved.labels == ["ui", "Release"])
-            #expect(saved.columnID == columns[4].id)
+            #expect(saved.columnID == columns[3].id)
             project = try await store.projects.project(id: project.id)
             #expect(project.name == "Relvora")
         }

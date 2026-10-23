@@ -216,3 +216,52 @@ struct BoardPlannerColumnTests {
         }
     }
 }
+
+@Suite("Board planner: the old Backlog column")
+struct BacklogColumnTests {
+    @Test("Its tasks move to To Do, in order and keeping their version, and the column goes")
+    func retire() throws {
+        let f = Fixture()
+        let toDo = BoardColumn(projectID: f.projectID, name: "To Do", sortOrder: 1.5)
+        let plan = UUID()
+        var a = f.a
+        a.releasePlanID = plan
+        let e = ProjectTask(projectID: f.projectID, columnID: toDo.id, title: "e", sortOrder: 1)
+        let state = BoardState(columns: [f.done, f.backlog, f.doing, toDo], tasks: [f.c, a, f.d, f.b, e])
+
+        let changes = try #require(BoardPlanner.retireBacklogColumns(in: state, now: f.now))
+        let board = f.applying(changes, to: state)
+        #expect(board.orderedColumns.map(\.name) == ["To Do", "Doing", "Done"])
+        #expect(board.tasks(in: toDo.id).map(\.title) == ["e", "a", "b", "c"])
+        #expect(board.task(a.id)?.releasePlanID == plan)
+        #expect(BoardPlanner.retireBacklogColumns(in: board, now: f.now) == nil)
+    }
+
+    @Test("A board without a To Do column renames it To Do, so its tasks stay not started")
+    func rename() throws {
+        let f = Fixture()
+        let changes = try #require(BoardPlanner.retireBacklogColumns(in: f.state, now: f.now))
+        let board = f.applying(changes)
+        #expect(board.orderedColumns.map(\.name) == ["To Do", "Doing", "Done"])
+        #expect(board.tasks(in: f.backlog.id).map(\.title) == ["a", "b", "c"])
+        #expect(board.tasks(in: f.doing.id).isEmpty)
+    }
+
+    @Test("“Backlog” can’t name a new or renamed column, or one in the template for new projects")
+    func reservedName() {
+        let f = Fixture()
+        let board = BoardState(columns: [f.doing, f.done], tasks: [])
+        #expect(throws: ValidationError.reservedColumnName("backlog")) {
+            try BoardPlanner.addColumn(named: " backlog ", projectID: f.projectID, in: board, now: f.now)
+        }
+        #expect(throws: ValidationError.reservedColumnName("Backlog")) {
+            try BoardPlanner.renameColumn(f.doing.id, to: "Backlog", in: board, now: f.now)
+        }
+        let old = [
+            ColumnTemplate(name: "Backlog", isCompletion: false), ColumnTemplate(name: "Doing", isCompletion: false),
+            ColumnTemplate(name: "Done", isCompletion: true),
+        ]
+        #expect(throws: ValidationError.reservedColumnName("Backlog")) { try ProjectRules.validatedTemplate(old) }
+        #expect(ProjectRules.withoutBacklog(old).map(\.name) == ["Doing", "Done"])
+    }
+}

@@ -36,7 +36,8 @@ struct BackupDocumentTests {
             newProjectColumns: [
                 ColumnTemplate(name: "Todo", isCompletion: false), ColumnTemplate(name: "Done", isCompletion: true),
             ],
-            changelogLabelRules: [ChangelogLabelRule(label: "ui", category: .improvements)])
+            changelogLabelRules: [ChangelogLabelRule(label: "ui", category: .improvements)],
+            githubRefreshInterval: "15m")
         let document = BackupDocument(bundles: [], exportedAt: .now, appVersion: nil, preferences: preferences)
         let decoded = try BackupDocument.decode(try document.encoded())
         #expect(decoded.preferences == preferences)

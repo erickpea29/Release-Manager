@@ -12,6 +12,14 @@ public struct Project: Sendable, Hashable, Identifiable {
 
     public var isArchived: Bool { archivedAt != nil }
 
+    /// Up to two letters for places too narrow for the name, such as the collapsed sidebar: the first letter of each
+    /// of the first two words ("Website Redesign" → "WR").
+    public var initials: String {
+        let words = name.split { $0.isWhitespace || $0 == "-" || $0 == "_" }
+        let letters = words.prefix(2).compactMap(\.first)
+        return letters.isEmpty ? "?" : String(letters).uppercased()
+    }
+
     public init(
         id: UUID = UUID(),
         name: String,

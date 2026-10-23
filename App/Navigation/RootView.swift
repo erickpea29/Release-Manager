@@ -42,9 +42,7 @@ struct RootView: View {
             if let startupError = model.startupError {
                 StoreUnavailableView(error: startupError)
             } else {
-                NavigationSplitView(columnVisibility: columnVisibility) {
-                    SidebarView(selection: selection)
-                } detail: {
+                SidebarContainer(selection: selection) {
                     detail
                 }
             }
@@ -127,6 +125,8 @@ struct RootView: View {
                 let project = model.projects.first(where: { $0.name == name })
             {
                 select(.project(project.id))
+            } else if let view = model.options.initialView, let item = SidebarItem(storageID: view) {
+                select(item)
             }
         }
     }
@@ -158,13 +158,6 @@ struct RootView: View {
         Binding(
             get: { SidebarItem(storageID: selectionID) },
             set: { selectionID = ($0 ?? .dashboard).storageID }
-        )
-    }
-
-    private var columnVisibility: Binding<NavigationSplitViewVisibility> {
-        Binding(
-            get: { preferences.sidebarVisible ? .all : .detailOnly },
-            set: { preferences.sidebarVisible = $0 != .detailOnly }
         )
     }
 }

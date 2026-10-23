@@ -21,16 +21,20 @@ public struct BackupDocument: Codable, Sendable, Equatable {
         public var windowMaterial: String?
         public var newProjectColumns: [ColumnTemplate]?
         public var changelogLabelRules: [ChangelogLabelRule]?
+        /// How often open repositories refresh from GitHub. Optional within format 4: older files restore without it.
+        public var githubRefreshInterval: String?
 
         public init(
             appearance: String? = nil, accentColor: String? = nil, windowMaterial: String? = nil,
-            newProjectColumns: [ColumnTemplate]? = nil, changelogLabelRules: [ChangelogLabelRule]? = nil
+            newProjectColumns: [ColumnTemplate]? = nil, changelogLabelRules: [ChangelogLabelRule]? = nil,
+            githubRefreshInterval: String? = nil
         ) {
             self.appearance = appearance
             self.accentColor = accentColor
             self.windowMaterial = windowMaterial
             self.newProjectColumns = newProjectColumns
             self.changelogLabelRules = changelogLabelRules
+            self.githubRefreshInterval = githubRefreshInterval
         }
     }
 

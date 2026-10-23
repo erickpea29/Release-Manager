@@ -14,7 +14,9 @@ struct RelvoraApp: App {
         }
         .defaultSize(width: 1280, height: 800)
         .commands {
-            SidebarCommands()
+            CommandGroup(replacing: .sidebar) {
+                SidebarToggleCommand(preferences: model.preferences)
+            }
             CommandGroup(after: .newItem) {
                 NewTaskCommand()
                 Button("New Project…") { model.projectEditor = .new }
@@ -65,7 +67,7 @@ struct RelvoraApp: App {
     }
 }
 
-/// Go › Board / Releases / GitHub for the open project.
+/// Go › Backlog / Board / Releases / GitHub for the open project (⌥⌘1–4).
 private struct WorkspaceTabCommands: View {
     @FocusedValue(\.workspaceTab) private var tab
 

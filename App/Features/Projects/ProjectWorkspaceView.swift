@@ -2,6 +2,7 @@ import RelvoraCore
 import SwiftUI
 
 enum WorkspaceTab: String, CaseIterable, Identifiable {
+    case backlog
     case board
     case releases
     case github
@@ -10,6 +11,7 @@ enum WorkspaceTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .backlog: "Backlog"
         case .board: "Board"
         case .releases: "Releases"
         case .github: "GitHub"
@@ -18,13 +20,13 @@ enum WorkspaceTab: String, CaseIterable, Identifiable {
 }
 
 extension FocusedValues {
-    /// Present while a project board is focused; drives File › New Task (⌘N).
+    /// Present while a project's Board or Backlog is shown; drives File › New Task (⌘N).
     @Entry var newTaskAction: (@MainActor () -> Void)?
-    /// The open project's tab, for Go › Board / Releases / GitHub.
+    /// The open project's tab, for Go › Backlog / Board / Releases / GitHub.
     @Entry var workspaceTab: Binding<String>?
 }
 
-/// A project's board and release plans.
+/// A project's Backlog, Board, release plans, and repositories.
 struct ProjectWorkspaceView: View {
     @Environment(AppModel.self) private var app
     let project: Project
@@ -37,7 +39,7 @@ struct ProjectWorkspaceView: View {
     var body: some View {
         Group {
             if let model {
-                WorkspaceContent(model: model, project: project, tab: tab)
+                WorkspaceContent(model: model, project: project, tab: tab) { tabID = $0.rawValue }
             } else {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -55,6 +57,9 @@ struct ProjectWorkspaceView: View {
             }
             ToolbarItem {
                 switch tab {
+                case .backlog:
+                    Button("New Task", systemImage: "plus") { model?.beginNewTask(inVersion: false) }
+                        .help("New Task in the Backlog (⌘N)")
                 case .board:
                     Button("New Task", systemImage: "plus") { model?.beginNewTask() }
                         .help("New Task (⌘N)")
@@ -92,8 +97,10 @@ struct ProjectWorkspaceView: View {
         if let tab = request.tab { tabID = tab.rawValue }
         switch request.action {
         case .newTask?:
-            tabID = WorkspaceTab.board.rawValue
-            model.beginNewTask()
+            // Into the version on the Board, or the Backlog when no version is planned.
+            let onBoard = model.activePlan != nil
+            tabID = (onBoard ? WorkspaceTab.board : .backlog).rawValue
+            model.beginNewTask(inVersion: onBoard)
         case .newReleasePlan?:
             tabID = WorkspaceTab.releases.rawValue
             if model.activePlan == nil { model.planEditor = .new }
@@ -130,6 +137,7 @@ private struct WorkspaceContent: View {
     @Bindable var model: WorkspaceModel
     let project: Project
     let tab: WorkspaceTab
+    let showTab: (WorkspaceTab) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -168,10 +176,16 @@ private struct WorkspaceContent: View {
             Spacer()
         case .loaded:
             switch tab {
+            case .backlog:
+                filterBar
+                BacklogView(model: model)
             case .board:
-                BoardFilterBar(model: model)
-                Divider()
-                BoardView(model: model)
+                if model.activePlan == nil {
+                    NoVersionView(model: model) { showTab(.backlog) }
+                } else {
+                    filterBar
+                    BoardView(model: model)
+                }
             case .releases:
                 ReleasePlansView(model: model)
             case .github:
@@ -180,13 +194,46 @@ private struct WorkspaceContent: View {
         }
     }
 
+    @ViewBuilder
+    private var filterBar: some View {
+        BoardFilterBar(model: model, tab: tab)
+        // The line under the filter bar: the sidebar's frame draws it, turning into the sidebar's border.
+        Color.clear
+            .frame(height: 1)
+            .contentTopBorder()
+    }
+
     private var isShowingAlert: Binding<Bool> {
         Binding(get: { model.alert != nil }, set: { if !$0 { model.alert = nil } })
     }
 
     private var newTaskAction: (@MainActor () -> Void)? {
-        guard tab == .board else { return nil }
         let model = model
-        return { model.beginNewTask() }
+        switch tab {
+        case .board: return { model.beginNewTask() }
+        case .backlog: return { model.beginNewTask(inVersion: false) }
+        case .releases, .github: return nil
+        }
+    }
+}
+
+/// The Board when no version is planned: it shows a version's tasks, so it offers to plan one.
+private struct NoVersionView: View {
+    let model: WorkspaceModel
+    let showBacklog: () -> Void
+
+    var body: some View {
+        ContentUnavailableView {
+            Label("No Version in Progress", systemImage: "shippingbox")
+        } description: {
+            Text(
+                "The Board shows the version you’re working on. Plan the next version, then add tasks to it from the Backlog."
+            )
+        } actions: {
+            Button("New Release Plan…") { model.planEditor = .new }
+                .buttonStyle(.borderedProminent)
+            Button("Open Backlog", action: showBacklog)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

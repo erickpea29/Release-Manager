@@ -1,8 +1,8 @@
 import RelvoraCore
 import SwiftUI
 
-/// Kanban board. Drag a card onto another card to place it before that card, or onto a column's empty
-/// space to place it at the end. Every move is also available from the keyboard (arrows select, Return opens,
+/// Kanban board of the version being planned (the Backlog tab has everything else). Drag a card onto another card to
+/// place it before that card, or onto a column's empty space to place it at the end. Every move is also available from the keyboard (arrows select, Return opens,
 /// Task menu moves), the card's context menu, and VoiceOver actions.
 struct BoardView: View {
     @Bindable var model: WorkspaceModel
@@ -126,7 +126,9 @@ struct BoardColumnView: View {
     @State private var isConfirmingDelete = false
 
     private var visibleTasks: [ProjectTask] { model.visibleTasks(in: column.id) }
-    private var totalCount: Int { model.state.tasks(in: column.id).count }
+    private var totalCount: Int { model.boardTasks(in: column.id).count }
+    /// Every task with this status, Backlog included: deleting the column moves them all.
+    private var columnTaskCount: Int { model.state.tasks(in: column.id).count }
     private var index: Int { model.columns.firstIndex(of: column) ?? 0 }
 
     var body: some View {
@@ -185,7 +187,7 @@ struct BoardColumnView: View {
             Button("Cancel", role: .cancel) {}
         }
         .confirmationDialog("Delete “\(column.name)”?", isPresented: $isConfirmingDelete, titleVisibility: .visible) {
-            if totalCount == 0 {
+            if columnTaskCount == 0 {
                 Button("Delete Column", role: .destructive) {
                     Task { await model.deleteColumn(column.id, movingTasksTo: nil) }
                 }
@@ -198,9 +200,10 @@ struct BoardColumnView: View {
             }
         } message: {
             Text(
-                totalCount == 0
+                columnTaskCount == 0
                     ? "The column is empty."
-                    : "Its \(totalCount) \(totalCount == 1 ? "task moves" : "tasks move") to the column you choose."
+                    : "Its \(columnTaskCount) \(columnTaskCount == 1 ? "task moves" : "tasks move"), Backlog tasks "
+                        + "included, to the column you choose."
             )
         }
     }
@@ -256,7 +259,8 @@ struct BoardColumnView: View {
 
     private func card(_ task: ProjectTask) -> some View {
         let isSelected = model.selectedTaskID == task.id
-        return TaskCardView(task: task, plan: model.plan(task.releasePlanID))
+        // Every card on the Board is in the same version, so cards don't repeat it.
+        return TaskCardView(task: task, plan: nil)
             .overlay {
                 if isSelected {
                     RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
@@ -298,6 +302,7 @@ struct BoardColumnView: View {
                         }
                     }
                 }
+                Button("Move to Backlog") { Task { await model.setVersion(of: task.id, to: nil) } }
                 Divider()
                 Button("Delete Task", role: .destructive) { Task { await model.deleteTask(task.id) } }
             }
@@ -336,7 +341,7 @@ struct BoardColumnView: View {
         let title = quickTitle
         guard !title.isBlank else { return }
         Task {
-            if await model.quickAdd(title: title, to: column.id) { quickTitle = "" }
+            if await model.quickAdd(title: title, to: column.id, inVersion: true) { quickTitle = "" }
         }
     }
 }
