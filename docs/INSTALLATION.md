@@ -51,6 +51,7 @@ xcodebuild test -project Relvora.xcodeproj -scheme Relvora \
 ## First launch
 
 1. Create a project with **File › New Project…** (⇧⌘N). New projects start with the columns set in **Settings › Board**.
+   Plan its first version (**New Release Plan…**): the **Board** shows that version's tasks, and the **Backlog** tab holds everything else.
 2. Connect GitHub in **Settings › GitHub › Connect GitHub…**:
    1. Relvora shows a one-time code. Choose **Copy Code and Open GitHub**.
    2. Approve the request on github.com.

@@ -26,7 +26,8 @@ Owner and name are refreshed on sync; renames and transfers keep the same `githu
 
 - Exactly one completion column per project.
 - A column cannot be deleted while it holds tasks; the user picks a destination column first.
-- New projects get the default columns Backlog, To Do, In Progress, Review, and Done (the completion column). Making the defaults configurable in Settings is deferred to M05 (per-project columns are fully editable since M02).
+- New projects get the default columns To Do, In Progress, Review, and Done (the completion column), or the columns set in **Settings › Board**.
+- No column may be named “Backlog”: the Backlog is a tab, holding every unfinished task outside the version being planned (`VersionScope`, [ADR 0012](decisions/0012-backlog-tab-and-version-board.md)). A board from before the tab loses its Backlog column when the project opens: its tasks move to To Do, keeping their order and version, or the column is renamed To Do when there is none (`BoardPlanner.retireBacklogColumns`).
 
 ### ProjectTask **Δ** (plan: `Task`, renamed so it doesn't shadow Swift's `Task`)
 `id`, `projectID`, `releasePlanID?`, **Δ `columnID`** (was `statusID`), `title`, `details?` (Markdown), `priority` (`low|medium|high|urgent`), `type` (`feature|improvement|bugFix|documentation|maintenance|other`), `labels: [String]` (trimmed, case-insensitive unique), `sortOrder`, `createdAt`, `updatedAt`, `completedAt?`
@@ -63,8 +64,9 @@ Stored in `UserDefaults` through one `Preferences` store in the app. Keys from M
 - Accent (`system|blue|purple|pink|red|orange|green|graphite`).
 - Window (`opaque|translucent`).
 - Sidebar visibility.
-- **Columns for new projects**: `[ColumnTemplate]` (name, isCompletion), validated by `ProjectRules.validatedTemplate` (one or more columns, exactly one completion column, names differ ignoring case).
+- **Columns for new projects**: `[ColumnTemplate]` (name, isCompletion), validated by `ProjectRules.validatedTemplate` (one or more columns, exactly one completion column, names differ ignoring case, none named “Backlog”; a saved template from before the Backlog tab drops it).
 - **Release-note label rules**: `[ChangelogLabelRule]` (label → `ChangelogCategory` key), which win over the built-in label meanings.
+- **GitHub refresh** (`5m|15m|1h|never`, default `5m`): how often the repository open in the GitHub tab refreshes while Relvora is active.
 
 Backup format 4 carries these settings, except sidebar visibility, as a `preferences` record. Restore applies the known, valid values and keeps the current ones otherwise (G12). The last-selected project and tab are window state (`SceneStorage`), not preferences.
 

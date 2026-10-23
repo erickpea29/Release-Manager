@@ -73,6 +73,7 @@ App (SwiftUI views, @Observable AppModel)
 | Release workflow | `ReleaseWorkflow` (RelvoraCore) owns every release state change and talks to GitHub through the `ReleaseRemote` protocol, implemented by `GitHubReleaseRemote`. Intent is saved before the create request; publication is reported only after the tag resolves to the reviewed SHA |
 | Rate limits | 5,000/h per user, shared with the user's other tools. Make requests serially, use conditional requests (`ETag`, where 304 responses are free), and wait at least 1 s between writes |
 | Cache | Cached releases and tags stored with `fetchedAt`. Refresh replaces them only on success. The UI shows fresh vs. cached and the last sync time |
+| Automatic refresh | The repository open in the GitHub tab refreshes on the interval in Settings (default 5 minutes) while Relvora is active, and on opening or returning to the app when its data is older. `RefreshSchedule` waits a full interval after a failure and pauses until a rate limit resets. One refresh costs up to about 50 requests |
 | Identity | Stable numeric IDs (`repository.id`, `release.id`); names are display only |
 
 ## 6. Security and privacy
