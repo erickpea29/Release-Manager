@@ -16,15 +16,15 @@
 
         private static let relvoraTasks = [
             SampleTask(
-                title: "Drag-and-drop Kanban", column: 2, priority: .high, labels: ["Board"],
+                title: "Drag-and-drop Kanban", column: 1, priority: .high, labels: ["Board"],
                 checklist: ["Card drag", "Column drop", "Persist order"]),
             SampleTask(
-                title: "Backup and restore", column: 3, priority: .high, labels: ["Data"],
+                title: "Backup and restore", column: 2, priority: .high, labels: ["Data"],
                 checklist: ["Export JSON", "Validate", "Safety copy"]),
-            SampleTask(title: "Task editor sheet", column: 4, labels: ["Board", "UI"]),
-            SampleTask(title: "Release plan editor", column: 1, labels: ["Releases"]),
+            SampleTask(title: "Task editor sheet", column: 3, labels: ["Board", "UI"]),
+            SampleTask(title: "Release plan editor", column: 0, labels: ["Releases"]),
             SampleTask(
-                title: "Fix column header truncation", column: 1, priority: .urgent, type: .bugFix,
+                title: "Fix column header truncation", column: 0, priority: .urgent, type: .bugFix,
                 labels: ["UI"]),
             SampleTask(
                 title: "Write backup guide", column: 0, priority: .low, type: .documentation,
@@ -47,8 +47,8 @@
                 name: "Website Redesign", details: "Marketing site refresh for the spring launch.")
             try await addTasks(
                 [
-                    SampleTask(title: "Hero section", column: 4, labels: ["Design"], inRelease: false),
-                    SampleTask(title: "Pricing page copy", column: 2, type: .documentation, inRelease: false),
+                    SampleTask(title: "Hero section", column: 3, labels: ["Design"], inRelease: false),
+                    SampleTask(title: "Pricing page copy", column: 1, type: .documentation, inRelease: false),
                 ], to: website, plan: nil, environment: environment)
 
             let tools = try await environment.projects.create(

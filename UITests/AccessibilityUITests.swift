@@ -12,7 +12,14 @@ final class AccessibilityUITests: XCTestCase {
 
     func testBoardPassesAccessibilityAudit() throws {
         let app = RelvoraApp.launchProject(tab: "board")
-        app.descendants(matching: .any)["column-Backlog"].wait()
+        app.descendants(matching: .any)["column-To Do"].wait()
+        try audit(app)
+    }
+
+    func testBacklogPassesAccessibilityAudit() throws {
+        let app = RelvoraApp.launchProject(tab: "backlog")
+        app.descendants(matching: .any)["backlog"].wait()
+        app.text("Write backup guide").wait()
         try audit(app)
     }
 

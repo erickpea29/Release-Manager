@@ -27,6 +27,48 @@ struct FilterTests {
         #expect(ProjectSearch.filter(projects, query: "release").map(\.name) == ["Relvora"])
     }
 
+    @Test("The Board holds the version being planned; the Backlog holds unfinished work outside it")
+    func versionScope() {
+        let active = UUID()
+        let released = UUID()
+        let inVersion = task("In version", plan: active)
+        let doneInVersion = task("Done in version", plan: active, completed: true)
+        let unplanned = task("Unplanned")
+        let leftOver = task("Left in a released version", plan: released)
+        let doneUnplanned = task("Done, unplanned", completed: true)
+        let shipped = task("Shipped", plan: released, completed: true)
+
+        let board = [inVersion, doneInVersion, unplanned, leftOver, doneUnplanned, shipped]
+        #expect(
+            board.filter { VersionScope.isOnBoard($0, activePlanID: active) }.map(\.title)
+                == ["In version", "Done in version"])
+        #expect(
+            board.filter { VersionScope.isInBacklog($0, activePlanID: active) }.map(\.title)
+                == ["Unplanned", "Left in a released version"])
+        #expect(
+            board.filter {
+                VersionScope.isDoneOutsideVersion($0, activePlanID: active, publishedPlanIDs: [released])
+            }.map(\.title) == ["Done, unplanned"])
+
+        // Without a version, nothing is on the Board and every unfinished task is in the Backlog.
+        #expect(!board.contains { VersionScope.isOnBoard($0, activePlanID: nil) })
+        #expect(board.filter { VersionScope.isInBacklog($0, activePlanID: nil) }.count == 3)
+    }
+
+    @Test("The Backlog lists the most urgent tasks first, then the oldest")
+    func backlogOrder() {
+        let older = task("Older", priority: .high)
+        var newer = task("Newer", priority: .high)
+        newer = ProjectTask(
+            id: newer.id, projectID: newer.projectID, columnID: newer.columnID, title: newer.title,
+            priority: .high, sortOrder: 0, createdAt: older.createdAt.addingTimeInterval(60))
+        let urgent = task("Urgent", priority: .urgent)
+        let low = task("Low", priority: .low)
+        #expect(
+            [low, newer, urgent, older].sorted(by: VersionScope.backlogOrder).map(\.title)
+                == ["Urgent", "Older", "Newer", "Low"])
+    }
+
     @Test("Each filter dimension narrows the board")
     func dimensions() {
         let tasks = [

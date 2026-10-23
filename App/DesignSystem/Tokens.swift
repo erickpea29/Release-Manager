@@ -16,6 +16,12 @@ enum Radius {
     static let panel: CGFloat = 14
 }
 
+extension Color {
+    /// The toolbar's color. Bars that frame the content (the board's filter bar, the collapsed sidebar) use it in
+    /// either window material, so they read as one piece with the toolbar.
+    static let chrome = Color(nsColor: .windowBackgroundColor)
+}
+
 enum PreferenceKey {
     static let appearance = "appearance"
     static let windowMaterial = "windowMaterial"

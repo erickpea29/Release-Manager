@@ -32,6 +32,35 @@ enum AccentPreference: String, CaseIterable, Identifiable {
     }
 }
 
+/// How often a repository open in the GitHub tab refreshes from GitHub, while Relvora is the active app.
+enum GitHubRefreshInterval: String, CaseIterable, Identifiable {
+    case fiveMinutes = "5m"
+    case fifteenMinutes = "15m"
+    case hourly = "1h"
+    case never
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .fiveMinutes: "Every 5 minutes"
+        case .fifteenMinutes: "Every 15 minutes"
+        case .hourly: "Every hour"
+        case .never: "Never"
+        }
+    }
+
+    /// `nil` when repositories refresh only on request.
+    var seconds: TimeInterval? {
+        switch self {
+        case .fiveMinutes: 5 * 60
+        case .fifteenMinutes: 15 * 60
+        case .hourly: 60 * 60
+        case .never: nil
+        }
+    }
+}
+
 /// App settings, stored in `UserDefaults`. Views use this store rather than `@AppStorage`, so the same values drive
 /// the window, new projects, release notes, and backups (PRODUCT_SPEC G12). Keys from M01–M04 are unchanged.
 @Observable
@@ -43,6 +72,7 @@ final class Preferences {
         static let accent = "accentColor"
         static let newProjectColumns = "newProjectColumns"
         static let changelogLabelRules = "changelogLabelRules"
+        static let githubRefresh = "githubRefreshInterval"
     }
 
     @ObservationIgnored let defaults: UserDefaults
@@ -67,6 +97,9 @@ final class Preferences {
     var changelogLabelRules: [ChangelogLabelRule] {
         didSet { store(changelogLabelRules, forKey: Key.changelogLabelRules) }
     }
+    var githubRefresh: GitHubRefreshInterval {
+        didSet { defaults.set(githubRefresh.rawValue, forKey: Key.githubRefresh) }
+    }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -75,9 +108,13 @@ final class Preferences {
         windowMaterial = defaults.string(forKey: Key.windowMaterial).flatMap(WindowMaterial.init) ?? .opaque
         sidebarVisible = defaults.object(forKey: Key.sidebarVisible) as? Bool ?? true
         let columns = Self.load([ColumnTemplate].self, from: defaults, forKey: Key.newProjectColumns)
-        newProjectColumns = columns.flatMap { try? ProjectRules.validatedTemplate($0) } ?? ProjectRules.defaultTemplate
+        // A template saved before the Backlog tab loses its Backlog column.
+        newProjectColumns =
+            columns.flatMap { try? ProjectRules.validatedTemplate(ProjectRules.withoutBacklog($0)) }
+            ?? ProjectRules.defaultTemplate
         changelogLabelRules = ChangelogLabelRule.normalized(
             Self.load([ChangelogLabelRule].self, from: defaults, forKey: Key.changelogLabelRules) ?? [])
+        githubRefresh = defaults.string(forKey: Key.githubRefresh).flatMap(GitHubRefreshInterval.init) ?? .fiveMinutes
     }
 
     /// Validates and stores the board template for new projects.
@@ -94,7 +131,8 @@ final class Preferences {
     var record: BackupDocument.PreferencesRecord {
         BackupDocument.PreferencesRecord(
             appearance: appearance.rawValue, accentColor: accent.rawValue, windowMaterial: windowMaterial.rawValue,
-            newProjectColumns: newProjectColumns, changelogLabelRules: changelogLabelRules)
+            newProjectColumns: newProjectColumns, changelogLabelRules: changelogLabelRules,
+            githubRefreshInterval: githubRefresh.rawValue)
     }
 
     /// Applies restored settings. Unknown or invalid values are skipped, keeping the current ones.
@@ -102,10 +140,13 @@ final class Preferences {
         if let value = record.appearance.flatMap(AppearancePreference.init) { appearance = value }
         if let value = record.accentColor.flatMap(AccentPreference.init) { accent = value }
         if let value = record.windowMaterial.flatMap(WindowMaterial.init) { windowMaterial = value }
-        if let columns = record.newProjectColumns, let valid = try? ProjectRules.validatedTemplate(columns) {
+        if let columns = record.newProjectColumns,
+            let valid = try? ProjectRules.validatedTemplate(ProjectRules.withoutBacklog(columns))
+        {
             newProjectColumns = valid
         }
         if let rules = record.changelogLabelRules { changelogLabelRules = ChangelogLabelRule.normalized(rules) }
+        if let value = record.githubRefreshInterval.flatMap(GitHubRefreshInterval.init) { githubRefresh = value }
     }
 
     // MARK: Storage

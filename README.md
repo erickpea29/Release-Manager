@@ -2,7 +2,7 @@
 
 A native, local-first macOS app for planning software releases: projects, Kanban boards, GitHub release data, changelogs, GitHub draft releases, and an immutable release history.
 
-**Status:** M00–M04 complete; M05 (Design Polish and Distribution) implemented and awaiting review. Install and build: [docs/INSTALLATION.md](docs/INSTALLATION.md). See [docs/PHASE_STATUS.md](docs/PHASE_STATUS.md).
+**Status:** M00–M05 complete, plus first-release polish ([report](docs/FIRST_RELEASE_POLISH.md)); notarized release builds are set up. Install and build: [docs/INSTALLATION.md](docs/INSTALLATION.md). See [docs/PHASE_STATUS.md](docs/PHASE_STATUS.md).
 
 ## Requirements
 

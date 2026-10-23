@@ -3,6 +3,7 @@
 Relvora is distributed as a **notarized Developer ID app**, built by GitHub Actions ([ADR 0011](decisions/0011-distribution-developer-id.md)).
 - **How a release works:** you publish a release on GitHub (for example, a draft Relvora created), and the **Release** workflow builds, signs, notarizes, and staples the app. It then attaches `Relvora-<version>.zip` to that release.
 - **Before secrets are set up:** the workflow only builds an unsigned test package.
+- **Status:** set up and verified on 2026-10-22. Manual runs 39870619573 and 39876742407 (version 0.0.1) were signed with Developer ID, notarized, and stapled; on this Mac `spctl` reported “accepted, source=Notarized Developer ID”.
 
 ## 1. One-time setup (owner)
 

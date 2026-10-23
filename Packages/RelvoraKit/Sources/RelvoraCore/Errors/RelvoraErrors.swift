@@ -20,6 +20,7 @@ public enum ValidationError: Error, Sendable, Equatable, LocalizedError {
     case releaseNotesTooLong(maximum: Int)
     case duplicateColumnName(String)
     case needsOneCompletionColumn
+    case reservedColumnName(String)
 
     public var errorDescription: String? {
         switch self {
@@ -41,6 +42,7 @@ public enum ValidationError: Error, Sendable, Equatable, LocalizedError {
         case .releaseNotesTooLong(let maximum): "Release notes can be at most \(maximum) characters."
         case .duplicateColumnName(let name): "There’s already a column named “\(name)”."
         case .needsOneCompletionColumn: "A board needs exactly one completion column."
+        case .reservedColumnName(let name): "“\(name)” is its own tab, not a column."
         }
     }
 
@@ -64,6 +66,7 @@ public enum ValidationError: Error, Sendable, Equatable, LocalizedError {
         case .releaseNotesTooLong: "Shorten the notes, or link to a longer changelog."
         case .duplicateColumnName: "Use a different name."
         case .needsOneCompletionColumn: "Mark one column as the completion column."
+        case .reservedColumnName: "Choose another name. Tasks outside the version being planned are in the Backlog tab."
         }
     }
 }

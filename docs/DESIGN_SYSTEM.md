@@ -4,13 +4,18 @@ Status: finished in M05. Material rules follow [ADR 0006](decisions/0006-window-
 
 ## 1. Principles
 
-- **Native first:** standard SwiftUI controls, `NavigationSplitView`, toolbars, menus, `Settings` scene, and keyboard shortcuts behave as they do in Apple's apps.
+- **Native first:** standard SwiftUI controls, toolbars, menus, `Settings` scene, and keyboard shortcuts behave as they do in Apple's apps. The sidebar is Relvora's own, so it can narrow to an icon strip as one piece ([ADR 0013](decisions/0013-custom-sidebar-container.md)).
 - **Content over chrome:** release data and text sit on calm, readable surfaces. Effects are restrained.
 - **The system decides when it can:** on macOS 26, sidebars and toolbars get Liquid Glass automatically. Do not imitate or override it.
 
 ## 2. Navigation
 
-A sidebar holds **Dashboard**, **Projects** (with each project's Kanban and Releases), **Release History**, and the **Settings** scene (⌘,). The detail column changes with the selection. Inspectors (`.inspector`) handle task and release details.
+A sidebar holds **Dashboard**, **Release History**, and **Projects**; each project has the tabs **Backlog**, **Board**, **Releases**, and **GitHub**. Settings is its own scene (⌘,).
+
+- **Collapsed sidebar.** Hiding the sidebar (⌃⌘S or the toolbar button) narrows it to a strip of icons: Dashboard, Release History, each active project by its initials (the name in the tooltip), and New Project. It widens again as the same piece; the list and the icons cross-fade.
+- **The L frame.** The sidebar and the toolbar share the toolbar's color and frame the content in an L. One 1-point line runs down the sidebar's edge and turns, with a 14-point rounded corner, into the content's top border: the line under a tab's filter bar, or the bottom of the toolbar. The line and corner are drawn on the content, so they move with it while the sidebar animates.
+- **Resizing.** Drag the sidebar's edge (200–360 points, remembered per window).
+- **Board and Backlog.** The Board shows the version being planned; the Backlog tab lists that version above everything else unfinished ([ADR 0012](decisions/0012-backlog-tab-and-version-board.md)).
 
 ## 3. Tokens
 
@@ -29,6 +34,7 @@ A sidebar holds **Dashboard**, **Projects** (with each project's Kanban and Rele
 - Window material: **Opaque** (default) or **Translucent**. Translucent uses a full-window `NSVisualEffectView` (`.behindWindow`).
   SwiftUI `ultraThinMaterial` window backgrounds are not used, because secondary text loses contrast over saturated backdrops (M00 §2.4).
 - The sidebar's visibility is stored as a preference and applied explicitly; it is never left to window state restoration.
+- In the translucent window, only the content shows the material. The sidebar, the toolbar band, and the filter bars use the toolbar's opaque color (`Color.chrome`), so they read as one piece. Nothing that animates is an AppKit material: AppKit views don't follow SwiftUI animations.
 - Reading surfaces (cards, Kanban columns, editors, changelog) always use an opaque or thick-material panel.
 - Reduce Transparency or Increase Contrast forces Opaque.
 
@@ -56,7 +62,8 @@ Every remote-data view defines all five states:
   |---|---|
   | ⌘K | Quick actions: go to a project, tab, or view, or run an action |
   | ⌘1 / ⌘2 | Dashboard / Release History |
-  | ⌥⌘1 / ⌥⌘2 / ⌥⌘3 | Board / Releases / GitHub of the open project |
+  | ⌥⌘1 / ⌥⌘2 / ⌥⌘3 / ⌥⌘4 | Backlog / Board / Releases / GitHub of the open project |
+  | ⌃⌘S | Hide or show the sidebar (it narrows to an icon strip) |
   | ⌘N / ⇧⌘N | New task / New project |
   | Arrow keys (board focused) | Move the card selection, across columns with ← → |
   | Return or Space | Open the selected card |
@@ -64,13 +71,14 @@ Every remote-data view defines all five states:
   | ⌥⌘↑ / ⌥⌘↓ | Move the selected card up / down (**Task** menu) |
   | ⌘O | Open the selected card (**Task** menu) |
   | ⌘⌫ or ⌫ | Delete the selected card, after confirmation |
+  | Return / ⌫ (Backlog) | Open / delete the selected task |
   | ⌘R | Refresh a repository |
   | ⇧⌘E | Export backup |
 
   - The board can be reached with Tab, even with macOS keyboard navigation off.
   - Task commands are enabled only while the board itself has focus, so ⌘⌫ and ⌥⌘ arrows still work in text fields.
   - Moving a task never requires drag-and-drop. VoiceOver users get **Move to Previous/Next Column** actions on each card.
-- **Automated audit.** UI tests run Xcode's accessibility audit on the dashboard, the board, and a release plan.
+- **Automated audit.** UI tests run Xcode's accessibility audit on the dashboard, the board, the Backlog, and a release plan.
   - Our own findings are fixed, not suppressed.
   - Accepted platform behavior, kept narrow and listed in `UITests/AccessibilityUITests.swift`:
     - SwiftUI pickers and menus expose "show menu" rather than "press".

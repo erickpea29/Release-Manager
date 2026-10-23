@@ -34,6 +34,8 @@ struct LaunchOptions {
     var seedSampleData = false
     /// Selects this project (by name) at launch; used for UI checks.
     var initialProjectName: String?
+    /// Selects `dashboard` or `history` at launch, unless a project is selected.
+    var initialView: String?
     var initialTab: String?
     /// Starts the GitHub device flow at launch (UI checks of the sign-in).
     var startGitHubConnect = false
@@ -53,6 +55,7 @@ struct LaunchOptions {
             options.storeName = defaults.string(forKey: "RelvoraStoreName") ?? options.storeName
             options.seedSampleData = defaults.bool(forKey: "RelvoraSeedSampleData")
             options.initialProjectName = defaults.string(forKey: "RelvoraInitialProject")
+            options.initialView = defaults.string(forKey: "RelvoraInitialView")
             options.initialTab = defaults.string(forKey: "RelvoraInitialTab")
             options.startGitHubConnect = defaults.bool(forKey: "RelvoraStartGitHubConnect")
             options.connectRepository = defaults.string(forKey: "RelvoraConnectRepository")

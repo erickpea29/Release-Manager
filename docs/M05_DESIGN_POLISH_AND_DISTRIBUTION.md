@@ -1,6 +1,6 @@
 # M05 — Design Polish and Distribution Report
 
-Status: **Implemented, awaiting review** (PR #8) · 2026-10-22
+Status: **Merged** (PR #8) · 2026-10-22
 
 ## 1. What was built
 

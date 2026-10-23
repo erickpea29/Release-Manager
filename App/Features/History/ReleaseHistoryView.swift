@@ -44,7 +44,8 @@ struct ReleaseHistoryView: View {
                             }
                             .padding(Spacing.l)
                             .frame(maxWidth: 860, alignment: .leading)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            // Centered in wide windows, such as with the sidebar closed.
+                            .frame(maxWidth: .infinity)
                         }
                         .id(selected.id)
                     } else {

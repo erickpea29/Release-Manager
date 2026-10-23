@@ -6,6 +6,7 @@ final class ErrorStateUITests: XCTestCase {
         let app = RelvoraApp.launchProject(tab: "github")
         app.text("relvora-demo/relvora").wait(20)
         app.text("Synced").wait(20)
+        XCTAssertTrue(app.text("refreshes every 5 minutes").exists, "Automatic refresh is on by default")
 
         app.menuBarItems["Demo GitHub"].click()
         app.menuItems["Go Offline"].click()

@@ -19,6 +19,19 @@ final class SettingsUITests: XCTestCase {
         screenshot(app, "dashboard-dark-translucent-purple")
     }
 
+    func testGitHubRefreshInterval() {
+        let app = RelvoraApp.launch()
+        app.staticTexts["Dashboard"].firstMatch.wait()
+        app.typeKey(",", modifierFlags: .command)
+        app.toolbars.buttons["GitHub"].wait().click()
+        let picker = app.popUpButtons["githubRefreshInterval"].wait()
+        XCTAssertEqual(picker.value as? String, "Every 5 minutes")
+        picker.click()
+        app.menuItems["Every hour"].click()
+        XCTAssertEqual(picker.value as? String, "Every hour")
+        screenshot(app, "settings-github")
+    }
+
     func testBoardTemplateAppliesToNewProjects() {
         let app = RelvoraApp.launch()
         app.staticTexts["Dashboard"].firstMatch.wait()
@@ -32,6 +45,11 @@ final class SettingsUITests: XCTestCase {
         let sheet = app.sheets.firstMatch.wait()
         sheet.textFields.firstMatch.type("Template Test")
         sheet.buttons["Create"].click()
-        app.descendants(matching: .any)["column-Column 6"].wait()
+        // Columns show on the Board once a version is planned.
+        app.buttons["New Release Plan…"].wait().click()
+        let plan = app.sheets.firstMatch.wait()
+        plan.textFields.firstMatch.type("1.0.0")
+        plan.buttons["Create Plan"].click()
+        app.descendants(matching: .any)["column-Column 5"].wait()
     }
 }

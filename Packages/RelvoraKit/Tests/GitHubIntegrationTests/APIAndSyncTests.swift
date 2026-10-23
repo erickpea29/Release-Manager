@@ -235,6 +235,39 @@ struct SyncTests {
     }
 }
 
+@Suite("Automatic refresh")
+struct RefreshScheduleTests {
+    private let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+    private func isDue(synced: TimeInterval?, attempted: TimeInterval? = nil, limitedFor: TimeInterval? = nil) -> Bool {
+        RefreshSchedule.isDue(
+            lastSynced: synced.map { now.addingTimeInterval(-$0) },
+            lastAttempt: attempted.map { now.addingTimeInterval(-$0) }, interval: 300,
+            rateLimitedUntil: limitedFor.map { now.addingTimeInterval($0) }, now: now)
+    }
+
+    @Test("Due once the interval has passed since the last sync")
+    func interval() {
+        #expect(isDue(synced: nil))
+        #expect(!isDue(synced: 240))
+        #expect(isDue(synced: 300))
+        #expect(isDue(synced: 3600))
+    }
+
+    @Test("A failed attempt waits a full interval before the next one")
+    func failures() {
+        #expect(!isDue(synced: 3600, attempted: 60))
+        #expect(!isDue(synced: nil, attempted: 60))
+        #expect(isDue(synced: 3600, attempted: 300))
+    }
+
+    @Test("Nothing is due while GitHub's rate limit is used up")
+    func rateLimit() {
+        #expect(!isDue(synced: 3600, limitedFor: 120))
+        #expect(isDue(synced: 3600, limitedFor: -1))
+    }
+}
+
 @Suite("Snapshot cache")
 struct SnapshotCacheTests {
     @Test("Snapshots round-trip; unreadable or incompatible files are ignored")

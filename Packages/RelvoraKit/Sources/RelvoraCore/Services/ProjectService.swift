@@ -11,11 +11,22 @@ public enum ProjectRules {
         return trimmed
     }
 
-    /// Default board for new projects. The last column is the completion column.
-    public static let defaultColumnNames = ["Backlog", "To Do", "In Progress", "Review", "Done"]
+    /// Default board for new projects. The last column is the completion column. There is no Backlog column: the
+    /// Backlog is its own tab, holding every task outside the version being planned (`VersionScope`).
+    public static let defaultColumnNames = ["To Do", "In Progress", "Review", "Done"]
 
     public static var defaultTemplate: [ColumnTemplate] {
         defaultColumnNames.map { ColumnTemplate(name: $0, isCompletion: $0 == defaultColumnNames.last) }
+    }
+
+    /// The Backlog is its own tab, so no column may be named “Backlog” (in any case).
+    public static func isBacklogName(_ name: String) -> Bool {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare("Backlog") == .orderedSame
+    }
+
+    /// A template from before the Backlog tab, without its Backlog column. Saved settings and older backups have one.
+    public static func withoutBacklog(_ template: [ColumnTemplate]) -> [ColumnTemplate] {
+        template.filter { !isBacklogName($0.name) }
     }
 
     public static func defaultColumns(projectID: UUID, now: Date) -> [BoardColumn] {
@@ -39,6 +50,7 @@ public enum ProjectRules {
         var result: [ColumnTemplate] = []
         for column in template {
             let name = try BoardPlanner.validatedColumnName(column.name)
+            guard !isBacklogName(name) else { throw .reservedColumnName(name) }
             guard seen.insert(name.lowercased()).inserted else { throw .duplicateColumnName(name) }
             result.append(ColumnTemplate(name: name, isCompletion: column.isCompletion))
         }

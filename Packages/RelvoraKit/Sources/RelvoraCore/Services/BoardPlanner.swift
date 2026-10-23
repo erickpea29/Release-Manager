@@ -150,6 +150,13 @@ public enum BoardPlanner {
 
     // MARK: Columns
 
+    /// A name for a new or renamed column: valid, and not “Backlog”, which is its own tab.
+    static func newColumnName(_ name: String) throws(ValidationError) -> String {
+        let name = try validatedColumnName(name)
+        guard !ProjectRules.isBacklogName(name) else { throw .reservedColumnName(name) }
+        return name
+    }
+
     public static func validatedColumnName(_ name: String) throws(ValidationError) -> String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw .emptyName }
@@ -166,7 +173,7 @@ public enum BoardPlanner {
         now: Date
     ) throws(ValidationError) -> (column: BoardColumn, changes: BoardChanges) {
         var column = BoardColumn(
-            projectID: projectID, name: try validatedColumnName(name), sortOrder: 0, createdAt: now)
+            projectID: projectID, name: try newColumnName(name), sortOrder: 0, createdAt: now)
         var ordered = state.orderedColumns
         let index = ordered.last?.isCompletionColumn == true ? ordered.count - 1 : ordered.count
         let lower = index > 0 ? ordered[index - 1].sortOrder : nil
@@ -187,7 +194,7 @@ public enum BoardPlanner {
         now: Date
     ) throws(ValidationError) -> BoardChanges {
         guard var column = state.column(id) else { throw .unknownColumn }
-        column.name = try validatedColumnName(name)
+        column.name = try newColumnName(name)
         column.updatedAt = now
         return BoardChanges(upsertColumns: [column])
     }
@@ -253,6 +260,37 @@ public enum BoardPlanner {
             return copy
         }
         return BoardChanges(upsertTasks: moved, deleteColumnIDs: [id])
+    }
+
+    /// Boards from before the Backlog tab had a “Backlog” column. Its tasks move to the board's To Do column, keeping
+    /// their order and their version, and the column goes; a board without a To Do column renames it To Do instead.
+    /// Either way the tasks stay not started. Returns `nil` when the board has no Backlog column.
+    public static func retireBacklogColumns(in state: BoardState, now: Date) -> BoardChanges? {
+        let isToDo = { (column: BoardColumn) in
+            !column.isCompletionColumn
+                && column.name.trimmingCharacters(in: .whitespaces).caseInsensitiveCompare("To Do") == .orderedSame
+        }
+        var board = state
+        var changes = BoardChanges()
+        for column in state.orderedColumns where !column.isCompletionColumn && ProjectRules.isBacklogName(column.name) {
+            if let toDo = board.orderedColumns.first(where: isToDo),
+                let deletion = try? deleteColumn(column.id, movingTasksTo: toDo.id, in: board, now: now)
+            {
+                let moved = Dictionary(uniqueKeysWithValues: deletion.upsertTasks.map { ($0.id, $0) })
+                board = BoardState(
+                    columns: board.columns.filter { $0.id != column.id },
+                    tasks: board.tasks.map { moved[$0.id] ?? $0 })
+                changes.upsertTasks += deletion.upsertTasks
+                changes.deleteColumnIDs += deletion.deleteColumnIDs
+            } else {
+                var renamed = column
+                renamed.name = "To Do"
+                renamed.updatedAt = now
+                board = BoardState(columns: board.columns.map { $0.id == column.id ? renamed : $0 }, tasks: board.tasks)
+                changes.upsertColumns.append(renamed)
+            }
+        }
+        return changes.isEmpty ? nil : changes
     }
 
     private static func renumber(_ columns: [BoardColumn]) -> [BoardColumn] {

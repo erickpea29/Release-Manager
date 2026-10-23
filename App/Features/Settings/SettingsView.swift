@@ -211,8 +211,24 @@ private struct ReleaseSettingsView: View {
 }
 
 private struct GitHubSettingsView: View {
+    @Environment(Preferences.self) private var preferences
+
     var body: some View {
+        @Bindable var preferences = preferences
         Form {
+            Section {
+                Picker("Refresh repositories", selection: $preferences.githubRefresh) {
+                    ForEach(GitHubRefreshInterval.allCases) { Text($0.title).tag($0) }
+                }
+                .accessibilityIdentifier("githubRefreshInterval")
+            } footer: {
+                Text(
+                    "While a repository is open in a project’s GitHub tab and Relvora is the active app. A failed "
+                        + "refresh waits for the next one. Refresh now at any time with ⌘R."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
             Section {
                 GitHubConnectionPanel()
             } footer: {

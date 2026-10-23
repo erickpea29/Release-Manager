@@ -31,13 +31,13 @@ extension StoreTests {
                 projectID = project.id
                 let board = BoardService(repository: store.board)
                 var state = try await board.load(projectID: projectID)
-                let backlog = state.orderedColumns[0]
+                let first = state.orderedColumns[0]
                 for title in ["One", "Two", "Three", "Four"] {
-                    state = try await board.createTask(projectID: projectID, columnID: backlog.id, title: title)
+                    state = try await board.createTask(projectID: projectID, columnID: first.id, title: title)
                 }
                 let ids = Dictionary(uniqueKeysWithValues: state.tasks.map { ($0.title, $0.id) })
                 state = try await board.moveTask(
-                    ids["Four"]!, projectID: projectID, toColumn: backlog.id, before: ids["One"])
+                    ids["Four"]!, projectID: projectID, toColumn: first.id, before: ids["One"])
                 let done = try #require(state.orderedColumns.last)
                 state = try await board.moveTask(ids["Two"]!, projectID: projectID, toColumn: done.id, before: nil)
                 state = try await board.addColumn(named: "QA", projectID: projectID)
@@ -45,9 +45,8 @@ extension StoreTests {
                     uniqueKeysWithValues: state.orderedColumns.map { column in
                         (column.name, state.tasks(in: column.id).map(\.title))
                     })
-                #expect(expected["Backlog"] == ["Four", "One", "Three"])
-                #expect(
-                    state.orderedColumns.map(\.name) == ["Backlog", "To Do", "In Progress", "Review", "QA", "Done"])
+                #expect(expected["To Do"] == ["Four", "One", "Three"])
+                #expect(state.orderedColumns.map(\.name) == ["To Do", "In Progress", "Review", "QA", "Done"])
                 #expect(state.task(ids["Two"]!)?.completedAt != nil)
             }
 
@@ -76,7 +75,30 @@ extension StoreTests {
                 try await store.board.apply(BoardChanges(upsertColumns: [renamed], upsertTasks: [good, bad]))
             }
             #expect(try await store.board.tasks(projectID: project.id).isEmpty)
-            #expect(try await store.board.columns(projectID: project.id)[0].name == "Backlog")
+            #expect(try await store.board.columns(projectID: project.id)[0].name == "To Do")
+        }
+
+        @Test("An old Backlog column folds into To Do in one saved change, tasks and versions intact")
+        func retireBacklogColumn() async throws {
+            let store = try PersistentStore.inMemory()
+            let project = try await ProjectService(repository: store.projects).create(name: "A")
+            let board = BoardService(repository: store.board)
+            let toDo = try await board.load(projectID: project.id).orderedColumns[0]
+            // A board from before the Backlog tab, written directly: the services no longer create one.
+            let backlog = BoardColumn(projectID: project.id, name: "Backlog", sortOrder: toDo.sortOrder - 1)
+            try await store.board.save(backlog)
+            let plan = ReleasePlan(projectID: project.id, version: "1.0.0")
+            try await store.releasePlans.save(plan)
+            _ = try await board.createTask(projectID: project.id, columnID: toDo.id, title: "Already to do")
+            _ = try await board.createTask(
+                projectID: project.id, columnID: backlog.id, title: "Planned", releasePlanID: plan.id)
+            _ = try await board.createTask(projectID: project.id, columnID: backlog.id, title: "Unplanned")
+
+            let state = try #require(try await board.retireBacklogColumns(projectID: project.id))
+            #expect(state.orderedColumns.map(\.name) == ["To Do", "In Progress", "Review", "Done"])
+            #expect(state.tasks(in: toDo.id).map(\.title) == ["Already to do", "Planned", "Unplanned"])
+            #expect(state.tasks.first { $0.title == "Planned" }?.releasePlanID == plan.id)
+            #expect(try await board.retireBacklogColumns(projectID: project.id) == nil)
         }
 
         @Test("The store refuses to delete non-empty columns or break the completion-column rule")
@@ -85,14 +107,14 @@ extension StoreTests {
             let project = try await ProjectService(repository: store.projects).create(name: "A")
             let board = BoardService(repository: store.board)
             var state = try await board.load(projectID: project.id)
-            let backlog = state.orderedColumns[0]
-            state = try await board.createTask(projectID: project.id, columnID: backlog.id, title: "Task")
+            let first = state.orderedColumns[0]
+            state = try await board.createTask(projectID: project.id, columnID: first.id, title: "Task")
 
             // Bypassing BoardPlanner: the repository still guards the invariants.
             await #expect(throws: PersistenceError.self) {
-                try await store.board.apply(BoardChanges(deleteColumnIDs: [backlog.id]))
+                try await store.board.apply(BoardChanges(deleteColumnIDs: [first.id]))
             }
-            var secondDone = backlog
+            var secondDone = first
             secondDone.isCompletionColumn = true
             await #expect(throws: PersistenceError.self) { try await store.board.save(secondDone) }
             let done = try #require(state.orderedColumns.last)
@@ -101,9 +123,9 @@ extension StoreTests {
             }
 
             // Through the service: tasks move first, then the column goes, in one transaction.
-            let review = state.orderedColumns[3]
-            state = try await board.deleteColumn(backlog.id, movingTasksTo: review.id, projectID: project.id)
-            #expect(state.column(backlog.id) == nil)
+            let review = state.orderedColumns[2]
+            state = try await board.deleteColumn(first.id, movingTasksTo: review.id, projectID: project.id)
+            #expect(state.column(first.id) == nil)
             #expect(state.tasks(in: review.id).map(\.title) == ["Task"])
             await #expect(throws: ValidationError.cannotDeleteCompletionColumn) {
                 try await board.deleteColumn(done.id, movingTasksTo: nil, projectID: project.id)

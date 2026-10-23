@@ -12,7 +12,7 @@ public struct BackupSummary: Sendable, Equatable {
 public enum BackupValidator {
     public static func validate(_ document: BackupDocument) throws(BackupError) {
         if let columns = document.preferences?.newProjectColumns {
-            guard (try? ProjectRules.validatedTemplate(columns)) != nil else {
+            guard (try? ProjectRules.validatedTemplate(ProjectRules.withoutBacklog(columns))) != nil else {
                 throw .invalid("the board template for new projects needs named columns and one completion column.")
             }
         }
