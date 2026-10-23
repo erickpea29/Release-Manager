@@ -159,6 +159,16 @@ public struct GitHubAPIClient: Sendable {
         ).body.model
     }
 
+    /// Publishes a draft release by setting `draft` to false; nothing else about it changes. GitHub creates the tag at
+    /// the draft's target commit, unless the tag already exists. Sent once, like every write. Publishing a release
+    /// that is already published changes nothing, so after an unknown outcome it is safe to read GitHub and retry.
+    public func publishRelease(in repository: GitHubRepository, id: Int64) async throws(GitHubError) -> RemoteRelease {
+        try await send(
+            ReleaseDTO.self, url: url("repos/\(repository.fullName)/releases/\(id)"), method: "PATCH",
+            body: Data(#"{"draft":false}"#.utf8)
+        ).body.model
+    }
+
     /// Pull requests that contain `sha`.
     public func pullRequests(of repository: GitHubRepository, containing sha: String) async throws(GitHubError)
         -> [(pullRequest: RemotePullRequest, baseRef: String?)]

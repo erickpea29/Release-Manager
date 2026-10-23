@@ -36,6 +36,33 @@ extension StoreTests {
                 try await reopened.repositoryConnections.connections(projectID: relvora.id).map(\.fullName)
                     == ["erickpea29/Release-Manager"])
         }
+
+        /// `RelvoraV3.store` was written by the 0.1.0 code (schema V3) from `backup-v2.json`, then frozen.
+        @Test("A V3 store from 0.1.0 migrates with every record intact, and its projects can join groups")
+        func v3ToCurrent() async throws {
+            let fixture = try #require(
+                Bundle.module.url(forResource: "RelvoraV3", withExtension: "store", subdirectory: "Fixtures"))
+            let directory = FileManager.default.temporaryDirectory.appending(path: "Migration-\(UUID().uuidString)")
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let copy = directory.appending(path: "Relvora.store")
+            try FileManager.default.copyItem(at: fixture, to: copy)
+
+            let store = try PersistentStore.open(at: copy)
+            let migrated = try await BackupService(repository: store.backups).export(appVersion: nil)
+            let expectedURL = try #require(
+                Bundle.module.url(forResource: "backup-v2", withExtension: "json", subdirectory: "Fixtures"))
+            let expected = try BackupService.inspect(try Data(contentsOf: expectedURL)).document
+            #expect(migrated.projects == expected.projects)
+            #expect(migrated.groups == [])
+            #expect(migrated.projects.allSatisfy { $0.groupID == nil })
+
+            let group = try await ProjectGroupService(repository: store.groups).create(name: "Erick")
+            let project = try #require(try await store.projects.projects(includeArchived: true).first)
+            _ = try await ProjectService(repository: store.projects).setGroup(project, group.id)
+            let reopened = try PersistentStore.open(at: copy)
+            #expect(try await reopened.groups.groups() == [group])
+            #expect(try await reopened.projects.project(id: project.id).groupID == group.id)
+        }
     }
 
     @Suite("Repository connections")

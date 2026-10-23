@@ -41,4 +41,12 @@ public struct GitHubReleaseRemote: ReleaseRemote {
             return error.mayHaveReachedGitHub ? .unknown(error) : .rejected(error)
         }
     }
+
+    public func publishRelease(in repository: GitHubRepository, id: Int64) async -> ReleasePublishResult {
+        do {
+            return .published(try await api.publishRelease(in: repository, id: id))
+        } catch {
+            return error.mayHaveReachedGitHub ? .unknown(error) : .rejected(error)
+        }
+    }
 }

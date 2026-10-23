@@ -1,6 +1,6 @@
 # Data Model
 
-Status: **schema V3 implemented** — V1 (M01: Project, BoardColumn, ProjectTask, ChecklistItem, ReleasePlan) + V2 (M03: RepositoryConnection) + V3 (M04: ReleaseSnapshot, plan repository/tag/compare base). Changes from the plan's suggested fields are marked **Δ** and trace to [PRODUCT_SPEC §6](PRODUCT_SPEC.md#6-open-questions-and-plan-gaps).
+Status: **schema V4 implemented** — V1 (M01: Project, BoardColumn, ProjectTask, ChecklistItem, ReleasePlan) + V2 (M03: RepositoryConnection) + V3 (M04: ReleaseSnapshot, plan repository/tag/compare base) + V4 (0.1.1: ProjectGroup). Changes from the plan's suggested fields are marked **Δ** and trace to [PRODUCT_SPEC §6](PRODUCT_SPEC.md#6-open-questions-and-plan-gaps).
 
 ## 1. Conventions
 
@@ -12,9 +12,14 @@ Status: **schema V3 implemented** — V1 (M01: Project, BoardColumn, ProjectTask
 ## 2. Entities
 
 ### Project
-`id`, `name`, `details?`, `iconName?`, `accentColor?`, `createdAt`, `updatedAt`, `archivedAt?`
+`id`, `name`, `details?`, `iconName?`, `accentColor?`, `createdAt`, `updatedAt`, `archivedAt?`, `groupID?` (V4)
 
 Owns columns, tasks, repository connections, release plans, and snapshots. Archive is the default. Hard delete cascades and requires confirmation; snapshots are deleted only with their project.
+
+### ProjectGroup (0.1.1, schema V4)
+`id`, `name` (trimmed, unique ignoring case), `sortOrder`, `createdAt`, `updatedAt`
+
+Organizes projects, for example by company, in the sidebar, the Dashboard, quick actions, and the Release History filter ([ADR 0014](decisions/0014-project-groups.md)). One level; a project is in at most one group. Deleting a group nullifies its projects' link, so they stay, outside any group. A project can't refer to a group that doesn't exist.
 
 ### RepositoryConnection (M03, schema V2)
 `id`, `projectID`, `githubRepositoryID` (unique per project), `owner`, `name`, `fullName`, `defaultBranch?`, `htmlURL`, `lastSyncedAt?`, `createdAt`, `updatedAt`
@@ -79,12 +84,15 @@ planned ──create draft (confirmed; intent saved first)──▶ reconciliati
    │                                                         │   (timeout: stays until Check GitHub)          │
    │                                     no draft on GitHub ─┘──▶ planned                                     │
    │                                                                                                          ▼
-   │      draft deleted on GitHub ◀────────────── draftCreated ──published, tag at reviewed SHA──▶ published
+   │      draft deleted on GitHub ◀────────────── draftCreated ──published (in Relvora, confirmed, or on GitHub),
+   │                                                  │            tag at reviewed SHA──▶ published
    │      (snapshot abandoned, plan planned)          │
    │                                                  └──published, tag/SHA differs──▶ reconciliationNeeded ──Record as Published──▶ published
    ├──release published on GitHub for the tag ──Record Published Release──▶ published
    └──cancel──▶ cancelled
 ```
+
+Publishing from Relvora ([ADR 0015](decisions/0015-publish-from-relvora.md)) needs no intermediate state: the request is idempotent, so after a lost response the plan stays `draftCreated` until GitHub is read.
 
 **Δ** A drafted plan is not cancelled locally: delete the draft on GitHub, check, then cancel or re-draft, so history never disagrees with GitHub.
 
@@ -96,10 +104,11 @@ planned ──create draft (confirmed; intent saved first)──▶ reconciliati
 - Delete rules in V1: a project cascades to its columns, tasks, and plans, and a task cascades to its checklist. Deleting a column or plan nullifies the link; column deletion is guarded by a domain rule (M02).
 - Integrity rules enforced by the repository: a task's column and release plan must belong to the task's project, and records never move between projects. A rejected save is rolled back completely.
 - A fixture store per frozen schema version lives in `Tests/Fixtures/`, starting with V1 when V2 is introduced. Migration tests open each fixture with the current schema in a `.serialized` suite.
-- Fixture stores: `RelvoraV1.store` (frozen M02) and `RelvoraV2.store` (frozen M03, generated from `backup-v2.json` before V3).
-- Backup format 3 (`BackupDocument`; 1 = V1, 2 adds connections, 3 adds snapshots and plan targets) uses string enum values and millisecond ISO 8601 dates. Restore refuses newer `formatVersion`s and validates the following before replacing data (format 3 adds: unique snapshot IDs, known states, full SHAs, a GitHub release ID for non-pending snapshots, at most one open snapshot per plan):
+- Fixture stores: `RelvoraV1.store` (frozen M02), `RelvoraV2.store` (frozen M03, generated from `backup-v2.json` before V3), and `RelvoraV3.store` (0.1.0, generated from `backup-v2.json` before V4).
+- Backup format 5 (`BackupDocument`; 1 = V1, 2 adds connections, 3 adds snapshots and plan targets, 4 adds settings, 5 adds groups and each project's group) uses string enum values and millisecond ISO 8601 dates. Restore refuses newer `formatVersion`s and validates the following before replacing data (format 3 adds: unique snapshot IDs, known states, full SHAs, a GitHub release ID for non-pending snapshots, at most one open snapshot per plan):
   - unique IDs;
   - exactly one completion column per project;
   - tasks referencing only their own project's columns and plans;
   - valid enums and versions;
-  - at most one active plan.
+  - at most one active plan;
+  - (format 5) unique group IDs and names, and projects only in the backup's groups.

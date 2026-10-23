@@ -20,7 +20,7 @@ struct BackupDocumentTests {
         let document = BackupDocument(bundles: [sampleBundle()], exportedAt: .now, appVersion: "0.2.0")
         let data = try document.encoded()
         let text = String(decoding: data, as: UTF8.self)
-        #expect(text.contains("\"formatVersion\" : 4"))
+        #expect(text.contains("\"formatVersion\" : 5"))
         #expect(text.contains("\"priority\" : \"medium\""))
         #expect(text.contains(".123Z"))
 
@@ -52,10 +52,54 @@ struct BackupDocumentTests {
         #expect(throws: BackupError.self) { try BackupValidator.validate(broken) }
     }
 
+    @Test("Groups travel in format 5; older files restore with every project outside a group")
+    func groups() throws {
+        let group = ProjectGroup(name: "Pilou", sortOrder: 1, createdAt: Date(timeIntervalSince1970: 1_772_355_600))
+        var bundle = sampleBundle()
+        bundle.project.groupID = group.id
+        let document = BackupDocument(bundles: [bundle], groups: [group], exportedAt: .now, appVersion: nil)
+        try BackupValidator.validate(document)
+        #expect(BackupValidator.summary(of: document).groupCount == 1)
+
+        let decoded = try BackupDocument.decode(try document.encoded())
+        #expect(decoded.projectGroups() == [group])
+        #expect(try decoded.bundles().first?.project.groupID == group.id)
+
+        let formatFour =
+            #"{"formatVersion": 4, "exportedAt": "2026-03-15T08:00:00Z", "projects": [{"id": "\#(UUID())", "#
+            + #""name": "App", "createdAt": "2026-03-15T08:00:00Z", "updatedAt": "2026-03-15T08:00:00Z", "#
+            + #""columns": [], "tasks": [], "releasePlans": []}]}"#
+        let old = try BackupDocument.decode(Data(formatFour.utf8))
+        #expect(old.groups == nil && old.projectGroups().isEmpty)
+        #expect(old.projects.first?.groupID == nil)
+
+        func broken(_ mutate: (inout BackupDocument) -> Void) -> BackupDocument {
+            var copy = document
+            mutate(&copy)
+            return copy
+        }
+        let cases = [
+            broken { $0.groups = [$0.groups![0], $0.groups![0]] },
+            broken {
+                var twin = $0.groups![0]
+                twin.id = UUID()
+                twin.name = "PILOU"
+                $0.groups = [$0.groups![0], twin]
+            },
+            broken { $0.groups?[0].name = " " },
+            broken { $0.groups?[0].sortOrder = .nan },
+            broken { $0.projects[0].groupID = UUID() },
+            broken { $0.groups = nil },
+        ]
+        for document in cases {
+            #expect(throws: BackupError.self) { try BackupValidator.validate(document) }
+        }
+    }
+
     @Test("Newer formats and non-backup files are rejected with specific errors")
     func rejection() {
-        #expect(throws: BackupError.unsupportedFormatVersion(found: 5, supported: 4)) {
-            try BackupDocument.decode(Data(#"{"formatVersion": 5}"#.utf8))
+        #expect(throws: BackupError.unsupportedFormatVersion(found: 6, supported: 5)) {
+            try BackupDocument.decode(Data(#"{"formatVersion": 6}"#.utf8))
         }
         #expect(throws: BackupError.self) { try BackupDocument.decode(Data("not json".utf8)) }
         #expect(throws: BackupError.self) { try BackupDocument.decode(Data(#"{"formatVersion": 1}"#.utf8)) }
@@ -191,6 +235,23 @@ struct ProjectServiceTests {
         await #expect(throws: ValidationError.self) {
             try await ProjectService(repository: repository).create(name: "Bad", columns: [])
         }
+    }
+
+    @Test("Projects are created in a group and move between groups")
+    func groups() async throws {
+        let repository = InMemoryProjectRepository()
+        let service = ProjectService(repository: repository, now: { [fixed] in fixed })
+        let pilou = UUID()
+        let project = try await service.create(name: "Pilou Web", groupID: pilou)
+        #expect(await repository.stored[project.id]?.groupID == pilou)
+
+        let moved = try await service.setGroup(project, nil)
+        #expect(moved.groupID == nil && moved.updatedAt == fixed)
+        #expect(await repository.stored[project.id]?.groupID == nil)
+
+        var edited = moved
+        edited.groupID = pilou
+        #expect(try await service.update(edited, name: "Web", details: nil).groupID == pilou)
     }
 
     @Test("Persistence failures propagate unchanged")

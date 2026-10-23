@@ -71,6 +71,25 @@ actor SwiftDataRepository {
         return try fetch(descriptor, in: context).first
     }
 
+    private func groupEntity(_ id: UUID, in context: ModelContext) throws(PersistenceError) -> ProjectGroupEntity? {
+        var descriptor = FetchDescriptor<ProjectGroupEntity>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try fetch(descriptor, in: context).first
+    }
+
+    /// Lists the project under `groupID`. A group that doesn't exist is an error, never a silent move out of groups.
+    private func assignGroup(_ groupID: UUID?, to project: ProjectEntity, in context: ModelContext)
+        throws(PersistenceError)
+    {
+        guard project.group?.id != groupID else { return }
+        guard let groupID else {
+            project.group = nil
+            return
+        }
+        guard let group = try groupEntity(groupID, in: context) else { throw .notFound(entity: "group", id: groupID) }
+        project.group = group
+    }
+
     @discardableResult
     private func insertProject(_ project: Project, in context: ModelContext) -> ProjectEntity {
         let entity = ProjectEntity(id: project.id, name: project.name, createdAt: project.createdAt)
@@ -213,6 +232,7 @@ extension SwiftDataRepository: ProjectRepository {
         }
         try transaction { context throws(PersistenceError) in
             let entity = insertProject(project, in: context)
+            try assignGroup(project.groupID, to: entity, in: context)
             for column in columns {
                 insertColumn(column, into: entity, in: context)
             }
@@ -221,13 +241,54 @@ extension SwiftDataRepository: ProjectRepository {
 
     func update(_ project: Project) throws(PersistenceError) {
         try transaction { context throws(PersistenceError) in
-            try projectEntity(project.id, in: context).apply(project)
+            let entity = try projectEntity(project.id, in: context)
+            entity.apply(project)
+            try assignGroup(project.groupID, to: entity, in: context)
         }
     }
 
     func deleteProject(id: UUID) throws(PersistenceError) {
         try transaction { context throws(PersistenceError) in
             context.delete(try projectEntity(id, in: context))
+        }
+    }
+}
+
+// MARK: - Project groups
+
+extension SwiftDataRepository: ProjectGroupRepository {
+    func groups() throws(PersistenceError) -> [ProjectGroup] {
+        try read { context throws(PersistenceError) in
+            try fetch(
+                FetchDescriptor<ProjectGroupEntity>(sortBy: [SortDescriptor(\.sortOrder), SortDescriptor(\.createdAt)]),
+                in: context
+            )
+            .map(ProjectGroup.init)
+        }
+    }
+
+    func save(_ groups: [ProjectGroup]) throws(PersistenceError) {
+        try transaction { context throws(PersistenceError) in
+            for group in groups {
+                guard group.sortOrder.isFinite else { throw .integrityViolation("A group needs a valid position.") }
+                if let entity = try groupEntity(group.id, in: context) {
+                    entity.apply(group)
+                } else {
+                    let entity = ProjectGroupEntity(
+                        id: group.id, name: group.name, sortOrder: group.sortOrder, createdAt: group.createdAt)
+                    entity.apply(group)
+                    context.insert(entity)
+                }
+            }
+        }
+    }
+
+    func deleteGroup(id: UUID) throws(PersistenceError) {
+        try transaction { context throws(PersistenceError) in
+            guard let entity = try groupEntity(id, in: context) else { throw .notFound(entity: "group", id: id) }
+            // The delete rule nullifies these too; clearing them first doesn't depend on it.
+            for project in entity.projects { project.group = nil }
+            context.delete(entity)
         }
     }
 }
@@ -420,13 +481,30 @@ extension SwiftDataRepository: BackupRepository {
         }
     }
 
-    func replaceAll(with bundles: [ProjectBundle]) throws(PersistenceError) {
+    func replaceAll(with bundles: [ProjectBundle], groups: [ProjectGroup]) throws(PersistenceError) {
         try transaction { context throws(PersistenceError) in
             for project in try fetch(FetchDescriptor<ProjectEntity>(), in: context) {
                 context.delete(project)
             }
+            for group in try fetch(FetchDescriptor<ProjectGroupEntity>(), in: context) {
+                context.delete(group)
+            }
+            var groupEntities: [UUID: ProjectGroupEntity] = [:]
+            for group in groups {
+                let entity = ProjectGroupEntity(
+                    id: group.id, name: group.name, sortOrder: group.sortOrder, createdAt: group.createdAt)
+                entity.apply(group)
+                context.insert(entity)
+                groupEntities[group.id] = entity
+            }
             for bundle in bundles {
                 let project = insertProject(bundle.project, in: context)
+                if let groupID = bundle.project.groupID {
+                    guard let group = groupEntities[groupID] else {
+                        throw .integrityViolation("A project references a missing group.")
+                    }
+                    project.group = group
+                }
                 var columns: [UUID: BoardColumnEntity] = [:]
                 for column in bundle.columns {
                     columns[column.id] = insertColumn(column, into: project, in: context)

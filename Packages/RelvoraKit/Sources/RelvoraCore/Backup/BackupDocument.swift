@@ -4,8 +4,9 @@ import Foundation
 /// Enum values are stored as strings so the format stays readable and stable.
 public struct BackupDocument: Codable, Sendable, Equatable {
     /// 1: M02 (projects, boards, tasks, plans). 2: M03 adds repository connections. 3: M04 adds release snapshots and
-    /// the plans' repository, tag, and compare base. 4: M05 adds preferences. Older files still restore.
-    public static let currentFormatVersion = 4
+    /// the plans' repository, tag, and compare base. 4: M05 adds preferences. 5: 0.1.1 adds project groups. Older
+    /// files still restore.
+    public static let currentFormatVersion = 5
 
     public var formatVersion: Int
     public var exportedAt: Date
@@ -13,6 +14,16 @@ public struct BackupDocument: Codable, Sendable, Equatable {
     public var projects: [ProjectRecord]
     /// App settings (format 4). Absent in older files; then the current settings are kept.
     public var preferences: PreferencesRecord?
+    /// Project groups, in sidebar order (format 5). Absent in older files, whose projects are in no group.
+    public var groups: [GroupRecord]? = nil
+
+    public struct GroupRecord: Codable, Sendable, Equatable {
+        public var id: UUID
+        public var name: String
+        public var sortOrder: Double
+        public var createdAt: Date
+        public var updatedAt: Date
+    }
 
     /// Settings worth carrying to another Mac. Values are stable strings; unknown ones are ignored on restore.
     public struct PreferencesRecord: Codable, Sendable, Equatable {
@@ -47,6 +58,8 @@ public struct BackupDocument: Codable, Sendable, Equatable {
         public var createdAt: Date
         public var updatedAt: Date
         public var archivedAt: Date?
+        /// Absent before format 5.
+        public var groupID: UUID?
         public var columns: [ColumnRecord]
         public var tasks: [TaskRecord]
         public var releasePlans: [ReleasePlanRecord]
@@ -209,20 +222,34 @@ extension BackupDocument {
 
 extension BackupDocument {
     public init(
-        bundles: [ProjectBundle], exportedAt: Date, appVersion: String?, preferences: PreferencesRecord? = nil
+        bundles: [ProjectBundle], groups: [ProjectGroup] = [], exportedAt: Date, appVersion: String?,
+        preferences: PreferencesRecord? = nil
     ) {
         self.init(
             formatVersion: Self.currentFormatVersion,
             exportedAt: exportedAt,
             appVersion: appVersion,
             projects: bundles.map(ProjectRecord.init),
-            preferences: preferences
+            preferences: preferences,
+            groups: groups.map {
+                GroupRecord(
+                    id: $0.id, name: $0.name, sortOrder: $0.sortOrder, createdAt: $0.createdAt, updatedAt: $0.updatedAt)
+            }
         )
     }
 
     /// Converts records to domain values. Call `BackupValidator.validate` first.
     public func bundles() throws(BackupError) -> [ProjectBundle] {
         try projects.map { record throws(BackupError) in try record.bundle() }
+    }
+
+    /// The groups, in sidebar order.
+    public func projectGroups() -> [ProjectGroup] {
+        (groups ?? []).map {
+            ProjectGroup(
+                id: $0.id, name: $0.name, sortOrder: $0.sortOrder, createdAt: $0.createdAt, updatedAt: $0.updatedAt)
+        }
+        .sorted { $0.sortOrder < $1.sortOrder }
     }
 }
 
@@ -238,6 +265,7 @@ extension BackupDocument.ProjectRecord {
             createdAt: project.createdAt,
             updatedAt: project.updatedAt,
             archivedAt: project.archivedAt,
+            groupID: project.groupID,
             columns: bundle.columns.sorted { $0.sortOrder < $1.sortOrder }.map {
                 .init(
                     id: $0.id, name: $0.name, sortOrder: $0.sortOrder, isCompletionColumn: $0.isCompletionColumn,
@@ -275,7 +303,7 @@ extension BackupDocument.ProjectRecord {
     func bundle() throws(BackupError) -> ProjectBundle {
         let project = Project(
             id: id, name: name, details: details, iconName: iconName, accentColor: accentColor,
-            createdAt: createdAt, updatedAt: updatedAt, archivedAt: archivedAt)
+            createdAt: createdAt, updatedAt: updatedAt, archivedAt: archivedAt, groupID: groupID)
         let columns = columns.map {
             BoardColumn(
                 id: $0.id, projectID: id, name: $0.name, sortOrder: $0.sortOrder,
@@ -340,7 +368,7 @@ extension BackupDocument.ProjectRecord {
 }
 
 extension BackupDocument.ProjectRecord {
-    /// Decodes format 1 and 2 files, which have no `repositoryConnections` (1) or `releaseSnapshots` (1–2).
+    /// Decodes older files, which have no `repositoryConnections` (1), `releaseSnapshots` (1–2), or `groupID` (1–4).
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
@@ -351,6 +379,7 @@ extension BackupDocument.ProjectRecord {
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
         archivedAt = try container.decodeIfPresent(Date.self, forKey: .archivedAt)
+        groupID = try container.decodeIfPresent(UUID.self, forKey: .groupID)
         columns = try container.decode([BackupDocument.ColumnRecord].self, forKey: .columns)
         tasks = try container.decode([BackupDocument.TaskRecord].self, forKey: .tasks)
         releasePlans = try container.decode([BackupDocument.ReleasePlanRecord].self, forKey: .releasePlans)

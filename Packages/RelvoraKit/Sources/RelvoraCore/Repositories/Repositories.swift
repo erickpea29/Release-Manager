@@ -5,11 +5,21 @@ import Foundation
 public protocol ProjectRepository: Sendable {
     func projects(includeArchived: Bool) async throws(PersistenceError) -> [Project]
     func project(id: UUID) async throws(PersistenceError) -> Project
-    /// Inserts a project together with its board columns.
+    /// Inserts a project together with its board columns. `project.groupID`, if set, must name an existing group.
     func create(_ project: Project, columns: [BoardColumn]) async throws(PersistenceError)
+    /// Saves the project's fields, including its group.
     func update(_ project: Project) async throws(PersistenceError)
     /// Deletes the project and everything it owns.
     func deleteProject(id: UUID) async throws(PersistenceError)
+}
+
+public protocol ProjectGroupRepository: Sendable {
+    /// Every group, in sidebar order.
+    func groups() async throws(PersistenceError) -> [ProjectGroup]
+    /// Inserts or updates the groups in one transaction (a reorder can change several).
+    func save(_ groups: [ProjectGroup]) async throws(PersistenceError)
+    /// Deletes the group. Its projects stay, outside any group.
+    func deleteGroup(id: UUID) async throws(PersistenceError)
 }
 
 /// A batch of board edits applied atomically. Order of application: column upserts, task upserts,
@@ -158,6 +168,9 @@ public struct ProjectBundle: Sendable, Equatable {
 public protocol BackupRepository: Sendable {
     /// Every project (archived included) with its contents, in creation order.
     func allProjectBundles() async throws(PersistenceError) -> [ProjectBundle]
-    /// Replaces all local data with `bundles` in one transaction.
-    func replaceAll(with bundles: [ProjectBundle]) async throws(PersistenceError)
+    /// Every group, in sidebar order.
+    func groups() async throws(PersistenceError) -> [ProjectGroup]
+    /// Replaces all local data with `groups` and `bundles` in one transaction. Projects may refer only to these
+    /// groups.
+    func replaceAll(with bundles: [ProjectBundle], groups: [ProjectGroup]) async throws(PersistenceError)
 }

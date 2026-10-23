@@ -33,21 +33,21 @@ struct DashboardView: View {
                         }
                     }
                     section("Projects") {
-                        LazyVGrid(
-                            columns: [GridItem(.adaptive(minimum: 260), spacing: Spacing.m)], spacing: Spacing.m
-                        ) {
-                            ForEach(model.activeProjects) { project in
-                                Button {
-                                    openProject(project.id)
-                                } label: {
-                                    ProjectSummaryCard(
-                                        project: project, stats: model.stats[project.id] ?? ProjectStats())
+                        if model.groups.isEmpty {
+                            projectGrid(model.activeProjects, label: "Projects")
+                        } else {
+                            ForEach(model.projectSections.filter { !$0.projects.isEmpty }) { group in
+                                let name = group.group?.name ?? "Other Projects"
+                                VStack(alignment: .leading, spacing: Spacing.xs) {
+                                    Text(name)
+                                        .font(.headline)
+                                        .foregroundStyle(.secondary)
+                                        .accessibilityAddTraits(.isHeader)
+                                    projectGrid(group.projects, label: name)
                                 }
-                                .buttonStyle(.plain)
+                                .padding(.bottom, Spacing.xs)
                             }
                         }
-                        .accessibilityElement(children: .contain)
-                        .accessibilityLabel("Projects")
                     }
                     if !recentReleases.isEmpty {
                         section("Recent Releases") {
@@ -85,6 +85,21 @@ struct DashboardView: View {
             model.releaseHistory.filter { $0.state == .published }
                 .sorted { ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast) }
                 .prefix(5))
+    }
+
+    private func projectGrid(_ projects: [Project], label: String) -> some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: Spacing.m)], spacing: Spacing.m) {
+            ForEach(projects) { project in
+                Button {
+                    openProject(project.id)
+                } label: {
+                    ProjectSummaryCard(project: project, stats: model.stats[project.id] ?? ProjectStats())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(label)
     }
 
     private func projectName(_ id: UUID) -> String { model.projects.first { $0.id == id }?.name ?? "Deleted project" }

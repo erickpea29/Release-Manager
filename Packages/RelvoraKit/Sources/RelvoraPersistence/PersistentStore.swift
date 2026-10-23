@@ -6,6 +6,7 @@ import os
 /// The app's local store and the repositories that read and write it.
 public struct PersistentStore: Sendable {
     public let projects: any ProjectRepository
+    public let groups: any ProjectGroupRepository
     public let board: any BoardRepository
     public let releasePlans: any ReleasePlanRepository
     public let backups: any BackupRepository
@@ -49,7 +50,7 @@ public struct PersistentStore: Sendable {
         // One actor (one ModelContext) for all repositories, so cross-repository work stays serialized.
         let repository = SwiftDataRepository(modelContainer: container)
         return PersistentStore(
-            projects: repository, board: repository, releasePlans: repository, backups: repository,
+            projects: repository, groups: repository, board: repository, releasePlans: repository, backups: repository,
             repositoryConnections: repository, releaseSnapshots: repository)
     }
 

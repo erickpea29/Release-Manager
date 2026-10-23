@@ -10,12 +10,21 @@ Status: finished in M05. Material rules follow [ADR 0006](decisions/0006-window-
 
 ## 2. Navigation
 
-A sidebar holds **Dashboard**, **Release History**, and **Projects**; each project has the tabs **Backlog**, **Board**, **Releases**, and **GitHub**. Settings is its own scene (⌘,).
+A sidebar holds **Dashboard**, **Release History**, and the projects; each project has the tabs **Backlog**, **Board**, **Releases**, and **GitHub**. Settings is its own scene (⌘,).
 
-- **Collapsed sidebar.** Hiding the sidebar (⌃⌘S or the toolbar button) narrows it to a strip of icons: Dashboard, Release History, each active project by its initials (the name in the tooltip), and New Project. It widens again as the same piece; the list and the icons cross-fade.
+- **Groups.** Projects are listed by group, one collapsible section each, then **Other Projects** (**Projects** while there are no groups). A group's heading has its menu (new project, rename, move up or down, delete); an empty group says "No projects" and takes dropped projects. Projects change groups by drag and drop, **Move to Group**, or the project editor ([ADR 0014](decisions/0014-project-groups.md)).
+- **Collapsed sidebar.** Hiding the sidebar (⌃⌘S or the toolbar button) narrows it to a strip of icons: Dashboard, Release History, each active project by its initials in the sidebar's order, with a line between groups (the group and name in the tooltip), and New Project. It widens again as the same piece; the list and the icons cross-fade.
 - **The L frame.** The sidebar and the toolbar share the toolbar's color and frame the content in an L. One 1-point line runs down the sidebar's edge and turns, with a 14-point rounded corner, into the content's top border: the line under a tab's filter bar, or the bottom of the toolbar. The line and corner are drawn on the content, so they move with it while the sidebar animates.
 - **Resizing.** Drag the sidebar's edge (200–360 points, remembered per window).
 - **Board and Backlog.** The Board shows the version being planned; the Backlog tab lists that version above everything else unfinished ([ADR 0012](decisions/0012-backlog-tab-and-version-board.md)).
+
+### App icon
+
+The white **R** on a dark rounded square (0.1.1). The source is `Design/logo.png`. `scripts/make-app-icon.swift` builds `App/Assets.xcassets/AppIcon.appiconset` from it, on Apple's macOS icon grid: an 824-point rounded square with continuous corners on a 1024-point canvas, with a soft shadow. macOS 26 shows it as a full icon, with its own glass edge, not inside a gray tile. To change the icon, replace the logo and run:
+
+```sh
+swift scripts/make-app-icon.swift Design/logo.png App/Assets.xcassets/AppIcon.appiconset
+```
 
 ## 3. Tokens
 
@@ -64,7 +73,7 @@ Every remote-data view defines all five states:
   | ⌘1 / ⌘2 | Dashboard / Release History |
   | ⌥⌘1 / ⌥⌘2 / ⌥⌘3 / ⌥⌘4 | Backlog / Board / Releases / GitHub of the open project |
   | ⌃⌘S | Hide or show the sidebar (it narrows to an icon strip) |
-  | ⌘N / ⇧⌘N | New task / New project |
+  | ⌘N / ⇧⌘N / ⌃⌘N | New task / New project / New group (not ⌥⌘N: ⌥N is a dead key on many keyboards, and the shortcut never fires) |
   | Arrow keys (board focused) | Move the card selection, across columns with ← → |
   | Return or Space | Open the selected card |
   | ⌥⌘← / ⌥⌘→ | Move the selected card to the previous / next column (**Task** menu) |

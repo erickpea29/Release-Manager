@@ -1,7 +1,7 @@
 # Distribution: Developer ID and Notarization
 
 Relvora is distributed as a **notarized Developer ID app**, built by GitHub Actions ([ADR 0011](decisions/0011-distribution-developer-id.md)).
-- **How a release works:** you publish a release on GitHub (for example, a draft Relvora created), and the **Release** workflow builds, signs, notarizes, and staples the app. It then attaches `Relvora-<version>.zip` to that release.
+- **How a release works:** you publish a release (a draft Relvora created, published from Relvora or on GitHub), and the **Release** workflow builds, signs, notarizes, and staples the app. It then attaches `Relvora-<version>.zip` to that release.
 - **Before secrets are set up:** the workflow only builds an unsigned test package.
 - **Status:** set up and verified on 2026-10-22. Manual runs 39870619573 and 39876742407 (version 0.0.1) were signed with Developer ID, notarized, and stapled; on this Mac `spctl` reported “accepted, source=Notarized Developer ID”.
 
@@ -74,9 +74,9 @@ The Team ID is stored as a secret rather than committed, following the rule for 
 ## 2. Releasing a version
 
 1. In Relvora, prepare the release plan and **Create GitHub Draft** (the version is taken from the tag, so use a semantic version such as `1.2.0`).
-2. Review and **publish** the draft on GitHub. GitHub then creates the tag.
+2. **Publish Release…** in Relvora, after checking the confirmation (or review and publish the draft on GitHub). GitHub then creates the tag.
 3. The **Release** workflow starts automatically. After about 10–20 minutes, `Relvora-1.2.0.zip` and its `.sha256` file are attached to the release.
-4. In Relvora, **Check Publication** records the release.
+4. Relvora records the release when it publishes it. If you published on GitHub, **Check Publication** records it.
 
 For a build that isn't tied to a release, use **Actions › Release › Run workflow**. The result is uploaded as a workflow artifact for 30 days.
 

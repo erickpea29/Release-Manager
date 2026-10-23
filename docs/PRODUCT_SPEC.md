@@ -14,14 +14,14 @@ A native macOS app for one developer managing several software projects: plan re
 
 | Area | Capabilities |
 |---|---|
-| Projects | Create, edit, archive, search. Show current version, next planned version, progress, connected repositories, recent release activity |
+| Projects | Create, edit, archive, search. Show current version, next planned version, progress, connected repositories, recent release activity. Group projects, for example by company, in collapsible sidebar sections ([ADR 0014](decisions/0014-project-groups.md)) |
 | Release plans | Version string (semver, prerelease, or custom), optional title and description, planned date, target branch and commit. **One active plan per project** |
 | Backlog | Every unfinished task outside the version being planned, listed below that version's tasks (like a sprint above its backlog). Tasks move between them with a button, drag and drop, or the context menu ([ADR 0012](decisions/0012-backlog-tab-and-version-board.md)) |
 | Kanban (Board) | The tasks of the version being planned. Per-project configurable columns (defaults: To Do, In Progress, Review, Done; “Backlog” is reserved for the tab), drag-and-drop with persistent order, one completion column |
 | Tasks | Title, notes (Markdown), priority, type (feature, improvement, bug fix, documentation, maintenance, other), labels, basic checklist, optional release plan |
 | GitHub | Connect/disconnect, list repositories where the app is installed, associate one or more with a project, browse releases/tags/commits/merged PRs, show sync time and cached vs. fresh state, refresh the open repository automatically (every 5 minutes by default, Settings › GitHub), open items in the browser |
 | Changelog | Deterministic generation from commits and PRs between the previous tag and the target commit, grouped by category/label; edit; export Markdown; flag missing data |
-| Release | Validate tag and target SHA, confirm, create a **GitHub draft**, open it on GitHub, detect publication, store an immutable snapshot |
+| Release | Validate tag and target SHA, confirm, create a **GitHub draft**, open it on GitHub, **publish it from Relvora** after a second confirmation (or on GitHub), verify publication, store an immutable snapshot |
 | History | Browse snapshots with links to GitHub |
 | Appearance | System/light/dark, accent color, optional translucent window with opaque fallback |
 | Data | Local export, backup, and restore |
@@ -32,7 +32,7 @@ A native macOS app for one developer managing several software projects: plan re
 
 ## 4. Non-negotiable safety rules
 
-1. Never publish a release from the app (MVP). Drafts only; publication happens on GitHub.
+1. A release is always a GitHub draft first. It is published only after the user confirms the draft as GitHub has it, in Relvora or on GitHub; never automatically ([ADR 0015](decisions/0015-publish-from-relvora.md), which replaced "drafts only" in 0.1.1).
 2. Never move, overwrite, or delete a tag.
 3. Show the exact target commit SHA, tag, and notes, and require confirmation before creating a draft.
 4. After a timeout or ambiguous failure on create, read GitHub before any retry.

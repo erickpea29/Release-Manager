@@ -43,13 +43,23 @@
                 plannedDate: Calendar.current.date(byAdding: .day, value: 14, to: .now), targetBranch: "main")
             try await addTasks(relvoraTasks, to: relvora, plan: plan, environment: environment)
 
+            // A group with two projects; Relvora stays outside any group, so both kinds of sidebar section show.
+            let acme = try await environment.groups.create(name: "Acme")
             let website = try await environment.projects.create(
-                name: "Website Redesign", details: "Marketing site refresh for the spring launch.")
+                name: "Website Redesign", details: "Marketing site refresh for the spring launch.", groupID: acme.id)
             try await addTasks(
                 [
                     SampleTask(title: "Hero section", column: 3, labels: ["Design"], inRelease: false),
                     SampleTask(title: "Pricing page copy", column: 1, type: .documentation, inRelease: false),
                 ], to: website, plan: nil, environment: environment)
+
+            let api = try await environment.projects.create(
+                name: "Acme API", details: "Public REST API for partners.", groupID: acme.id)
+            try await addTasks(
+                [
+                    SampleTask(title: "Rate limiting", column: 1, labels: ["API"], inRelease: false),
+                    SampleTask(title: "OpenAPI reference", column: 0, type: .documentation, inRelease: false),
+                ], to: api, plan: nil, environment: environment)
 
             let tools = try await environment.projects.create(
                 name: "Command-Line Tools", details: "Internal developer utilities.")

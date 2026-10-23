@@ -23,19 +23,20 @@ Safety copies are kept in Relvora's data folder:
 
 | Included | Not included |
 |---|---|
-| Projects, including archived ones | Window state such as sidebar visibility |
+| Projects, including archived ones | Window state such as sidebar visibility and folded groups |
 | Board columns and their order | GitHub sign-in (never exported; it stays in the Keychain) |
 | Tasks: notes, labels, priority, type, checklist, order, completion | Cached GitHub data (re-downloadable) |
 | Release plans: status, target commit, tag, notes | |
 | GitHub repository connections (format 2) | |
 | Release history: every snapshot, exactly as recorded (format 3) | |
 | Settings: appearance, accent, window, columns for new projects, release-note label rules, GitHub refresh interval (format 4) | |
+| Project groups, their order, and each project's group (format 5) | |
 
 ## File format
 
-Pretty-printed JSON with `"formatVersion": 4` (format 1–3 files from earlier versions still restore; they keep your current settings), ISO 8601 dates (millisecond precision), and readable enum values (`"priority": "high"`). Files are stable across export → restore → export. Boards restored from a backup made before the Backlog tab lose their Backlog column the first time the project opens (its tasks move to To Do; [ADR 0012](decisions/0012-backlog-tab-and-version-board.md)).
+Pretty-printed JSON with `"formatVersion": 5` (format 1–4 files from earlier versions still restore: format 1–3 files keep your current settings, and format 1–4 files restore with no groups), ISO 8601 dates (millisecond precision), and readable enum values (`"priority": "high"`). Files are stable across export → restore → export. Boards restored from a backup made before the Backlog tab lose their Backlog column the first time the project opens (its tasks move to To Do; [ADR 0012](decisions/0012-backlog-tab-and-version-board.md)).
 
-A newer app may write a higher `formatVersion`; older apps refuse such files instead of misreading them.
+A newer app may write a higher `formatVersion`; older apps refuse such files instead of misreading them. For example, Relvora 0.1.0 can't restore a backup from 0.1.1, which has groups.
 
 ## Recovery checklist
 

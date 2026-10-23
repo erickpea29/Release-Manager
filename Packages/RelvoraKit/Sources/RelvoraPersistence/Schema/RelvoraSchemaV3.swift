@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// Schema version 3 (M04): adds release snapshots, and the repository, tag, and compare base of release plans.
-/// Frozen once merged to `main`; every later change adds a new `VersionedSchema` and a migration stage.
+/// Frozen: shipped in 0.1.0. Never edit; migrations read old stores through these definitions.
 enum RelvoraSchemaV3: VersionedSchema {
     static var versionIdentifier: Schema.Version { Schema.Version(3, 0, 0) }
     static var models: [any PersistentModel.Type] {

@@ -29,24 +29,26 @@ struct QuickActionsView: View {
                 $0.navigationRequest = .history
             },
         ]
-        for project in app.activeProjects {
+        for project in app.projectSections.flatMap(\.projects) {
+            // "Pilou · Board": the group, so typing a company's name lists its projects.
+            let kind = app.group(of: project)?.name ?? "Project"
             items.append(
                 Item(
-                    id: "project-\(project.id)", title: project.name, subtitle: "Project · Board", symbol: "shippingbox"
+                    id: "project-\(project.id)", title: project.name, subtitle: "\(kind) · Board", symbol: "shippingbox"
                 ) { $0.openProject(project.id, tab: .board) })
             items.append(
                 Item(
-                    id: "backlog-\(project.id)", title: "\(project.name) Backlog", subtitle: "Project · Backlog",
+                    id: "backlog-\(project.id)", title: "\(project.name) Backlog", subtitle: "\(kind) · Backlog",
                     symbol: "list.bullet"
                 ) { $0.openProject(project.id, tab: .backlog) })
             items.append(
                 Item(
-                    id: "releases-\(project.id)", title: "\(project.name) Releases", subtitle: "Project · Releases",
+                    id: "releases-\(project.id)", title: "\(project.name) Releases", subtitle: "\(kind) · Releases",
                     symbol: "doc.badge.clock"
                 ) { $0.openProject(project.id, tab: .releases) })
             items.append(
                 Item(
-                    id: "github-\(project.id)", title: "\(project.name) GitHub", subtitle: "Project · GitHub",
+                    id: "github-\(project.id)", title: "\(project.name) GitHub", subtitle: "\(kind) · GitHub",
                     symbol: "link"
                 ) { $0.openProject(project.id, tab: .github) })
         }
@@ -64,8 +66,11 @@ struct QuickActionsView: View {
         }
         let settings = openSettings
         items += [
-            Item(id: "new-project", title: "New Project…", symbol: "folder.badge.plus", shortcut: "⇧⌘N") {
+            Item(id: "new-project", title: "New Project…", symbol: "plus.square", shortcut: "⇧⌘N") {
                 $0.projectEditor = .new
+            },
+            Item(id: "new-group", title: "New Group…", symbol: "folder.badge.plus", shortcut: "⌃⌘N") {
+                $0.groupEditor = .new(moving: nil)
             },
             Item(id: "export", title: "Export Backup…", symbol: "square.and.arrow.up", shortcut: "⇧⌘E") { model in
                 Task { await model.beginBackupExport() }

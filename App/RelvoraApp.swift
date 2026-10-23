@@ -22,6 +22,9 @@ struct RelvoraApp: App {
                 Button("New Project…") { model.projectEditor = .new }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
                     .disabled(model.startupError != nil)
+                Button("New Group…") { model.groupEditor = .new(moving: nil) }
+                    .keyboardShortcut("n", modifiers: [.command, .control])
+                    .disabled(model.startupError != nil)
             }
             CommandMenu("Go") {
                 Button("Quick Actions…") { model.isShowingQuickActions = true }

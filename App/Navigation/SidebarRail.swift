@@ -2,7 +2,8 @@ import RelvoraCore
 import SwiftUI
 
 /// The collapsed sidebar: while the sidebar is hidden, it narrows to a strip of icons that keeps the overview and every
-/// active project one click away. Projects show their initials; the full name is in the tooltip and for VoiceOver.
+/// active project one click away. Projects show their initials, in the sidebar's order, with a line between groups;
+/// the full name is in the tooltip and for VoiceOver.
 struct SidebarRail: View {
     @Environment(AppModel.self) private var model
     @Binding var selection: SidebarItem?
@@ -19,13 +20,21 @@ struct SidebarRail: View {
                 .padding(.horizontal, Spacing.xs)
             ScrollView {
                 VStack(spacing: Spacing.xs) {
-                    ForEach(model.activeProjects) { project in
-                        destination(.project(project.id), title: project.name, help: help(for: project), filled: true) {
-                            Text(project.initials)
-                                .font(.system(size: 12, weight: .semibold))
-                                .minimumScaleFactor(0.7)
+                    ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
+                        if index > 0 {
+                            Divider()
+                                .padding(.horizontal, Spacing.s)
                         }
-                        .contextMenu { ProjectContextMenu(project: project) }
+                        ForEach(section.projects) { project in
+                            destination(
+                                .project(project.id), title: project.name, help: help(for: project), filled: true
+                            ) {
+                                Text(project.initials)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .minimumScaleFactor(0.7)
+                            }
+                            .contextMenu { ProjectContextMenu(project: project) }
+                        }
                     }
                 }
             }
@@ -65,9 +74,14 @@ struct SidebarRail: View {
         .help(help)
     }
 
+    /// Groups without projects have nothing to show here.
+    private var sections: [ProjectSection] { model.projectSections.filter { !$0.projects.isEmpty } }
+
+    /// "Pilou › Web — 0.4.0"
     private func help(for project: Project) -> String {
-        guard let version = model.stats[project.id]?.activePlanVersion else { return project.name }
-        return "\(project.name) — \(version)"
+        let name = model.group(of: project).map { "\($0.name) › \(project.name)" } ?? project.name
+        guard let version = model.stats[project.id]?.activePlanVersion else { return name }
+        return "\(name) — \(version)"
     }
 }
 
