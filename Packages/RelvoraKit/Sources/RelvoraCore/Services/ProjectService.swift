@@ -80,16 +80,17 @@ public struct ProjectService: Sendable {
         self.now = now
     }
 
-    /// Creates a validated project and its board (the given template, else the default) in one transaction.
-    /// Throws `ValidationError` for bad input or `PersistenceError` if saving fails.
-    public func create(name: String, details: String? = nil, columns template: [ColumnTemplate]? = nil) async throws
-        -> Project
-    {
+    /// Creates a validated project and its board (the given template, else the default) in one transaction, in
+    /// `groupID` if given. Throws `ValidationError` for bad input or `PersistenceError` if saving fails.
+    public func create(
+        name: String, details: String? = nil, columns template: [ColumnTemplate]? = nil, groupID: UUID? = nil
+    ) async throws -> Project {
         let timestamp = now()
         let project = Project(
             name: try ProjectRules.validatedName(name),
             details: details?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
-            createdAt: timestamp
+            createdAt: timestamp,
+            groupID: groupID
         )
         let template = try template.map(ProjectRules.validatedTemplate) ?? ProjectRules.defaultTemplate
         try await repository.create(
@@ -97,6 +98,7 @@ public struct ProjectService: Sendable {
         return project
     }
 
+    /// Saves a new name and description, with any other change already made to `project`, such as its group.
     public func update(_ project: Project, name: String, details: String?) async throws -> Project {
         var updated = project
         updated.name = try ProjectRules.validatedName(name)
@@ -112,6 +114,16 @@ public struct ProjectService: Sendable {
         let timestamp = now()
         updated.archivedAt = archived ? timestamp : nil
         updated.updatedAt = timestamp
+        try await repository.update(updated)
+        return updated
+    }
+
+    /// Lists the project under `groupID`, or outside any group.
+    public func setGroup(_ project: Project, _ groupID: UUID?) async throws -> Project {
+        guard project.groupID != groupID else { return project }
+        var updated = project
+        updated.groupID = groupID
+        updated.updatedAt = now()
         try await repository.update(updated)
         return updated
     }

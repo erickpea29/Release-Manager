@@ -38,6 +38,46 @@ final class NavigationUITests: XCTestCase {
         XCTAssertTrue(app.outlines.firstMatch.staticTexts["Website Redesign"].exists)
     }
 
+    /// Groups: create one, drag a project into it, move it out and back from its menu, then delete the group
+    /// without deleting the project.
+    func testGroupProjects() {
+        let app = RelvoraApp.launch()
+        let sidebar = app.outlines.firstMatch.wait()
+        sidebar.staticTexts["Acme"].wait()  // the sample group
+        XCTAssertTrue(sidebar.staticTexts["Other Projects"].exists)
+
+        // Rows in a group still select their project.
+        sidebar.staticTexts["Acme API"].click()
+        app.text("Public REST API").wait()
+
+        app.typeKey("n", modifierFlags: [.command, .control])  // File › New Group…
+        let sheet = app.sheets.firstMatch.wait()
+        sheet.textFields.firstMatch.type("Pilou")
+        sheet.buttons["Create"].click()
+        sidebar.staticTexts["Pilou"].wait()
+
+        sidebar.staticTexts["Relvora"].press(forDuration: 0.5, thenDragTo: sidebar.text("No projects").wait())
+        XCTAssertTrue(sidebar.staticTexts["Other Projects"].waitForNonExistence(timeout: 5))
+        screenshot(app, "project-groups")
+
+        sidebar.staticTexts["Relvora"].rightClick()
+        app.menuItems["Move to Group"].click()
+        app.menuItems["No Group"].click()
+        sidebar.staticTexts["Other Projects"].wait()
+
+        sidebar.staticTexts["Relvora"].rightClick()
+        app.menuItems["Move to Group"].click()
+        app.menuItems["Pilou"].click()
+        XCTAssertTrue(sidebar.staticTexts["Other Projects"].waitForNonExistence(timeout: 5))
+
+        sidebar.staticTexts["Pilou"].rightClick()
+        app.menuItems["Delete Group…"].click()
+        app.windows["main"].buttons["Delete Group"].wait().click()  // not the Touch Bar copy
+        sidebar.staticTexts["Other Projects"].wait()
+        XCTAssertTrue(sidebar.staticTexts["Relvora"].exists)
+        XCTAssertFalse(sidebar.staticTexts["Pilou"].exists)
+    }
+
     func testQuickActionsAndGoShortcuts() {
         let app = RelvoraApp.launch()
         app.staticTexts["Dashboard"].firstMatch.wait()

@@ -21,6 +21,7 @@ public enum ValidationError: Error, Sendable, Equatable, LocalizedError {
     case duplicateColumnName(String)
     case needsOneCompletionColumn
     case reservedColumnName(String)
+    case duplicateGroupName(String)
 
     public var errorDescription: String? {
         switch self {
@@ -43,6 +44,7 @@ public enum ValidationError: Error, Sendable, Equatable, LocalizedError {
         case .duplicateColumnName(let name): "There’s already a column named “\(name)”."
         case .needsOneCompletionColumn: "A board needs exactly one completion column."
         case .reservedColumnName(let name): "“\(name)” is its own tab, not a column."
+        case .duplicateGroupName(let name): "There’s already a group named “\(name)”."
         }
     }
 
@@ -67,6 +69,7 @@ public enum ValidationError: Error, Sendable, Equatable, LocalizedError {
         case .duplicateColumnName: "Use a different name."
         case .needsOneCompletionColumn: "Mark one column as the completion column."
         case .reservedColumnName: "Choose another name. Tasks outside the version being planned are in the Backlog tab."
+        case .duplicateGroupName: "Use a different name, or move the projects into the existing group."
         }
     }
 }

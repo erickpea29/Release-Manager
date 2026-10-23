@@ -9,6 +9,8 @@ public struct Project: Sendable, Hashable, Identifiable {
     public let createdAt: Date
     public var updatedAt: Date
     public var archivedAt: Date?
+    /// The group the project is listed under, if any (`ProjectGroup`).
+    public var groupID: UUID?
 
     public var isArchived: Bool { archivedAt != nil }
 
@@ -28,7 +30,8 @@ public struct Project: Sendable, Hashable, Identifiable {
         accentColor: String? = nil,
         createdAt: Date = .now,
         updatedAt: Date? = nil,
-        archivedAt: Date? = nil
+        archivedAt: Date? = nil,
+        groupID: UUID? = nil
     ) {
         self.id = id
         self.name = name
@@ -38,6 +41,26 @@ public struct Project: Sendable, Hashable, Identifiable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
         self.archivedAt = archivedAt
+        self.groupID = groupID
+    }
+}
+
+/// A named set of projects, such as one company's apps. Groups only organize the sidebar and the Dashboard: each
+/// project keeps its own board, versions, and repositories, and releases on its own.
+public struct ProjectGroup: Sendable, Hashable, Identifiable {
+    public let id: UUID
+    public var name: String
+    /// Position in the sidebar (`FractionalIndex`).
+    public var sortOrder: Double
+    public let createdAt: Date
+    public var updatedAt: Date
+
+    public init(id: UUID = UUID(), name: String, sortOrder: Double, createdAt: Date = .now, updatedAt: Date? = nil) {
+        self.id = id
+        self.name = name
+        self.sortOrder = sortOrder
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt ?? createdAt
     }
 }
 

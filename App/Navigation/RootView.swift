@@ -51,6 +51,20 @@ struct RootView: View {
         .sheet(item: $model.projectEditor) { request in
             ProjectEditorSheet(request: request) { project in select(.project(project.id)) }
         }
+        .sheet(item: $model.groupEditor) { request in
+            GroupEditorSheet(request: request)
+        }
+        .confirmationDialog(
+            "Delete the group “\(model.groupPendingDeletion?.name ?? "")”?",
+            isPresented: Binding(
+                get: { model.groupPendingDeletion != nil }, set: { if !$0 { model.groupPendingDeletion = nil } }),
+            titleVisibility: .visible,
+            presenting: model.groupPendingDeletion
+        ) { group in
+            Button("Delete Group", role: .destructive) { Task { await model.deleteGroup(group) } }
+        } message: { group in
+            Text(groupDeletionMessage(group))
+        }
         .confirmationDialog(
             "Delete “\(model.projectPendingDeletion?.name ?? "")”?",
             isPresented: Binding(
@@ -147,6 +161,15 @@ struct RootView: View {
             } else {
                 ProgressView()
             }
+        }
+    }
+
+    private func groupDeletionMessage(_ group: ProjectGroup) -> String {
+        let count = model.projects.count { $0.groupID == group.id }
+        return switch count {
+        case 0: "The group is empty."
+        case 1: "Its project isn’t deleted. It moves out of the group."
+        default: "Its \(count) projects aren’t deleted. They move out of the group."
         }
     }
 

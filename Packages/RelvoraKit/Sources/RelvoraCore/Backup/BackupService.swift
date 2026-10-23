@@ -1,6 +1,7 @@
 import Foundation
 
 public struct BackupSummary: Sendable, Equatable {
+    public let groupCount: Int
     public let projectCount: Int
     public let taskCount: Int
     public let releasePlanCount: Int
@@ -24,10 +25,25 @@ public enum BackupValidator {
         var connectionIDs = Set<UUID>()
         var snapshotIDs = Set<UUID>()
 
+        var groupIDs = Set<UUID>()
+        var groupNames = Set<String>()
+        for group in document.groups ?? [] {
+            guard groupIDs.insert(group.id).inserted else { throw .invalid("a group appears twice.") }
+            guard let name = try? ProjectRules.validatedName(group.name), group.sortOrder.isFinite else {
+                throw .invalid("a group has an invalid name or position.")
+            }
+            guard groupNames.insert(name.lowercased()).inserted else {
+                throw .invalid("two groups are named “\(name)”.")
+            }
+        }
+
         for project in document.projects {
             guard projectIDs.insert(project.id).inserted else { throw .invalid("a project appears twice.") }
             guard (try? ProjectRules.validatedName(project.name)) != nil else {
                 throw .invalid("a project has an invalid name.")
+            }
+            if let groupID = project.groupID, !groupIDs.contains(groupID) {
+                throw .invalid("project “\(project.name)” is in a group the backup doesn’t contain.")
             }
             guard !project.columns.isEmpty else { throw .invalid("project “\(project.name)” has no columns.") }
             guard project.columns.filter(\.isCompletionColumn).count == 1 else {
@@ -113,6 +129,7 @@ public enum BackupValidator {
 
     public static func summary(of document: BackupDocument) -> BackupSummary {
         BackupSummary(
+            groupCount: document.groups?.count ?? 0,
             projectCount: document.projects.count,
             taskCount: document.projects.reduce(0) { $0 + $1.tasks.count },
             releasePlanCount: document.projects.reduce(0) { $0 + $1.releasePlans.count },
@@ -135,8 +152,8 @@ public struct BackupService: Sendable {
         -> BackupDocument
     {
         BackupDocument(
-            bundles: try await repository.allProjectBundles(), exportedAt: now(), appVersion: appVersion,
-            preferences: preferences)
+            bundles: try await repository.allProjectBundles(), groups: try await repository.groups(), exportedAt: now(),
+            appVersion: appVersion, preferences: preferences)
     }
 
     /// Decodes and validates a backup without changing anything, so the user can confirm what it contains.
@@ -150,7 +167,7 @@ public struct BackupService: Sendable {
     @discardableResult
     public func restore(_ document: BackupDocument) async throws -> BackupSummary {
         try BackupValidator.validate(document)
-        try await repository.replaceAll(with: try document.bundles())
+        try await repository.replaceAll(with: try document.bundles(), groups: document.projectGroups())
         return BackupValidator.summary(of: document)
     }
 }

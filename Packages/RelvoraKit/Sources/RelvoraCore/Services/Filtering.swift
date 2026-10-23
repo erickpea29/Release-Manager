@@ -14,8 +14,13 @@ public enum TextSearch {
 }
 
 public enum ProjectSearch {
-    public static func filter(_ projects: [Project], query: String) -> [Project] {
-        projects.filter { TextSearch.matches(query, fields: [$0.name, $0.details]) }
+    /// Matches a project's name and description, and the name of its group among `groups`.
+    public static func filter(_ projects: [Project], query: String, groups: [ProjectGroup] = []) -> [Project] {
+        let groupNames = Dictionary(uniqueKeysWithValues: groups.map { ($0.id, $0.name) })
+        return projects.filter { project in
+            TextSearch.matches(
+                query, fields: [project.name, project.details, project.groupID.flatMap { groupNames[$0] }])
+        }
     }
 }
 

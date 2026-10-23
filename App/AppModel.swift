@@ -10,6 +10,7 @@ struct AppEnvironment: Sendable {
     let github: GitHubServices?
 
     var projects: ProjectService { ProjectService(repository: store.projects) }
+    var groups: ProjectGroupService { ProjectGroupService(repository: store.groups) }
     var board: BoardService { BoardService(repository: store.board) }
     var releasePlans: ReleasePlanService { ReleasePlanService(repository: store.releasePlans) }
     var backups: BackupService { BackupService(repository: store.backups) }
@@ -106,12 +107,28 @@ struct ProjectStats: Equatable {
 
 enum ProjectEditorRequest: Identifiable {
     case new
+    /// A new project, already in this group.
+    case newInGroup(UUID)
     case edit(Project)
 
     var id: String {
         switch self {
         case .new: "new"
+        case .newInGroup(let groupID): "new-\(groupID.uuidString)"
         case .edit(let project): project.id.uuidString
+        }
+    }
+}
+
+enum GroupEditorRequest: Identifiable {
+    /// A new group; `moving`, if set, is put in it once it exists.
+    case new(moving: Project?)
+    case rename(ProjectGroup)
+
+    var id: String {
+        switch self {
+        case .new(let project): "new-\(project?.id.uuidString ?? "")"
+        case .rename(let group): group.id.uuidString
         }
     }
 }
@@ -140,6 +157,8 @@ struct PendingRestore: Identifiable {
 final class AppModel {
     /// All projects, archived included, in creation order.
     private(set) var projects: [Project] = []
+    /// Project groups, in sidebar order.
+    private(set) var groups: [ProjectGroup] = []
     private(set) var stats: [UUID: ProjectStats] = [:]
     private(set) var hasLoaded = false
     /// Incremented after a restore so open views reload their data.
@@ -150,6 +169,8 @@ final class AppModel {
     var alert: AppAlert?
     var projectEditor: ProjectEditorRequest?
     var projectPendingDeletion: Project?
+    var groupEditor: GroupEditorRequest?
+    var groupPendingDeletion: ProjectGroup?
     var backupToExport: BackupFile?
     var isExportingBackup = false
     var isChoosingBackup = false
@@ -172,6 +193,12 @@ final class AppModel {
 
     var activeProjects: [Project] { projects.filter { !$0.isArchived } }
     var archivedProjects: [Project] { projects.filter(\.isArchived) }
+    /// Active projects by group, in sidebar order, then those outside any group.
+    var projectSections: [ProjectSection] { ProjectGrouping.sections(activeProjects, groups: groups) }
+
+    func group(of project: Project) -> ProjectGroup? {
+        project.groupID.flatMap { id in groups.first { $0.id == id } }
+    }
 
     init(options: LaunchOptions = .current()) {
         self.options = options
@@ -222,6 +249,7 @@ final class AppModel {
     func loadProjects() async {
         guard let environment else { return }
         do {
+            groups = try await environment.groups.groups()
             projects = try await environment.store.projects.projects(includeArchived: true)
             for project in projects { await refreshStats(for: project.id) }
         } catch {
@@ -253,18 +281,29 @@ final class AppModel {
     // MARK: Projects
 
     /// Throws so the editor can show validation messages inline.
-    func createProject(name: String, details: String?) async throws -> Project {
+    func createProject(name: String, details: String?, groupID: UUID?) async throws -> Project {
         guard let environment else { throw startupError ?? .storeUnavailable(reason: "No store") }
         let project = try await environment.projects.create(
-            name: name, details: details, columns: preferences.newProjectColumns)
+            name: name, details: details, columns: preferences.newProjectColumns, groupID: groupID)
         projects.append(project)
         await refreshStats(for: project.id)
         return project
     }
 
-    func updateProject(_ project: Project, name: String, details: String?) async throws {
+    func updateProject(_ project: Project, name: String, details: String?, groupID: UUID?) async throws {
         guard let environment else { return }
-        replace(try await environment.projects.update(project, name: name, details: details))
+        var edited = project
+        edited.groupID = groupID
+        replace(try await environment.projects.update(edited, name: name, details: details))
+    }
+
+    func setGroup(_ project: Project, _ groupID: UUID?) async {
+        guard let environment else { return }
+        do {
+            replace(try await environment.projects.setGroup(project, groupID))
+        } catch {
+            alert = AppAlert(title: "Couldn’t move project", error: error)
+        }
     }
 
     func setArchived(_ project: Project, _ archived: Bool) async {
@@ -284,6 +323,46 @@ final class AppModel {
             stats[project.id] = nil
         } catch {
             alert = AppAlert(title: "Couldn’t delete project", error: error)
+        }
+    }
+
+    // MARK: Groups
+
+    /// Throws so the editor can show validation messages inline. Moves `project`, if given, into the new group.
+    @discardableResult
+    func createGroup(name: String, moving project: Project? = nil) async throws -> ProjectGroup {
+        guard let environment else { throw startupError ?? .storeUnavailable(reason: "No store") }
+        let group = try await environment.groups.create(name: name)
+        groups.append(group)
+        if let project { await setGroup(project, group.id) }
+        return group
+    }
+
+    func renameGroup(_ group: ProjectGroup, to name: String) async throws {
+        guard let environment else { return }
+        let renamed = try await environment.groups.rename(group, to: name)
+        if let index = groups.firstIndex(where: { $0.id == group.id }) { groups[index] = renamed }
+    }
+
+    /// Moves a group up (`-1`) or down (`1`) in the sidebar.
+    func moveGroup(_ group: ProjectGroup, by offset: Int) async {
+        guard let environment, let index = groups.firstIndex(where: { $0.id == group.id }) else { return }
+        do {
+            groups = try await environment.groups.move(group.id, to: index + offset)
+        } catch {
+            alert = AppAlert(title: "Couldn’t move group", error: error)
+        }
+    }
+
+    /// Deletes the group only; its projects stay, outside any group.
+    func deleteGroup(_ group: ProjectGroup) async {
+        guard let environment else { return }
+        do {
+            try await environment.groups.delete(group.id)
+            groups.removeAll { $0.id == group.id }
+            for index in projects.indices where projects[index].groupID == group.id { projects[index].groupID = nil }
+        } catch {
+            alert = AppAlert(title: "Couldn’t delete group", error: error)
         }
     }
 

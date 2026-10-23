@@ -13,12 +13,30 @@ extension Project {
             accentColor: entity.accentColor,
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
-            archivedAt: entity.archivedAt
+            archivedAt: entity.archivedAt,
+            groupID: entity.group?.id
         )
     }
 }
 
+extension ProjectGroup {
+    init(_ entity: ProjectGroupEntity) {
+        self.init(
+            id: entity.id, name: entity.name, sortOrder: entity.sortOrder, createdAt: entity.createdAt,
+            updatedAt: entity.updatedAt)
+    }
+}
+
+extension ProjectGroupEntity {
+    func apply(_ group: ProjectGroup) {
+        name = group.name
+        sortOrder = group.sortOrder
+        updatedAt = group.updatedAt
+    }
+}
+
 extension ProjectEntity {
+    /// Copies the project's fields. Its group is a relationship, set by the repository (`assignGroup`).
     func apply(_ project: Project) {
         name = project.name
         details = project.details

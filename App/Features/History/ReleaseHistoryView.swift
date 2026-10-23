@@ -4,13 +4,20 @@ import SwiftUI
 /// Every release snapshot across projects, newest first. Snapshots never change after their release, so this is
 /// the record of what shipped.
 struct ReleaseHistoryView: View {
+    /// Which releases the list shows.
+    enum Scope: Hashable {
+        case all
+        case group(UUID)
+        case project(UUID)
+    }
+
     @Environment(AppModel.self) private var app
-    @State private var projectFilter: UUID?
+    @State private var scope = Scope.all
     @State private var query = ""
 
     private var entries: [ReleaseSnapshot] {
         app.releaseHistory
-            .filter { projectFilter == nil || $0.projectID == projectFilter }
+            .filter(isInScope)
             .filter {
                 TextSearch.matches(
                     query, fields: [$0.version, $0.tagName, $0.title, $0.repositoryFullName, $0.releaseNotesMarkdown])
@@ -92,9 +99,22 @@ struct ReleaseHistoryView: View {
             VStack(spacing: Spacing.xs) {
                 TextField("Search releases", text: $query)
                     .textFieldStyle(.roundedBorder)
-                Picker("Project", selection: $projectFilter) {
-                    Text("All Projects").tag(UUID?.none)
-                    ForEach(projectsWithReleases) { Text($0.name).tag(UUID?.some($0.id)) }
+                Picker("Project", selection: $scope) {
+                    Text("All Projects").tag(Scope.all)
+                    ForEach(scopeSections) { section in
+                        if let group = section.group {
+                            Section(group.name) {
+                                Text("All of \(group.name)").tag(Scope.group(group.id))
+                                ForEach(section.projects) { Text($0.name).tag(Scope.project($0.id)) }
+                            }
+                        } else if app.groups.isEmpty {
+                            ForEach(section.projects) { Text($0.name).tag(Scope.project($0.id)) }
+                        } else {
+                            Section("Other Projects") {
+                                ForEach(section.projects) { Text($0.name).tag(Scope.project($0.id)) }
+                            }
+                        }
+                    }
                 }
                 .labelsHidden()
             }
@@ -128,9 +148,19 @@ struct ReleaseHistoryView: View {
         }
     }
 
-    private var projectsWithReleases: [Project] {
+    /// Projects with releases, archived ones included, by group.
+    private var scopeSections: [ProjectSection] {
         let ids = Set(app.releaseHistory.map(\.projectID))
-        return app.projects.filter { ids.contains($0.id) }
+        return ProjectGrouping.sections(app.projects.filter { ids.contains($0.id) }, groups: app.groups)
+            .filter { !$0.projects.isEmpty }
+    }
+
+    private func isInScope(_ snapshot: ReleaseSnapshot) -> Bool {
+        switch scope {
+        case .all: true
+        case .project(let id): snapshot.projectID == id
+        case .group(let id): app.projects.contains { $0.id == snapshot.projectID && $0.groupID == id }
+        }
     }
 
     private func projectName(_ id: UUID) -> String? { app.projects.first { $0.id == id }?.name }
