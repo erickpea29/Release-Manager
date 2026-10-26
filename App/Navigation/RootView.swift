@@ -142,6 +142,10 @@ struct RootView: View {
             await model.updates.runAutomaticChecks()
         }
         .task {
+            guard model.startupError == nil else { return }
+            await model.watchDrafts()
+        }
+        .task {
             await model.start()
             if let name = model.options.initialProjectName,
                 let project = model.projects.first(where: { $0.name == name })

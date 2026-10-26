@@ -76,6 +76,7 @@ final class Preferences {
         static let checksForUpdates = "checksForUpdates"
         static let claudeEnabled = "claudeEnabled"
         static let claudePort = "claudePort"
+        static let notificationsOff = "notificationsOff"
     }
 
     @ObservationIgnored let defaults: UserDefaults
@@ -112,6 +113,17 @@ final class Preferences {
     var claudeEnabled: Bool {
         didSet { defaults.set(claudeEnabled, forKey: Key.claudeEnabled) }
     }
+    /// The notification kinds turned off in Settings › Notifications; every kind is on until turned off. Per Mac.
+    private(set) var notificationsOff: Set<NotificationKind> {
+        didSet { defaults.set(notificationsOff.map(\.rawValue).sorted(), forKey: Key.notificationsOff) }
+    }
+
+    func notifies(_ kind: NotificationKind) -> Bool { !notificationsOff.contains(kind) }
+
+    func setNotifies(_ kind: NotificationKind, _ isOn: Bool) {
+        if isOn { notificationsOff.remove(kind) } else { notificationsOff.insert(kind) }
+    }
+
     var claudePort: Int {
         didSet {
             let valid = min(max(claudePort, 1024), 65_535)
@@ -136,6 +148,8 @@ final class Preferences {
         githubRefresh = defaults.string(forKey: Key.githubRefresh).flatMap(GitHubRefreshInterval.init) ?? .fiveMinutes
         checksForUpdates = defaults.object(forKey: Key.checksForUpdates) as? Bool ?? true
         claudeEnabled = defaults.bool(forKey: Key.claudeEnabled)
+        notificationsOff = Set(
+            (defaults.stringArray(forKey: Key.notificationsOff) ?? []).compactMap(NotificationKind.init))
         claudePort = (defaults.object(forKey: Key.claudePort) as? Int) ?? Int(ClaudeConnection.defaultPort)
     }
 

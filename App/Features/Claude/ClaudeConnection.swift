@@ -32,8 +32,8 @@ final class ClaudeConnection {
     /// A fixed key from a launch option (UI tests), instead of the Keychain.
     @ObservationIgnored private let fixedKey: String?
     @ObservationIgnored private var server: LoopbackServer?
-    /// Tasks were created in this project: views showing it reload.
-    @ObservationIgnored var onTasksCreated: (UUID) async -> Void = { _ in }
+    /// Claude created tasks: views showing the project reload, and the user may be notified.
+    @ObservationIgnored var onTasksCreated: (RelvoraTools.Activity) async -> Void = { _ in }
 
     init(environment: AppEnvironment?, preferences: Preferences, fixedKey: String? = nil) {
         self.environment = environment
@@ -112,6 +112,6 @@ final class ClaudeConnection {
         lastActivity = Activity(
             date: .now, summary: "Claude added \(activity.count) \(activity.count == 1 ? "task" : "tasks") to \(place)."
         )
-        await onTasksCreated(activity.projectID)
+        await onTasksCreated(activity)
     }
 }

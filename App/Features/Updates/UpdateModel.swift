@@ -59,10 +59,13 @@ final class UpdateModel {
     /// Read once, when first needed.
     @ObservationIgnored private lazy var isDeveloperIDSigned = CodeSignature.isOwnCodeDeveloperID()
     @ObservationIgnored private var checkedThisLaunch = false
+    /// An automatic check found a version not announced before.
+    @ObservationIgnored var onOffered: (AppUpdate) async -> Void = { _ in }
 
     private enum Key {
         static let lastChecked = "lastUpdateCheck"
         static let skippedVersion = "skippedUpdateVersion"
+        static let notifiedVersion = "notifiedUpdateVersion"
     }
 
     static let checkInterval: TimeInterval = 24 * 60 * 60
@@ -144,6 +147,12 @@ final class UpdateModel {
                 let skipped = preferences.defaults.string(forKey: Key.skippedVersion) == update.version.description
                 offered = manual || !skipped ? update : nil
                 if manual { phase = .available(update) }
+                if !manual, let offered,
+                    preferences.defaults.string(forKey: Key.notifiedVersion) != offered.version.description
+                {
+                    preferences.defaults.set(offered.version.description, forKey: Key.notifiedVersion)
+                    await onOffered(offered)
+                }
             case .upToDate(let latest):
                 offered = nil
                 if manual { phase = .upToDate(latest: latest) }
