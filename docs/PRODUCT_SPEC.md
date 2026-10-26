@@ -26,6 +26,7 @@ A native macOS app for one developer managing several software projects: plan re
 | Appearance | System/light/dark, accent color, optional translucent window with opaque fallback |
 | Data | Local export, backup, and restore |
 | Claude | Claude Code sessions on the Mac read projects and the version being planned, and add tasks to it or to the Backlog, through an MCP server in Relvora that is off until turned on in Settings › Claude ([ADR 0018](decisions/0018-claude-creates-tasks.md)) |
+| Notifications | macOS notifications when a release is published (drafts waiting on GitHub are checked every 5 minutes), a version is planned for today, a new Relvora is available, or Claude added tasks. Each kind can be turned off ([ADR 0019](decisions/0019-notifications.md)) |
 | Updates | Relvora finds its new versions in its own repository's releases, and installs one when the user chooses: a backup first, then checksum and signature checks (Developer ID, same team, notarized), then it relaunches ([ADR 0017](decisions/0017-update-relvora-from-relvora.md)) |
 
 ## 3. Release lifecycle (user-visible states)

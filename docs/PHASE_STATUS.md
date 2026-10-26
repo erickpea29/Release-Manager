@@ -11,7 +11,9 @@
 | First-release polish | **Complete**: merged in PR #9 ([report](FIRST_RELEASE_POLISH.md)) |
 | 0.1.1 — Project groups, publishing from Relvora | **Complete**: merged in PR #10, released as v0.1.1 ([ADR 0014](decisions/0014-project-groups.md), [ADR 0015](decisions/0015-publish-from-relvora.md)) |
 | 0.1.2 — Version suggestion, release checklist | **Complete**: merged in PR #11, released as v0.1.2 ([ADR 0016](decisions/0016-version-suggestion-and-release-checklist.md)) |
-| Next release — updating Relvora from Relvora, Claude creates tasks | **In progress**: updates merged in PR #12 ([ADR 0017](decisions/0017-update-relvora-from-relvora.md)); Claude on branch `feature/claude-mcp` ([ADR 0018](decisions/0018-claude-creates-tasks.md)) |
+| 0.2.0 — Updating Relvora from Relvora | **Complete**: merged in PR #12, released as v0.2.0 ([ADR 0017](decisions/0017-update-relvora-from-relvora.md)) |
+| 0.2.1 — Claude creates tasks | **Complete**: merged in PR #13, released as v0.2.1, the first version installed by Relvora's updater ([ADR 0018](decisions/0018-claude-creates-tasks.md)) |
+| Next release (0.2.2) — Notifications | **In progress** on branch `feature/notifications` ([ADR 0019](decisions/0019-notifications.md)) |
 
 The feature ideas are in [ROADMAP.md](ROADMAP.md).
 
@@ -132,7 +134,7 @@ The feature ideas are in [ROADMAP.md](ROADMAP.md).
 - [x] CI on PR #11 (lint, 172 package tests, build, 20 UI tests)
 - [x] Owner: release v0.1.2 from Relvora (published 2026-10-26; release run 40369759257 attached the notarized app)
 
-## Next release checklist
+## 0.2.0 and 0.2.1 checklist
 
 - [x] Update check: Relvora's own releases, read with the GitHub sign-in; at launch, daily, and from Check for Updates ([ADR 0017](decisions/0017-update-relvora-from-relvora.md))
 - [x] Install: backup first, checksum, then the updater service (outside the sandbox) checks the zip, bundle ID, version, and signature (Developer ID, same team, notarized) and swaps the app in atomically; the previous version goes to the Trash
@@ -144,7 +146,18 @@ The feature ideas are in [ROADMAP.md](ROADMAP.md).
 - [x] Claude creates tasks: an MCP server on 127.0.0.1 (Streamable HTTP, Host and Origin checks, access key in the Keychain) with `list_projects`, `list_tasks`, and `create_tasks`; Settings › Claude ([ADR 0018](decisions/0018-claude-creates-tasks.md))
 - [x] Package tests: 211 (18 new); end to end with curl against the sandboxed app, and with Claude Code 2.1.309 against a test copy
 - [x] UI tests: 24 pass locally, two new (a task created over MCP appears on the open Board and in Settings › Claude; a request without the key is refused)
-- [ ] CI on the Claude PR
-- [ ] Owner: release it, then install it by hand once (0.1.2 has no updater)
-- [ ] Owner: turn on Settings › Claude and run the setup command once
-- [ ] Owner: the next release after that is the first update installed from Relvora, in `/Applications`
+- [x] CI on PR #13 (lint, 211 package tests, build, 24 UI tests); merged
+- [x] Owner: released v0.2.0 (release run 40387061674) and installed it by hand once (0.1.2 has no updater)
+- [x] Owner: released v0.2.1 (release run 40407742616); 0.2.0 installed it into `/Applications` by itself on 2026-10-26: found, installed by the updater service, and relaunched (the new copy waited 0 ms for the old one)
+- [x] Owner: turned on Settings › Claude and ran the setup command; Claude Code reports Relvora as connected
+
+## Next release checklist (0.2.2)
+
+- [x] Notification rules in RelvoraCore: the four kinds, their wording and targets, "planned for today" at 9:00 on the planned date, publications announced once ([ADR 0019](decisions/0019-notifications.md))
+- [x] Notifier: permission asked the first time; a banner only when Relvora isn't the active app; "planned for today" scheduled with macOS; clicks open the project, the plan, or the update sheet
+- [x] Settings › Notifications: macOS's permission and a switch for each kind
+- [x] Drafts waiting on GitHub checked every 5 minutes while Relvora is open, so a release published on GitHub is recorded and announced
+- [x] Package tests: 216 (5 new)
+- [x] UI tests: 25 pass locally, one new (a published draft, an update, and Claude's tasks are notified; a kind turned off stays quiet)
+- [ ] CI on the PR
+- [ ] Owner: release it; the first notification shows macOS's permission prompt

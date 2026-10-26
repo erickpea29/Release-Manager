@@ -82,4 +82,5 @@ Three facts shaped the design:
   - the old process quit before the new one opened its data (the new copy logged a 0 ms wait: the old one had already quit);
   - the new copy showed the notice with the backup.
   - An ad-hoc signed 0.0.3 was refused ("isn't signed with Relvora's Developer ID"), and 0.0.1 stayed in place with a valid signature.
+- **In use:** the owner's 0.2.0 in `/Applications` found 0.2.1 on 2026-10-26, installed it, and relaunched (macOS's App Management protection allowed the same-team updater; the new copy waited 0 ms).
 - UI tests (22 pass, two new): an offered update is shown with its notes, the updater refuses the demo download, Skip and Check for Updates work, and the Settings section shows the result. They found the Settings switch had no VoiceOver label.
