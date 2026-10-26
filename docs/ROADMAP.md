@@ -17,7 +17,7 @@ These three were recommended first. Together they finish the release loop inside
   - After a release is published, the plan shows the GitHub Actions run live: building, notarizing, and the attached `Relvora-x.y.z.zip`.
   - It ends with a link to the release's files, or with the run's error.
   - Needs **Actions: read** on the GitHub App. The owner adds it; every installation accepts the new permission once.
-- [ ] **Update Relvora from inside Relvora** (M)
+- [ ] **Update Relvora from inside Relvora** (M) — in progress: branch `feature/self-update` ([ADR 0017](decisions/0017-update-relvora-from-relvora.md))
   - Relvora reads its own repository's releases through the user's sign-in and offers "Version x.y.z is available."
   - It downloads the zip, checks the checksum, the Developer ID signature, and that the Team ID is the same as the running app's, then replaces the app and relaunches.
   - It never installs an unsigned or differently signed build.
@@ -28,10 +28,10 @@ These three were recommended first. Together they finish the release loop inside
 
 ## Releasing
 
-- [ ] **Suggest the next version** (S) — in progress: branch `feature/version-suggestion-and-checklist` ([ADR 0016](decisions/0016-version-suggestion-and-release-checklist.md))
+- [x] **Suggest the next version** (S) — shipped in 0.1.2 ([ADR 0016](decisions/0016-version-suggestion-and-release-checklist.md))
   - Based on the changes since the last release: new features → minor, only fixes → patch, breaking changes → major.
   - The suggestion fills the version and tag; the user can change it.
-- [ ] **Release checklist per project** (M) — in progress: branch `feature/version-suggestion-and-checklist` ([ADR 0016](decisions/0016-version-suggestion-and-release-checklist.md))
+- [x] **Release checklist per project** (M) — shipped in 0.1.2 ([ADR 0016](decisions/0016-version-suggestion-and-release-checklist.md))
   - The owner's own steps, such as "test on a clean Mac" or "update screenshots".
   - Every step must be ticked before the draft can be created.
   - Kept with the release in Release History.
@@ -103,3 +103,4 @@ Already in Relvora; listed so the history is in one place.
 - [x] Design polish, accessibility, notarized builds (M05)
 - [x] Backlog tab, collapsible sidebar, automatic GitHub refresh: shipped in 0.1.0
 - [x] Project groups, publishing from Relvora, app icon: shipped in 0.1.1
+- [x] Version suggestion, release checklist per project: shipped in 0.1.2

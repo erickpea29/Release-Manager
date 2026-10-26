@@ -10,7 +10,8 @@
 | M05 — Design Polish and Distribution | **Complete**: merged in PR #8 ([report](M05_DESIGN_POLISH_AND_DISTRIBUTION.md)) |
 | First-release polish | **Complete**: merged in PR #9 ([report](FIRST_RELEASE_POLISH.md)) |
 | 0.1.1 — Project groups, publishing from Relvora | **Complete**: merged in PR #10, released as v0.1.1 ([ADR 0014](decisions/0014-project-groups.md), [ADR 0015](decisions/0015-publish-from-relvora.md)) |
-| Next release — version suggestion, release checklist | **In progress** ([ADR 0016](decisions/0016-version-suggestion-and-release-checklist.md)) |
+| 0.1.2 — Version suggestion, release checklist | **Complete**: merged in PR #11, released as v0.1.2 ([ADR 0016](decisions/0016-version-suggestion-and-release-checklist.md)) |
+| Next release — updating Relvora from Relvora | **In progress** ([ADR 0017](decisions/0017-update-relvora-from-relvora.md)) |
 
 The feature ideas are in [ROADMAP.md](ROADMAP.md).
 
@@ -122,11 +123,23 @@ The feature ideas are in [ROADMAP.md](ROADMAP.md).
 - [x] CI on PR #10 (lint, 161 package tests, build, 18 UI tests)
 - [x] Owner: release v0.1.1 from Relvora (published 2026-10-23; release run 40021984629 attached the notarized app)
 
-## Next release checklist
+## 0.1.2 checklist
 
 - [x] Version suggestion: rules from the release-note sections, on New Release Plan and on a plan being prepared
 - [x] Release checklist per project: blocks the draft until ticked, frozen with the release; schema V5 (V4 fixture from 0.1.1), backup format 6
 - [x] Package tests: 172 (11 new)
 - [x] UI tests: 20 pass locally, two new (the checklist blocks the draft until ticked; a new plan starts with the suggested version). They caught the check results not refreshing after a checklist change
+- [x] CI on PR #11 (lint, 172 package tests, build, 20 UI tests)
+- [x] Owner: release v0.1.2 from Relvora (published 2026-10-26; release run 40369759257 attached the notarized app)
+
+## Next release checklist
+
+- [x] Update check: Relvora's own releases, read with the GitHub sign-in; at launch, daily, and from Check for Updates ([ADR 0017](decisions/0017-update-relvora-from-relvora.md))
+- [x] Install: backup first, checksum, then the updater service (outside the sandbox) checks the zip, bundle ID, version, and signature (Developer ID, same team, notarized) and swaps the app in atomically; the previous version goes to the Trash
+- [x] Relaunch through a relaunch ticket; the new copy waits for the old one before opening the data
+- [x] Package tests: 193 (21 new); opt-in check of the published 0.1.2 app against the Release requirement. Also fixed a flaky group-backup test (two projects in one millisecond)
+- [x] End to end with throwaway team-signed copies: 0.0.1 → 0.0.2 installed and relaunched; an ad-hoc 0.0.3 refused
+- [x] UI tests: 22 pass locally, two new (the offered update and its refused demo download, skip, Check for Updates, Settings). They caught the Settings switch having no VoiceOver label
 - [ ] CI on the PR
-- [ ] Owner: release it from Relvora
+- [ ] Owner: release it, then install it by hand once (0.1.2 has no updater)
+- [ ] Owner: the next release after that is the first update installed from Relvora, in `/Applications`

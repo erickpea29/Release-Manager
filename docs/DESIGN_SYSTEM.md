@@ -17,6 +17,7 @@ A sidebar holds **Dashboard**, **Release History**, and the projects; each proje
 - **The L frame.** The sidebar and the toolbar share the toolbar's color and frame the content in an L. One 1-point line runs down the sidebar's edge and turns, with a 14-point rounded corner, into the content's top border: the line under a tab's filter bar, or the bottom of the toolbar. The line and corner are drawn on the content, so they move with it while the sidebar animates.
 - **Resizing.** Drag the sidebar's edge (200–360 points, remembered per window).
 - **Board and Backlog.** The Board shows the version being planned; the Backlog tab lists that version above everything else unfinished ([ADR 0012](decisions/0012-backlog-tab-and-version-board.md)).
+- **Updates.** A newer Relvora found by the automatic check appears as one accent-colored line above the sidebar's buttons ("Relvora 0.2.0 is available"), or an icon in the collapsed sidebar; it never opens a window by itself. **Relvora › Check for Updates…** and the line open the update sheet: the notes, then **Install and Relaunch**, with each step shown while it runs ([ADR 0017](decisions/0017-update-relvora-from-relvora.md)).
 
 ### App icon
 
