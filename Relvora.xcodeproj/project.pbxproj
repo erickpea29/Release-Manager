@@ -13,6 +13,7 @@
 		B2000000000000000000002E /* RelvoraUpdates in Frameworks */ = {isa = PBXBuildFile; productRef = B2000000000000000000002F /* RelvoraUpdates */; };
 		B20000000000000000000036 /* RelvoraUpdater.xpc in Embed XPC Services */ = {isa = PBXBuildFile; fileRef = B2000000000000000000002B /* RelvoraUpdater.xpc */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B20000000000000000000039 /* RelvoraUpdates in Frameworks */ = {isa = PBXBuildFile; productRef = B2000000000000000000003A /* RelvoraUpdates */; };
+		B2000000000000000000003C /* RelvoraMCP in Frameworks */ = {isa = PBXBuildFile; productRef = B2000000000000000000003D /* RelvoraMCP */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -84,6 +85,7 @@
 				B2000000000000000000000C /* RelvoraPersistence in Frameworks */,
 				B2000000000000000000001B /* GitHubIntegration in Frameworks */,
 				B20000000000000000000039 /* RelvoraUpdates in Frameworks */,
+				B2000000000000000000003C /* RelvoraMCP in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -164,6 +166,7 @@
 				B2000000000000000000000F /* RelvoraPersistence */,
 				B2000000000000000000001C /* GitHubIntegration */,
 				B2000000000000000000003A /* RelvoraUpdates */,
+				B2000000000000000000003D /* RelvoraMCP */,
 			);
 			productName = Relvora;
 			productReference = B20000000000000000000001 /* Relvora.app */;
@@ -544,6 +547,10 @@
 		B2000000000000000000003A /* RelvoraUpdates */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RelvoraUpdates;
+		};
+		B2000000000000000000003D /* RelvoraMCP */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RelvoraMCP;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

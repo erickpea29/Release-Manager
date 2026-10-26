@@ -87,6 +87,10 @@ struct ProjectWorkspaceView: View {
         }
         .task(id: "\(project.id)-\(app.dataVersion)") { await makeModel() }
         .onChange(of: app.workspaceRequest) { handleRequest() }
+        .onChange(of: app.externalChange) { _, change in
+            guard change?.projectID == project.id, let model else { return }
+            Task { await model.load() }
+        }
         .focusedSceneValue(\.workspaceTab, $tabID)
     }
 
