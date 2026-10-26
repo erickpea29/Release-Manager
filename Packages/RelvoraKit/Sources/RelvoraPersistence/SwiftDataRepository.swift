@@ -145,6 +145,14 @@ actor SwiftDataRepository {
         return entity
     }
 
+    private func insertStep(_ step: ReleaseStep, into project: ProjectEntity, in context: ModelContext) {
+        let entity = ReleaseStepEntity(
+            id: step.id, title: step.title, sortOrder: step.sortOrder, createdAt: step.createdAt)
+        entity.apply(step)
+        context.insert(entity)
+        entity.project = project
+    }
+
     private func insertSnapshot(_ snapshot: ReleaseSnapshot, into project: ProjectEntity, in context: ModelContext) {
         let entity = ReleaseSnapshotEntity(snapshot)
         context.insert(entity)
@@ -250,6 +258,37 @@ extension SwiftDataRepository: ProjectRepository {
     func deleteProject(id: UUID) throws(PersistenceError) {
         try transaction { context throws(PersistenceError) in
             context.delete(try projectEntity(id, in: context))
+        }
+    }
+}
+
+// MARK: - Release checklists
+
+extension SwiftDataRepository: ReleaseStepRepository {
+    func steps(projectID: UUID) throws(PersistenceError) -> [ReleaseStep] {
+        try read { context throws(PersistenceError) in
+            try projectEntity(projectID, in: context).releaseSteps.compactMap(ReleaseStep.init)
+                .sorted { ($0.sortOrder, $0.createdAt) < ($1.sortOrder, $1.createdAt) }
+        }
+    }
+
+    func replaceSteps(_ steps: [ReleaseStep], projectID: UUID) throws(PersistenceError) {
+        guard steps.allSatisfy({ $0.projectID == projectID && $0.sortOrder.isFinite }) else {
+            throw .integrityViolation("Checklist steps must belong to the project and have valid positions.")
+        }
+        try transaction { context throws(PersistenceError) in
+            let project = try projectEntity(projectID, in: context)
+            let kept = Set(steps.map(\.id))
+            for entity in project.releaseSteps where !kept.contains(entity.id) {
+                context.delete(entity)
+            }
+            for step in steps {
+                if let existing = project.releaseSteps.first(where: { $0.id == step.id }) {
+                    existing.apply(step)
+                } else {
+                    insertStep(step, into: project, in: context)
+                }
+            }
         }
     }
 }
@@ -475,6 +514,9 @@ extension SwiftDataRepository: BackupRepository {
                     },
                     releaseSnapshots: entity.releaseSnapshots.compactMap(ReleaseSnapshot.init).sorted {
                         $0.snapshotCreatedAt < $1.snapshotCreatedAt
+                    },
+                    releaseSteps: entity.releaseSteps.compactMap(ReleaseStep.init).sorted {
+                        $0.sortOrder < $1.sortOrder
                     }
                 )
             }
@@ -518,6 +560,9 @@ extension SwiftDataRepository: BackupRepository {
                 }
                 for snapshot in bundle.releaseSnapshots {
                     insertSnapshot(snapshot, into: project, in: context)
+                }
+                for step in bundle.releaseSteps {
+                    insertStep(step, into: project, in: context)
                 }
                 for task in bundle.tasks {
                     guard let column = columns[task.columnID] else {

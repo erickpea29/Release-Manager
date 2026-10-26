@@ -1,7 +1,7 @@
 import SwiftData
 
 /// The schema the app reads and writes. Older versions exist only so migration can open old stores.
-typealias CurrentSchema = RelvoraSchemaV4
+typealias CurrentSchema = RelvoraSchemaV5
 typealias ProjectEntity = CurrentSchema.ProjectEntity
 typealias BoardColumnEntity = CurrentSchema.BoardColumnEntity
 typealias TaskEntity = CurrentSchema.TaskEntity
@@ -10,10 +10,14 @@ typealias ReleasePlanEntity = CurrentSchema.ReleasePlanEntity
 typealias RepositoryConnectionEntity = CurrentSchema.RepositoryConnectionEntity
 typealias ReleaseSnapshotEntity = CurrentSchema.ReleaseSnapshotEntity
 typealias ProjectGroupEntity = CurrentSchema.ProjectGroupEntity
+typealias ReleaseStepEntity = CurrentSchema.ReleaseStepEntity
 
 enum RelvoraMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [RelvoraSchemaV1.self, RelvoraSchemaV2.self, RelvoraSchemaV3.self, RelvoraSchemaV4.self]
+        [
+            RelvoraSchemaV1.self, RelvoraSchemaV2.self, RelvoraSchemaV3.self, RelvoraSchemaV4.self,
+            RelvoraSchemaV5.self,
+        ]
     }
 
     static var stages: [MigrationStage] {
@@ -24,6 +28,8 @@ enum RelvoraMigrationPlan: SchemaMigrationPlan {
             .lightweight(fromVersion: RelvoraSchemaV2.self, toVersion: RelvoraSchemaV3.self),
             // V4 adds an entity and an optional to-one relationship (a project's group).
             .lightweight(fromVersion: RelvoraSchemaV3.self, toVersion: RelvoraSchemaV4.self),
+            // V5 adds an entity, a to-many relationship, and an optional plan attribute (release checklists).
+            .lightweight(fromVersion: RelvoraSchemaV4.self, toVersion: RelvoraSchemaV5.self),
         ]
     }
 }

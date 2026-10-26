@@ -48,6 +48,41 @@ final class ReleaseWorkflowUITests: XCTestCase {
         screenshot(app, "published-from-relvora")
     }
 
+    /// The release checklist: steps added in the editor block the draft until each is ticked. The plan also shows that
+    /// its version matches the changes.
+    func testReleaseChecklistBlocksTheDraftUntilEveryStepIsTicked() {
+        let app = RelvoraApp.launchProject(tab: "releases", ["-RelvoraDemoScenario", "prepare"])
+        let create = app.buttons["Create GitHub Draft…"].wait(20)
+        wait(for: [expectation(for: NSPredicate(format: "isEnabled == true"), evaluatedWith: create)], timeout: 20)
+        app.text("0.2.0 matches the changes").wait()
+
+        app.buttons["Add Steps…"].click()
+        let sheet = app.sheets.firstMatch.wait()
+        sheet.buttons["Add Step"].click()
+        sheet.textFields.firstMatch.type("Test on a clean Mac")
+        sheet.buttons["Save"].click()
+
+        let step = app.checkBoxes["Test on a clean Mac"].wait()
+        wait(for: [expectation(for: NSPredicate(format: "isEnabled == false"), evaluatedWith: create)], timeout: 10)
+        app.text("isn’t done yet").wait()
+        screenshot(app, "release-checklist")
+
+        step.click()
+        wait(for: [expectation(for: NSPredicate(format: "isEnabled == true"), evaluatedWith: create)], timeout: 10)
+    }
+
+    /// A new plan starts with the suggested version: a project without releases starts at 0.1.0.
+    func testNewPlanStartsWithTheSuggestedVersion() {
+        let app = RelvoraApp.launch(["-RelvoraInitialProject", "Website Redesign", "-RelvoraInitialTab", "releases"])
+        app.buttons["New Release Plan"].firstMatch.wait().click()  // the toolbar's and the empty page's
+        let sheet = app.sheets.firstMatch.wait()
+        sheet.text("for the first release").wait()
+        XCTAssertEqual(sheet.textFields.firstMatch.value as? String, "0.1.0")
+        screenshot(app, "version-suggestion")
+        sheet.buttons["Create Plan"].click()
+        XCTAssertTrue(sheet.waitForNonExistence(timeout: 5))
+    }
+
     func testTimeoutNeedsReconciliationAndCheckGitHubLinksTheDraft() {
         let app = RelvoraApp.launchProject(tab: "releases", ["-RelvoraDemoScenario", "timeout"])
         let check = app.buttons["Check GitHub"].wait(30)

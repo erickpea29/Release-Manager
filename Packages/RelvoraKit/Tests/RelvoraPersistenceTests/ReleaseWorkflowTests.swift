@@ -216,7 +216,7 @@ struct WorkflowFixture {
             flakySave ? FlakySnapshotRepository(store.releaseSnapshots) : store.releaseSnapshots
         workflow = ReleaseWorkflow(
             plans: store.releasePlans, snapshots: snapshots, board: store.board,
-            connections: store.repositoryConnections, remote: remote, tagWait: .zero)
+            connections: store.repositoryConnections, steps: store.releaseSteps, remote: remote, tagWait: .zero)
     }
 
     var review: ReleaseReview { ReleaseReview(plan: plan, connection: connection, changes: nil)! }

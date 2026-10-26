@@ -4,9 +4,9 @@ import Foundation
 /// Enum values are stored as strings so the format stays readable and stable.
 public struct BackupDocument: Codable, Sendable, Equatable {
     /// 1: M02 (projects, boards, tasks, plans). 2: M03 adds repository connections. 3: M04 adds release snapshots and
-    /// the plans' repository, tag, and compare base. 4: M05 adds preferences. 5: 0.1.1 adds project groups. Older
-    /// files still restore.
-    public static let currentFormatVersion = 5
+    /// the plans' repository, tag, and compare base. 4: M05 adds preferences. 5: 0.1.1 adds project groups. 6 adds
+    /// release checklists. Older files still restore.
+    public static let currentFormatVersion = 6
 
     public var formatVersion: Int
     public var exportedAt: Date
@@ -67,6 +67,16 @@ public struct BackupDocument: Codable, Sendable, Equatable {
         public var repositoryConnections: [RepositoryConnectionRecord]
         /// Absent before format 3.
         public var releaseSnapshots: [ReleaseSnapshotRecord]
+        /// The project's release checklist, in order. Absent before format 6.
+        public var releaseSteps: [ReleaseStepRecord]
+    }
+
+    public struct ReleaseStepRecord: Codable, Sendable, Equatable {
+        public var id: UUID
+        public var title: String
+        public var sortOrder: Double
+        public var createdAt: Date
+        public var updatedAt: Date
     }
 
     /// A release snapshot, content and lifecycle, exactly as stored.
@@ -84,6 +94,8 @@ public struct BackupDocument: Codable, Sendable, Equatable {
         public var releaseNotesMarkdown: String
         public var tasks: [TaskSnapshot]
         public var changes: ReleaseChangeSummary?
+        /// Absent before format 6.
+        public var checklist: [ReleaseStepSnapshot]?
         public var githubRepositoryID: Int64
         public var repositoryFullName: String
         public var repositoryURL: URL
@@ -160,6 +172,8 @@ public struct BackupDocument: Codable, Sendable, Equatable {
         public var createdAt: Date
         public var updatedAt: Date
         public var releasedAt: Date?
+        /// Steps of the project's checklist ticked on this plan. Absent before format 6.
+        public var completedStepIDs: [UUID]?
     }
 }
 
@@ -287,7 +301,9 @@ extension BackupDocument.ProjectRecord {
                     repositoryConnectionID: $0.repositoryConnectionID, targetBranch: $0.targetBranch,
                     targetCommitSHA: $0.targetCommitSHA, tagName: $0.tagName, compareBaseTag: $0.compareBaseTag,
                     plannedDate: $0.plannedDate, changelogMarkdown: $0.changelogMarkdown, createdAt: $0.createdAt,
-                    updatedAt: $0.updatedAt, releasedAt: $0.releasedAt)
+                    updatedAt: $0.updatedAt, releasedAt: $0.releasedAt,
+                    completedStepIDs: $0.completedStepIDs.isEmpty
+                        ? nil : $0.completedStepIDs.sorted { $0.uuidString < $1.uuidString })
             },
             repositoryConnections: bundle.repositoryConnections.sorted { $0.createdAt < $1.createdAt }.map {
                 .init(
@@ -296,7 +312,12 @@ extension BackupDocument.ProjectRecord {
                     lastSyncedAt: $0.lastSyncedAt, createdAt: $0.createdAt, updatedAt: $0.updatedAt)
             },
             releaseSnapshots: bundle.releaseSnapshots.sorted { $0.snapshotCreatedAt < $1.snapshotCreatedAt }.map(
-                BackupDocument.ReleaseSnapshotRecord.init)
+                BackupDocument.ReleaseSnapshotRecord.init),
+            releaseSteps: bundle.releaseSteps.sorted { $0.sortOrder < $1.sortOrder }.map {
+                .init(
+                    id: $0.id, title: $0.title, sortOrder: $0.sortOrder, createdAt: $0.createdAt,
+                    updatedAt: $0.updatedAt)
+            }
         )
     }
 
@@ -335,7 +356,8 @@ extension BackupDocument.ProjectRecord {
                     targetBranch: record.targetBranch, targetCommitSHA: record.targetCommitSHA,
                     tagName: record.tagName, compareBaseTag: record.compareBaseTag, plannedDate: record.plannedDate,
                     changelogMarkdown: record.changelogMarkdown, createdAt: record.createdAt,
-                    updatedAt: record.updatedAt, releasedAt: record.releasedAt))
+                    updatedAt: record.updatedAt, releasedAt: record.releasedAt,
+                    completedStepIDs: Set(record.completedStepIDs ?? [])))
         }
         let connections = repositoryConnections.map {
             RepositoryConnection(
@@ -354,21 +376,28 @@ extension BackupDocument.ProjectRecord {
                     version: record.version, title: record.title, releaseName: record.releaseName,
                     tagName: record.tagName, targetCommitSHA: record.targetCommitSHA, targetBranch: record.targetBranch,
                     isPrerelease: record.isPrerelease, releaseNotesMarkdown: record.releaseNotesMarkdown,
-                    tasks: record.tasks, changes: record.changes, githubRepositoryID: record.githubRepositoryID,
+                    tasks: record.tasks, changes: record.changes, checklist: record.checklist ?? [],
+                    githubRepositoryID: record.githubRepositoryID,
                     repositoryFullName: record.repositoryFullName, repositoryURL: record.repositoryURL,
                     snapshotCreatedAt: record.snapshotCreatedAt, state: state, githubReleaseID: record.githubReleaseID,
                     githubReleaseURL: record.githubReleaseURL, publishedAt: record.publishedAt,
                     publishedNotesMarkdown: record.publishedNotesMarkdown, publishedTagName: record.publishedTagName,
                     publishedCommitSHA: record.publishedCommitSHA, stateChangedAt: record.stateChangedAt))
         }
+        let steps = releaseSteps.map {
+            ReleaseStep(
+                id: $0.id, projectID: id, title: $0.title, sortOrder: $0.sortOrder, createdAt: $0.createdAt,
+                updatedAt: $0.updatedAt)
+        }
         return ProjectBundle(
             project: project, columns: columns, tasks: tasks, releasePlans: plans, repositoryConnections: connections,
-            releaseSnapshots: snapshots)
+            releaseSnapshots: snapshots, releaseSteps: steps)
     }
 }
 
 extension BackupDocument.ProjectRecord {
-    /// Decodes older files, which have no `repositoryConnections` (1), `releaseSnapshots` (1–2), or `groupID` (1–4).
+    /// Decodes older files, which have no `repositoryConnections` (1), `releaseSnapshots` (1–2), `groupID` (1–4), or
+    /// `releaseSteps` (1–5).
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
@@ -389,6 +418,8 @@ extension BackupDocument.ProjectRecord {
             ?? []
         releaseSnapshots =
             try container.decodeIfPresent([BackupDocument.ReleaseSnapshotRecord].self, forKey: .releaseSnapshots) ?? []
+        releaseSteps =
+            try container.decodeIfPresent([BackupDocument.ReleaseStepRecord].self, forKey: .releaseSteps) ?? []
     }
 }
 
@@ -399,7 +430,9 @@ extension BackupDocument.ReleaseSnapshotRecord {
             version: snapshot.version, title: snapshot.title, releaseName: snapshot.releaseName,
             tagName: snapshot.tagName, targetCommitSHA: snapshot.targetCommitSHA, targetBranch: snapshot.targetBranch,
             isPrerelease: snapshot.isPrerelease, releaseNotesMarkdown: snapshot.releaseNotesMarkdown,
-            tasks: snapshot.tasks, changes: snapshot.changes, githubRepositoryID: snapshot.githubRepositoryID,
+            tasks: snapshot.tasks, changes: snapshot.changes,
+            checklist: snapshot.checklist.isEmpty ? nil : snapshot.checklist,
+            githubRepositoryID: snapshot.githubRepositoryID,
             repositoryFullName: snapshot.repositoryFullName, repositoryURL: snapshot.repositoryURL,
             snapshotCreatedAt: snapshot.snapshotCreatedAt, state: snapshot.state.rawValue,
             githubReleaseID: snapshot.githubReleaseID, githubReleaseURL: snapshot.githubReleaseURL,

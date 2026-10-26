@@ -114,6 +114,7 @@ struct ReleasePlanDetailView: View {
             ReleaseTargetSection(release: release)
             ReleaseTasksSection(release: release)
             ReleaseNotesEditor(release: release)
+            ReleaseChecklistSection(release: release)
             checkSection
         case .draftCreated:
             draftPanel
@@ -428,6 +429,13 @@ struct ReleaseTargetSection: View {
                         if release.connection != nil {
                             FactRow(label: "Branch") { branchPicker(plan) }
                             FactRow(label: "Commit") { commitPicker(plan) }
+                            if let suggestion = release.versionSuggestion {
+                                FactRow(label: "Version") {
+                                    VersionSuggestionRow(plan: plan, suggestion: suggestion) { version in
+                                        Task { await release.useVersion(version) }
+                                    }
+                                }
+                            }
                             FactRow(label: "Tag") { tagField(plan) }
                             FactRow(label: "Notes compare from") { basePicker(plan) }
                         }

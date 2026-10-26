@@ -13,6 +13,13 @@ public protocol ProjectRepository: Sendable {
     func deleteProject(id: UUID) async throws(PersistenceError)
 }
 
+public protocol ReleaseStepRepository: Sendable {
+    /// A project's release checklist, in order.
+    func steps(projectID: UUID) async throws(PersistenceError) -> [ReleaseStep]
+    /// Replaces the project's checklist in one transaction: steps not listed are deleted.
+    func replaceSteps(_ steps: [ReleaseStep], projectID: UUID) async throws(PersistenceError)
+}
+
 public protocol ProjectGroupRepository: Sendable {
     /// Every group, in sidebar order.
     func groups() async throws(PersistenceError) -> [ProjectGroup]
@@ -147,6 +154,7 @@ public struct ProjectBundle: Sendable, Equatable {
     public var releasePlans: [ReleasePlan]
     public var repositoryConnections: [RepositoryConnection]
     public var releaseSnapshots: [ReleaseSnapshot]
+    public var releaseSteps: [ReleaseStep]
 
     public init(
         project: Project,
@@ -154,7 +162,8 @@ public struct ProjectBundle: Sendable, Equatable {
         tasks: [ProjectTask],
         releasePlans: [ReleasePlan],
         repositoryConnections: [RepositoryConnection] = [],
-        releaseSnapshots: [ReleaseSnapshot] = []
+        releaseSnapshots: [ReleaseSnapshot] = [],
+        releaseSteps: [ReleaseStep] = []
     ) {
         self.project = project
         self.columns = columns
@@ -162,6 +171,7 @@ public struct ProjectBundle: Sendable, Equatable {
         self.releasePlans = releasePlans
         self.repositoryConnections = repositoryConnections
         self.releaseSnapshots = releaseSnapshots
+        self.releaseSteps = releaseSteps
     }
 }
 

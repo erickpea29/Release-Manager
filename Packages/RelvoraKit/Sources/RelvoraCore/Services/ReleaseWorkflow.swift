@@ -215,6 +215,7 @@ public struct ReleaseWorkflow: Sendable {
     private let snapshots: any ReleaseSnapshotRepository
     private let board: any BoardRepository
     private let connections: any RepositoryConnectionRepository
+    private let steps: any ReleaseStepRepository
     private let remote: any ReleaseRemote
     private let now: @Sendable () -> Date
     /// How long to wait for a just-published tag to be readable before verifying it.
@@ -225,6 +226,7 @@ public struct ReleaseWorkflow: Sendable {
         snapshots: any ReleaseSnapshotRepository,
         board: any BoardRepository,
         connections: any RepositoryConnectionRepository,
+        steps: any ReleaseStepRepository,
         remote: any ReleaseRemote,
         now: @escaping @Sendable () -> Date = { .now },
         tagWait: Duration = .seconds(1)
@@ -233,6 +235,7 @@ public struct ReleaseWorkflow: Sendable {
         self.snapshots = snapshots
         self.board = board
         self.connections = connections
+        self.steps = steps
         self.remote = remote
         self.now = now
         self.tagWait = tagWait
@@ -244,7 +247,8 @@ public struct ReleaseWorkflow: Sendable {
     public func check(_ plan: ReleasePlan) async throws -> ReleaseCheck {
         let tasks = try await board.tasks(projectID: plan.projectID)
         let connection = try await connection(of: plan)
-        var issues = ReleaseChecker.localIssues(plan: plan, tasks: tasks, connection: connection)
+        let steps = try await steps.steps(projectID: plan.projectID)
+        var issues = ReleaseChecker.localIssues(plan: plan, tasks: tasks, connection: connection, steps: steps)
         guard let connection else {
             return ReleaseCheck(issues: issues, repository: nil, publishedRelease: nil, checkedAt: now())
         }
@@ -291,6 +295,7 @@ public struct ReleaseWorkflow: Sendable {
             releaseNotesMarkdown: review.notes,
             tasks: try await frozenTasks(of: plan),
             changes: review.changes,
+            checklist: ReleaseChecklist.snapshot(try await steps.steps(projectID: plan.projectID), plan: plan),
             githubRepositoryID: repository.id,
             repositoryFullName: repository.fullName,
             repositoryURL: repository.htmlURL,
@@ -574,6 +579,7 @@ public struct ReleaseWorkflow: Sendable {
             releaseNotesMarkdown: release.body ?? "",
             tasks: try await frozenTasks(of: plan),
             changes: nil,
+            checklist: ReleaseChecklist.snapshot(try await steps.steps(projectID: plan.projectID), plan: plan),
             githubRepositoryID: repository.id,
             repositoryFullName: repository.fullName,
             repositoryURL: repository.htmlURL,

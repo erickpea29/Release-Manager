@@ -77,8 +77,48 @@ final class ReleaseModel {
 
     var localIssues: [ReleaseIssue] {
         guard let plan else { return [] }
-        return ReleaseChecker.localIssues(plan: plan, tasks: tasks, connection: connection)
-            .sorted { $0.severity < $1.severity }
+        return ReleaseChecker.localIssues(
+            plan: plan, tasks: tasks, connection: connection, steps: workspace.releaseSteps
+        )
+        .sorted { $0.severity < $1.severity }
+    }
+
+    /// The version the release's changes suggest, while the plan is being prepared: its completed tasks and, once
+    /// loaded, GitHub's changes since the compare base.
+    var versionSuggestion: VersionSuggestion? {
+        guard let plan, ReleasePlanRules.isEditable(plan) else { return nil }
+        if case .custom? = try? ReleaseVersion(parsing: plan.version) { return nil }
+        var options = changelogOptions
+        options.labelRules = ChangelogLabelRule.normalized(preferences.changelogLabelRules)
+        let input = ChangelogInput(tasks: tasks, changes: currentChanges, tagName: plan.tagName, repositoryURL: nil)
+        let released =
+            [effectiveBaseTag].compactMap(\.self)
+            + workspace.releasedVersions(cached: cachedSnapshot.map { [$0] } ?? [])
+        return VersionSuggester.suggest(
+            after: VersionSuggester.latestStable(released),
+            changes: ChangelogGenerator.entries(input, options: options).map(\.category))
+    }
+
+    /// Ticks or unticks a release checklist step. The last GitHub check no longer describes the plan, so it is
+    /// cleared and the current local findings show.
+    func setStep(_ stepID: UUID, done: Bool) async {
+        guard let plan else { return }
+        await workspace.setStep(stepID, done: done, on: plan)
+        check = nil
+    }
+
+    /// The project's checklist was edited: as for `setStep`, the last check is out of date.
+    func checklistDidChange() {
+        check = nil
+    }
+
+    /// Changes the plan's version, and its tag too when the tag simply followed the old version.
+    func useVersion(_ version: SemanticVersion) async {
+        await edit { plan in
+            let followedVersion = plan.tagName == nil || plan.tagName == plan.suggestedTagName
+            plan.version = version.description
+            if followedVersion { plan.tagName = plan.suggestedTagName }
+        }
     }
 
     /// The compare base the notes use: the plan's choice, else the latest release (as M03's sync chooses it).

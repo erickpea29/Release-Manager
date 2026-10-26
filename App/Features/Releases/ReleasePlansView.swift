@@ -144,6 +144,9 @@ private struct ReleasePlanDetailContainer: View {
 struct ReleasePlanEditorSheet: View {
     let request: PlanEditorRequest
     let model: WorkspaceModel
+    @Environment(AppModel.self) private var app
+    /// For a new plan: the next version, from what changed since the last release.
+    @State private var suggestion: VersionSuggestion?
 
     @Environment(\.dismiss) private var dismiss
     @State private var draft: ReleasePlan
@@ -186,6 +189,9 @@ struct ReleasePlanEditorSheet: View {
                     Text(versionHint.text)
                         .font(.caption)
                         .foregroundStyle(versionHint.isError ? .red : .secondary)
+                    if let suggestion {
+                        suggestionRow(suggestion)
+                    }
                     TextField("Title", text: optional(\.title), prompt: Text("Optional"))
                     Toggle("Planned date", isOn: $hasPlannedDate)
                     if hasPlannedDate {
@@ -218,7 +224,46 @@ struct ReleasePlanEditorSheet: View {
             }
         }
         .padding(Spacing.l)
-        .frame(width: 460, height: 470)
+        .frame(width: 460, height: suggestion == nil ? 470 : 540)
+        .onAppear(perform: suggestVersion)
+    }
+
+    /// A new plan starts with the suggested version; the others are one click away.
+    private func suggestVersion() {
+        guard case .new = request else { return }
+        let cached = model.connections.compactMap { app.github.snapshot(for: $0.githubRepositoryID) }
+        let suggested = model.suggestedNextVersion(cached: cached, labelRules: app.preferences.changelogLabelRules)
+        suggestion = suggested
+        if draft.version.isBlank { draft.version = suggested.version.description }
+    }
+
+    private func suggestionRow(_ suggestion: VersionSuggestion) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Text("Suggested: \(suggestion.version.description), for \(suggestion.reason).")
+                .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
+            if let note = suggestion.note {
+                Text(note).font(.caption).foregroundStyle(.secondary)
+            }
+            // A first release has only one version to suggest.
+            if suggestion.choices.count > 1 { versionChoices(suggestion) }
+        }
+    }
+
+    private func versionChoices(_ suggestion: VersionSuggestion) -> some View {
+        HStack(spacing: Spacing.xs) {
+            ForEach(suggestion.choices, id: \.version) { choice in
+                let title = "\(choice.bump.title) \(choice.version.description)"
+                if choice.version == suggestion.version {
+                    Button(title) { draft.version = choice.version.description }
+                        .buttonStyle(.borderedProminent)
+                } else {
+                    Button(title) { draft.version = choice.version.description }
+                        .buttonStyle(.bordered)
+                }
+            }
+        }
+        .controlSize(.small)
     }
 
     private func optional(_ keyPath: WritableKeyPath<ReleasePlan, String?>) -> Binding<String> {

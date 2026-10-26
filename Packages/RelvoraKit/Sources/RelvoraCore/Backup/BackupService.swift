@@ -24,6 +24,7 @@ public enum BackupValidator {
         var checklistIDs = Set<UUID>()
         var connectionIDs = Set<UUID>()
         var snapshotIDs = Set<UUID>()
+        var stepIDs = Set<UUID>()
 
         var groupIDs = Set<UUID>()
         var groupNames = Set<String>()
@@ -70,6 +71,15 @@ public enum BackupValidator {
             }
             guard activePlans <= 1 else {
                 throw .invalid("project “\(project.name)” has more than one active release plan.")
+            }
+
+            for step in project.releaseSteps {
+                guard stepIDs.insert(step.id).inserted else {
+                    throw .invalid("a release checklist step appears twice.")
+                }
+                let title = step.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !title.isEmpty, title.count <= ReleaseChecklist.maximumTitleLength, step.sortOrder.isFinite
+                else { throw .invalid("project “\(project.name)” has an invalid release checklist step.") }
             }
 
             var githubIDs = Set<Int64>()
