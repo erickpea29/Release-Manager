@@ -31,12 +31,18 @@ Safety copies are kept in Relvora's data folder:
 | Release history: every snapshot, exactly as recorded (format 3) | |
 | Settings: appearance, accent, window, columns for new projects, release-note label rules, GitHub refresh interval (format 4) | |
 | Project groups, their order, and each project's group (format 5) | |
+| Release checklists: each project's steps, the steps ticked on each plan, and each release's checklist as it was (format 6) | |
 
 ## File format
 
-Pretty-printed JSON with `"formatVersion": 5` (format 1–4 files from earlier versions still restore: format 1–3 files keep your current settings, and format 1–4 files restore with no groups), ISO 8601 dates (millisecond precision), and readable enum values (`"priority": "high"`). Files are stable across export → restore → export. Boards restored from a backup made before the Backlog tab lose their Backlog column the first time the project opens (its tasks move to To Do; [ADR 0012](decisions/0012-backlog-tab-and-version-board.md)).
+Pretty-printed JSON with `"formatVersion": 6`. Format 1–5 files from earlier versions still restore:
+- format 1–3 files keep your current settings;
+- format 1–4 files restore with no groups;
+- format 1–5 files restore with no release checklists.
 
-A newer app may write a higher `formatVersion`; older apps refuse such files instead of misreading them. For example, Relvora 0.1.0 can't restore a backup from 0.1.1, which has groups.
+Dates are ISO 8601 (millisecond precision), ISO 8601 dates (millisecond precision), and readable enum values (`"priority": "high"`). Files are stable across export → restore → export. Boards restored from a backup made before the Backlog tab lose their Backlog column the first time the project opens (its tasks move to To Do; [ADR 0012](decisions/0012-backlog-tab-and-version-board.md)).
+
+A newer app may write a higher `formatVersion`; older apps refuse such files instead of misreading them. For example, Relvora 0.1.0 can't restore a backup from 0.1.1, which has groups, and 0.1.1 can't restore one with release checklists.
 
 ## Recovery checklist
 

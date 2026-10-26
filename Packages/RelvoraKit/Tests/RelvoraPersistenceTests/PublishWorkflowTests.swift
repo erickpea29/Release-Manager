@@ -111,6 +111,32 @@ extension StoreTests {
             #expect(await fixture.remote.publishRequests.count == 2)
         }
 
+        @Test("The release checklist blocks the draft until every step is ticked, then is frozen with the release")
+        func checklist() async throws {
+            let fixture = try await WorkflowFixture()
+            let service = ReleaseChecklistService(steps: fixture.store.releaseSteps, plans: fixture.store.releasePlans)
+            let steps = try await service.save(
+                ["Test on a clean Mac", "Update screenshots"].map {
+                    ReleaseStep(projectID: fixture.project.id, title: $0, sortOrder: 0)
+                }, projectID: fixture.project.id)
+            await #expect(
+                throws: ReleaseWorkflowError.notReady("The release checklist isn’t done yet: tick its 2 steps first.")
+            ) {
+                try await fixture.workflow.createDraft(fixture.review)
+            }
+            #expect(await fixture.remote.createRequests.isEmpty)
+
+            var plan = try await fixture.currentPlan()
+            for step in steps { plan = try await service.setStep(step.id, done: true, on: plan) }
+            let snapshot = try await fixture.workflow.createDraft(fixture.review)
+            #expect(snapshot.checklist.map(\.title) == ["Test on a clean Mac", "Update screenshots"])
+            #expect(snapshot.checklist.allSatisfy { $0.isDone })
+
+            // Frozen: later checklist edits don't change the record.
+            _ = try await service.save([], projectID: fixture.project.id)
+            #expect(try await fixture.snapshots().first?.checklist == snapshot.checklist)
+        }
+
         @Test("A rejected publish leaves the draft as it was")
         func rejected() async throws {
             let fixture = try await WorkflowFixture()

@@ -55,6 +55,50 @@ struct ReleaseCheckTests {
         #expect(issues.contains { $0.kind == .incompleteTasks(count: 1) && $0.severity == .warning })
     }
 
+    @Test("Every step of the release checklist must be ticked before the draft")
+    func checklist() {
+        let steps = ["Test on a clean Mac", "Update screenshots", "Tell support"].enumerated().map {
+            ReleaseStep(projectID: projectID, title: $1, sortOrder: Double($0 + 1))
+        }
+        var plan = plan
+        let none = ReleaseChecker.localIssues(
+            plan: plan, tasks: [task(done: true)], connection: connection, steps: steps)
+        #expect(none.map(\.kind) == [.checklistIncomplete(remaining: 3, total: 3)])
+        #expect(none.first?.severity == .blocking)
+        #expect(none.first?.message == "The release checklist isn’t done yet: tick its 3 steps first.")
+
+        plan.completedStepIDs = [steps[0].id, steps[2].id, UUID()]  // a deleted step's tick is ignored
+        let one = ReleaseChecker.localIssues(
+            plan: plan, tasks: [task(done: true)], connection: connection, steps: steps)
+        #expect(one.first?.message == "1 of 3 release checklist steps isn’t done yet.")
+        #expect(ReleaseChecklist.remaining(steps, plan: plan) == [steps[1]])
+
+        plan.completedStepIDs.insert(steps[1].id)
+        #expect(
+            ReleaseChecker.localIssues(plan: plan, tasks: [task(done: true)], connection: connection, steps: steps)
+                .isEmpty)
+        #expect(ReleaseChecklist.snapshot(steps, plan: plan).allSatisfy { $0.isDone })
+    }
+
+    @Test("Saving a checklist trims titles, drops blank steps, renumbers, and keeps IDs")
+    func checklistValidation() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let kept = ReleaseStep(projectID: projectID, title: "Tell support", sortOrder: 7, createdAt: .distantPast)
+        let edited = [
+            ReleaseStep(projectID: projectID, title: "  Test on a clean Mac ", sortOrder: 0), kept,
+            ReleaseStep(projectID: projectID, title: "   ", sortOrder: 2),
+        ]
+        let saved = try ReleaseChecklist.validated(edited, projectID: projectID, now: now)
+        #expect(saved.map(\.title) == ["Test on a clean Mac", "Tell support"])
+        #expect(saved.map(\.sortOrder) == [1, 2])
+        #expect(saved[1].id == kept.id && saved[1].updatedAt == now)
+
+        let long = ReleaseStep(projectID: projectID, title: String(repeating: "x", count: 201), sortOrder: 1)
+        #expect(throws: ValidationError.titleTooLong(maximum: 200)) {
+            try ReleaseChecklist.validated([long], projectID: projectID, now: now)
+        }
+    }
+
     @Test("A tag that doesn't match the version is a warning")
     func tagVersionMismatch() {
         var plan = plan

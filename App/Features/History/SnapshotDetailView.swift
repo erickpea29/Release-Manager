@@ -15,6 +15,7 @@ struct SnapshotDetailView: View {
             facts
             notes
             if !snapshot.tasks.isEmpty { tasks }
+            if !snapshot.checklist.isEmpty { checklist }
             if let pullRequests = snapshot.changes?.pullRequests, !pullRequests.isEmpty {
                 pullRequestList(pullRequests)
             }
@@ -160,6 +161,29 @@ struct SnapshotDetailView: View {
                 .accessibilityElement(children: .combine)
             }
         }
+        .panel()
+    }
+
+    private var checklist: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            let done = snapshot.checklist.count(where: \.isDone)
+            Text("Release Checklist").font(.headline)
+            Text(
+                "\(done) of \(snapshot.checklist.count) ticked for this release. Later checklist edits don’t change it."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            ForEach(Array(snapshot.checklist.enumerated()), id: \.offset) { _, step in
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
+                    Image(systemName: step.isDone ? "checkmark.square.fill" : "square")
+                        .foregroundStyle(step.isDone ? .green : .secondary)
+                        .accessibilityLabel(step.isDone ? "Done" : "Not done")
+                    Text(step.title)
+                }
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .panel()
     }
 

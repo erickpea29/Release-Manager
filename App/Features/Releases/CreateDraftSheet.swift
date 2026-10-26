@@ -45,6 +45,15 @@ struct CreateDraftSheet: View {
                 if let branch = review.targetBranch { FactRow(label: "Branch") { Text(branch) } }
                 FactRow(label: "Title") { Text(review.releaseName) }
                 FactRow(label: "Pre-release") { Text(review.isPrerelease ? "Yes" : "No") }
+                if !release.workspace.releaseSteps.isEmpty {
+                    FactRow(label: "Checklist") {
+                        Label(
+                            "All \(release.workspace.releaseSteps.count) steps done",
+                            systemImage: "checkmark.square.fill"
+                        )
+                        .foregroundStyle(.green)
+                    }
+                }
             }
             .font(.callout)
 

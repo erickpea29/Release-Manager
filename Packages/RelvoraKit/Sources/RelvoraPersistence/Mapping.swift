@@ -118,8 +118,26 @@ extension ReleasePlan {
             changelogMarkdown: entity.changelogMarkdown,
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
-            releasedAt: entity.releasedAt
+            releasedAt: entity.releasedAt,
+            completedStepIDs: Set((entity.completedStepIDs ?? []).compactMap(UUID.init(uuidString:)))
         )
+    }
+}
+
+extension ReleaseStep {
+    init?(_ entity: ReleaseStepEntity) {
+        guard let projectID = entity.project?.id else { return nil }
+        self.init(
+            id: entity.id, projectID: projectID, title: entity.title, sortOrder: entity.sortOrder,
+            createdAt: entity.createdAt, updatedAt: entity.updatedAt)
+    }
+}
+
+extension ReleaseStepEntity {
+    func apply(_ step: ReleaseStep) {
+        title = step.title
+        sortOrder = step.sortOrder
+        updatedAt = step.updatedAt
     }
 }
 
@@ -167,6 +185,7 @@ extension ReleasePlanEntity {
         compareBaseTag = plan.compareBaseTag
         plannedDate = plan.plannedDate
         changelogMarkdown = plan.changelogMarkdown
+        completedStepIDs = plan.completedStepIDs.isEmpty ? nil : plan.completedStepIDs.map(\.uuidString).sorted()
         updatedAt = plan.updatedAt
         releasedAt = plan.releasedAt
     }
@@ -176,10 +195,15 @@ extension ReleasePlanEntity {
 struct SnapshotPayload: Codable {
     var tasks: [TaskSnapshot]
     var changes: ReleaseChangeSummary?
+    /// Absent in snapshots from before release checklists.
+    var checklist: [ReleaseStepSnapshot]?
 
     static func encode(_ snapshot: ReleaseSnapshot) -> Data {
+        let payload = SnapshotPayload(
+            tasks: snapshot.tasks, changes: snapshot.changes,
+            checklist: snapshot.checklist.isEmpty ? nil : snapshot.checklist)
         // Encoding plain Codable values with no custom code cannot fail.
-        (try? JSONEncoder().encode(SnapshotPayload(tasks: snapshot.tasks, changes: snapshot.changes))) ?? Data()
+        return (try? JSONEncoder().encode(payload)) ?? Data()
     }
 }
 
@@ -194,7 +218,7 @@ extension ReleaseSnapshot {
             payload = try JSONDecoder().decode(SnapshotPayload.self, from: entity.contentPayload)
         } catch {
             Log.persistence.error("Unreadable snapshot payload: \(String(describing: error), privacy: .private)")
-            payload = SnapshotPayload(tasks: [], changes: nil)
+            payload = SnapshotPayload(tasks: [], changes: nil, checklist: nil)
         }
         self.init(
             id: entity.id,
@@ -211,6 +235,7 @@ extension ReleaseSnapshot {
             releaseNotesMarkdown: entity.releaseNotesMarkdown,
             tasks: payload.tasks,
             changes: payload.changes,
+            checklist: payload.checklist ?? [],
             githubRepositoryID: entity.githubRepositoryID,
             repositoryFullName: entity.repositoryFullName,
             repositoryURL: repositoryURL,

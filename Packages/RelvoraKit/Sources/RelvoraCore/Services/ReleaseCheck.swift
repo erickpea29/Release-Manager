@@ -27,6 +27,8 @@ public struct ReleaseIssue: Sendable, Hashable, Identifiable {
         case notesTooLong
         case emptyNotes
         case incompleteTasks(count: Int)
+        /// Steps of the project's release checklist that aren't ticked on this plan.
+        case checklistIncomplete(remaining: Int, total: Int)
         case noTasks
         case versionNotNewer(latest: String)
         case tagDoesNotMatchVersion(tag: String, version: String)
@@ -44,7 +46,7 @@ public struct ReleaseIssue: Sendable, Hashable, Identifiable {
     public var severity: Severity {
         switch kind {
         case .noRepository, .repositoryDisconnected, .noTargetCommit, .noTag, .invalidTag, .tagExists,
-            .releasePublished, .draftExists, .notesTooLong:
+            .releasePublished, .draftExists, .notesTooLong, .checklistIncomplete:
             .blocking
         case .emptyNotes, .incompleteTasks, .versionNotNewer, .tagDoesNotMatchVersion, .releaseListIncomplete:
             .warning
@@ -70,6 +72,10 @@ public struct ReleaseIssue: Sendable, Hashable, Identifiable {
         case .emptyNotes: "The release notes are empty."
         case .incompleteTasks(let count):
             "\(count) \(count == 1 ? "task in this release isn’t" : "tasks in this release aren’t") complete. They stay on the board unchanged."
+        case .checklistIncomplete(let remaining, let total):
+            remaining == total
+                ? "The release checklist isn’t done yet: tick its \(total == 1 ? "step" : "\(total) steps") first."
+                : "\(remaining) of \(total) release checklist steps \(remaining == 1 ? "isn’t" : "aren’t") done yet."
         case .noTasks: "No tasks are assigned to this release."
         case .versionNotNewer(let latest): "The latest published release, \(latest), isn’t older than this version."
         case .tagDoesNotMatchVersion(let tag, let version): "The tag \(tag) doesn’t match version \(version)."
@@ -111,9 +117,9 @@ public struct ReleaseCheck: Sendable, Equatable {
 
 /// The pre-draft rules, as pure functions.
 public enum ReleaseChecker {
-    /// Findings that need no network: target, tag, notes, and tasks.
+    /// Findings that need no network: target, tag, notes, tasks, and the project's release checklist.
     public static func localIssues(
-        plan: ReleasePlan, tasks: [ProjectTask], connection: RepositoryConnection?
+        plan: ReleasePlan, tasks: [ProjectTask], connection: RepositoryConnection?, steps: [ReleaseStep] = []
     ) -> [ReleaseIssue] {
         var issues: [ReleaseIssue] = []
         if plan.repositoryConnectionID == nil {
@@ -142,6 +148,8 @@ public enum ReleaseChecker {
         } else if open > 0 {
             issues.append(.init(.incompleteTasks(count: open)))
         }
+        let remaining = ReleaseChecklist.remaining(steps, plan: plan).count
+        if remaining > 0 { issues.append(.init(.checklistIncomplete(remaining: remaining, total: steps.count))) }
         return issues
     }
 

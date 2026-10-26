@@ -48,6 +48,8 @@ final class WorkspaceModel {
     private(set) var connections: [RepositoryConnection] = []
     /// This project's release snapshots, oldest first.
     private(set) var snapshots: [ReleaseSnapshot] = []
+    /// The project's release checklist, in order.
+    private(set) var releaseSteps: [ReleaseStep] = []
     private(set) var loadState = LoadState.loading
     var filter = TaskFilter()
     /// The board's keyboard selection.
@@ -60,6 +62,7 @@ final class WorkspaceModel {
     private let plans: ReleasePlanService
     private let connectionService: RepositoryConnectionService
     private let snapshotRepository: any ReleaseSnapshotRepository
+    private let checklist: ReleaseChecklistService
     /// The workflow for release drafts; `nil` when this build has no GitHub App.
     let workflow: ReleaseWorkflow?
     /// Plan edits run one after another, each on the latest copy, so concurrent edits never overwrite each other.
@@ -73,6 +76,7 @@ final class WorkspaceModel {
         self.plans = environment.releasePlans
         self.connectionService = environment.repositoryConnections
         self.snapshotRepository = environment.store.releaseSnapshots
+        self.checklist = environment.checklist
         self.workflow = environment.releaseWorkflow
         self.didChange = didChange
     }
@@ -161,6 +165,7 @@ final class WorkspaceModel {
             releasePlans = try await plans.plans(projectID: projectID)
             connections = try await connectionService.connections(projectID: projectID)
             snapshots = try await snapshotRepository.snapshots(projectID: projectID)
+            releaseSteps = try await checklist.steps(projectID: projectID)
             loadState = .loaded
         } catch {
             loadState = .failed(AppAlert.message(for: error))
@@ -351,6 +356,53 @@ final class WorkspaceModel {
     func deletePlan(_ plan: ReleasePlan) async {
         await performPlans("Couldn’t delete the plan") { try await self.plans.delete(plan) }
         state = (try? await board.load(projectID: projectID)) ?? state
+    }
+
+    // MARK: Release checklist
+
+    /// Throws so the editor can show validation messages inline.
+    func saveReleaseSteps(_ steps: [ReleaseStep]) async throws {
+        releaseSteps = try await checklist.save(steps, projectID: projectID)
+    }
+
+    /// Another project's checklist, to copy steps from.
+    func releaseSteps(ofProject id: UUID) async -> [ReleaseStep] {
+        (try? await checklist.steps(projectID: id)) ?? []
+    }
+
+    func setStep(_ stepID: UUID, done: Bool, on plan: ReleasePlan) async {
+        do {
+            try await updatePlan(plan.id) { plan in
+                if done { plan.completedStepIDs.insert(stepID) } else { plan.completedStepIDs.remove(stepID) }
+            }
+        } catch {
+            alert = AppAlert(title: "Couldn’t update the checklist", error: error)
+        }
+    }
+
+    // MARK: Version suggestion
+
+    /// Versions this project released: published plans and snapshots, and published releases in `cached` GitHub data.
+    func releasedVersions(cached: [RepositorySnapshot]) -> [String] {
+        releasePlans.filter { $0.status == .published }.map(\.version)
+            + snapshots.filter { $0.state == .published }.map(\.effectiveTagName)
+            + cached.flatMap { $0.releases.filter { !$0.isDraft }.map(\.tagName) }
+    }
+
+    /// The version to suggest for a new plan, from the last release, the finished tasks not yet released, and the
+    /// unreleased changes in `cached` GitHub data.
+    func suggestedNextVersion(cached: [RepositorySnapshot], labelRules: [ChangelogLabelRule]) -> VersionSuggestion {
+        let rules = ChangelogLabelRule.normalized(labelRules)
+        var changes = ChangelogGenerator.entries(
+            ChangelogInput(tasks: doneOutsideVersion, changes: nil, tagName: nil, repositoryURL: nil),
+            options: ChangelogOptions(includePullRequests: false, includeCommits: false, labelRules: rules))
+        for snapshot in cached {
+            changes += ChangelogGenerator.entries(
+                ChangelogInput(tasks: [], changes: snapshot.unreleased, tagName: nil, repositoryURL: nil),
+                options: ChangelogOptions(includeTasks: false, labelRules: rules))
+        }
+        return VersionSuggester.suggest(
+            after: VersionSuggester.latestStable(releasedVersions(cached: cached)), changes: changes.map(\.category))
     }
 
     // MARK: Repository connections

@@ -51,6 +51,8 @@ public struct ReleasePlan: Sendable, Hashable, Identifiable {
     public let createdAt: Date
     public var updatedAt: Date
     public var releasedAt: Date?
+    /// The project's release checklist steps ticked for this plan (`ReleaseStep`). IDs of deleted steps are ignored.
+    public var completedStepIDs: Set<UUID>
 
     public init(
         id: UUID = UUID(),
@@ -68,7 +70,8 @@ public struct ReleasePlan: Sendable, Hashable, Identifiable {
         changelogMarkdown: String = "",
         createdAt: Date = .now,
         updatedAt: Date? = nil,
-        releasedAt: Date? = nil
+        releasedAt: Date? = nil,
+        completedStepIDs: Set<UUID> = []
     ) {
         self.id = id
         self.projectID = projectID
@@ -86,6 +89,64 @@ public struct ReleasePlan: Sendable, Hashable, Identifiable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
         self.releasedAt = releasedAt
+        self.completedStepIDs = completedStepIDs
+    }
+}
+
+/// One step of a project's release checklist, such as "Test on a clean Mac". Every step must be ticked on a release
+/// plan before its draft is created; the ticks are kept with the release.
+public struct ReleaseStep: Sendable, Hashable, Identifiable, Codable {
+    public let id: UUID
+    public let projectID: UUID
+    public var title: String
+    public var sortOrder: Double
+    public let createdAt: Date
+    public var updatedAt: Date
+
+    public init(
+        id: UUID = UUID(), projectID: UUID, title: String, sortOrder: Double, createdAt: Date = .now,
+        updatedAt: Date? = nil
+    ) {
+        self.id = id
+        self.projectID = projectID
+        self.title = title
+        self.sortOrder = sortOrder
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt ?? createdAt
+    }
+}
+
+public enum ReleaseChecklist {
+    public static let maximumTitleLength = 200
+
+    /// Steps not yet ticked on the plan, in checklist order.
+    public static func remaining(_ steps: [ReleaseStep], plan: ReleasePlan) -> [ReleaseStep] {
+        steps.filter { !plan.completedStepIDs.contains($0.id) }
+    }
+
+    /// The edited checklist ready to save: trimmed titles, blank steps dropped, positions renumbered 1, 2, 3 in the
+    /// given order. Existing steps keep their IDs, so plans keep their ticks.
+    public static func validated(_ steps: [ReleaseStep], projectID: UUID, now: Date) throws(ValidationError)
+        -> [ReleaseStep]
+    {
+        var result: [ReleaseStep] = []
+        for step in steps {
+            let title = step.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !title.isEmpty else { continue }
+            guard title.count <= maximumTitleLength else { throw .titleTooLong(maximum: maximumTitleLength) }
+            let order = Double(result.count + 1)
+            let changed = step.title != title || step.sortOrder != order || step.projectID != projectID
+            result.append(
+                ReleaseStep(
+                    id: step.id, projectID: projectID, title: title, sortOrder: order, createdAt: step.createdAt,
+                    updatedAt: changed ? now : step.updatedAt))
+        }
+        return result
+    }
+
+    /// The checklist as it stands on the plan, for the release record.
+    public static func snapshot(_ steps: [ReleaseStep], plan: ReleasePlan) -> [ReleaseStepSnapshot] {
+        steps.map { ReleaseStepSnapshot(title: $0.title, isDone: plan.completedStepIDs.contains($0.id)) }
     }
 }
 

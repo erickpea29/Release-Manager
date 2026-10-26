@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// Schema version 4 (0.1.1): adds project groups.
-/// Frozen once released; every later change adds a new `VersionedSchema` and a migration stage.
+/// Frozen: shipped in 0.1.1. Never edit; migrations read old stores through these definitions.
 enum RelvoraSchemaV4: VersionedSchema {
     static var versionIdentifier: Schema.Version { Schema.Version(4, 0, 0) }
     static var models: [any PersistentModel.Type] {

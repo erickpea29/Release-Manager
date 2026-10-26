@@ -321,6 +321,8 @@
         case publish
         /// The tag moved before publication: the publish confirmation shows why it can't go ahead.
         case publishBlocked
+        /// `prepare`, with a three-step release checklist, one step ticked.
+        case checklist
 
         @MainActor private static var hasRun = false
 
@@ -340,8 +342,16 @@
             }
             await release.setTargetCommit(latest)
             if let notes = await release.generatedNotes() { release.notesText = notes }
+            if self == .checklist {
+                let titles = ["Test on a clean Mac", "Update the screenshots", "Tell support what changed"]
+                try? await release.workspace.saveReleaseSteps(
+                    titles.map { ReleaseStep(projectID: release.workspace.projectID, title: $0, sortOrder: 0) })
+                if let plan = release.plan, let first = release.workspace.releaseSteps.first {
+                    await release.workspace.setStep(first.id, done: true, on: plan)
+                }
+            }
             await release.runCheck()
-            guard self != .prepare else { return }
+            guard self != .prepare, self != .checklist else { return }
             await release.beginReview()
             guard self != .review, var review = release.review else { return }
             release.review = nil

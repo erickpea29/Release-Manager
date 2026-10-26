@@ -61,6 +61,17 @@ public struct TaskSnapshot: Sendable, Hashable, Codable, Identifiable {
     }
 }
 
+/// A release checklist step as it was when the release snapshot was taken.
+public struct ReleaseStepSnapshot: Sendable, Hashable, Codable {
+    public let title: String
+    public let isDone: Bool
+
+    public init(title: String, isDone: Bool) {
+        self.title = title
+        self.isDone = isDone
+    }
+}
+
 /// The GitHub changes a release was prepared from.
 public struct ReleaseChangeSummary: Sendable, Hashable, Codable {
     public let baseTag: String?
@@ -108,6 +119,8 @@ public struct ReleaseSnapshot: Sendable, Hashable, Identifiable {
     public let releaseNotesMarkdown: String
     public let tasks: [TaskSnapshot]
     public let changes: ReleaseChangeSummary?
+    /// The project's release checklist with this release's ticks. Empty for releases from before checklists.
+    public let checklist: [ReleaseStepSnapshot]
     public let githubRepositoryID: Int64
     /// `owner/name` when the snapshot was taken.
     public let repositoryFullName: String
@@ -142,6 +155,7 @@ public struct ReleaseSnapshot: Sendable, Hashable, Identifiable {
         releaseNotesMarkdown: String,
         tasks: [TaskSnapshot],
         changes: ReleaseChangeSummary?,
+        checklist: [ReleaseStepSnapshot] = [],
         githubRepositoryID: Int64,
         repositoryFullName: String,
         repositoryURL: URL,
@@ -169,6 +183,7 @@ public struct ReleaseSnapshot: Sendable, Hashable, Identifiable {
         self.releaseNotesMarkdown = releaseNotesMarkdown
         self.tasks = tasks
         self.changes = changes
+        self.checklist = checklist
         self.githubRepositoryID = githubRepositoryID
         self.repositoryFullName = repositoryFullName
         self.repositoryURL = repositoryURL

@@ -13,6 +13,9 @@ struct AppEnvironment: Sendable {
     var groups: ProjectGroupService { ProjectGroupService(repository: store.groups) }
     var board: BoardService { BoardService(repository: store.board) }
     var releasePlans: ReleasePlanService { ReleasePlanService(repository: store.releasePlans) }
+    var checklist: ReleaseChecklistService {
+        ReleaseChecklistService(steps: store.releaseSteps, plans: store.releasePlans)
+    }
     var backups: BackupService { BackupService(repository: store.backups) }
     var repositoryConnections: RepositoryConnectionService {
         RepositoryConnectionService(repository: store.repositoryConnections)
@@ -23,7 +26,7 @@ struct AppEnvironment: Sendable {
         github.map {
             ReleaseWorkflow(
                 plans: store.releasePlans, snapshots: store.releaseSnapshots, board: store.board,
-                connections: store.repositoryConnections, remote: $0.releases)
+                connections: store.repositoryConnections, steps: store.releaseSteps, remote: $0.releases)
         }
     }
 }
@@ -38,6 +41,8 @@ struct LaunchOptions {
     /// Selects `dashboard` or `history` at launch, unless a project is selected.
     var initialView: String?
     var initialTab: String?
+    /// Opens the New Release Plan sheet in the initial project (UI checks of the version suggestion).
+    var openNewReleasePlan = false
     /// Starts the GitHub device flow at launch (UI checks of the sign-in).
     var startGitHubConnect = false
     /// Connects this repository (`owner/name`) to the initial project once signed in.
@@ -58,6 +63,7 @@ struct LaunchOptions {
             options.initialProjectName = defaults.string(forKey: "RelvoraInitialProject")
             options.initialView = defaults.string(forKey: "RelvoraInitialView")
             options.initialTab = defaults.string(forKey: "RelvoraInitialTab")
+            options.openNewReleasePlan = defaults.bool(forKey: "RelvoraNewReleasePlan")
             options.startGitHubConnect = defaults.bool(forKey: "RelvoraStartGitHubConnect")
             options.connectRepository = defaults.string(forKey: "RelvoraConnectRepository")
             options.demoGitHub = defaults.bool(forKey: "RelvoraDemoGitHub")

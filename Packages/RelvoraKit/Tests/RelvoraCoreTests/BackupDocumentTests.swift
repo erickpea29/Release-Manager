@@ -20,7 +20,7 @@ struct BackupDocumentTests {
         let document = BackupDocument(bundles: [sampleBundle()], exportedAt: .now, appVersion: "0.2.0")
         let data = try document.encoded()
         let text = String(decoding: data, as: UTF8.self)
-        #expect(text.contains("\"formatVersion\" : 5"))
+        #expect(text.contains("\"formatVersion\" : 6"))
         #expect(text.contains("\"priority\" : \"medium\""))
         #expect(text.contains(".123Z"))
 
@@ -96,10 +96,39 @@ struct BackupDocumentTests {
         }
     }
 
+    @Test("Release checklists and their ticks travel in format 6; older files restore without them")
+    func checklists() throws {
+        var bundle = sampleBundle()
+        let step = ReleaseStep(
+            projectID: bundle.project.id, title: "Test on a clean Mac", sortOrder: 1,
+            createdAt: Date(timeIntervalSince1970: 1_772_355_600))
+        bundle.releaseSteps = [step]
+        bundle.releasePlans[0].completedStepIDs = [step.id]
+        let document = BackupDocument(bundles: [bundle], exportedAt: .now, appVersion: nil)
+        try BackupValidator.validate(document)
+
+        let restored = try #require(try BackupDocument.decode(try document.encoded()).bundles().first)
+        #expect(restored.releaseSteps == [step])
+        #expect(restored.releasePlans.first?.completedStepIDs == [step.id])
+
+        let formatFive =
+            #"{"formatVersion": 5, "exportedAt": "2026-03-15T08:00:00Z", "projects": [{"id": "\#(UUID())", "#
+            + #""name": "App", "createdAt": "2026-03-15T08:00:00Z", "updatedAt": "2026-03-15T08:00:00Z", "#
+            + #""columns": [], "tasks": [], "releasePlans": []}]}"#
+        #expect(try BackupDocument.decode(Data(formatFive.utf8)).projects.first?.releaseSteps == [])
+
+        var duplicate = document
+        duplicate.projects[0].releaseSteps.append(duplicate.projects[0].releaseSteps[0])
+        #expect(throws: BackupError.self) { try BackupValidator.validate(duplicate) }
+        var blank = document
+        blank.projects[0].releaseSteps[0].title = "  "
+        #expect(throws: BackupError.self) { try BackupValidator.validate(blank) }
+    }
+
     @Test("Newer formats and non-backup files are rejected with specific errors")
     func rejection() {
-        #expect(throws: BackupError.unsupportedFormatVersion(found: 6, supported: 5)) {
-            try BackupDocument.decode(Data(#"{"formatVersion": 6}"#.utf8))
+        #expect(throws: BackupError.unsupportedFormatVersion(found: 7, supported: 6)) {
+            try BackupDocument.decode(Data(#"{"formatVersion": 7}"#.utf8))
         }
         #expect(throws: BackupError.self) { try BackupDocument.decode(Data("not json".utf8)) }
         #expect(throws: BackupError.self) { try BackupDocument.decode(Data(#"{"formatVersion": 1}"#.utf8)) }

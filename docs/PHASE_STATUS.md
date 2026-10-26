@@ -9,7 +9,10 @@
 | M04 — Release Workflow and History | **Complete**: merged in PR #5, fix in PR #6 ([report](M04_RELEASE_WORKFLOW.md)) |
 | M05 — Design Polish and Distribution | **Complete**: merged in PR #8 ([report](M05_DESIGN_POLISH_AND_DISTRIBUTION.md)) |
 | First-release polish | **Complete**: merged in PR #9 ([report](FIRST_RELEASE_POLISH.md)) |
-| 0.1.1 — Project groups, publishing from Relvora | **In review** ([ADR 0014](decisions/0014-project-groups.md), [ADR 0015](decisions/0015-publish-from-relvora.md)) |
+| 0.1.1 — Project groups, publishing from Relvora | **Complete**: merged in PR #10, released as v0.1.1 ([ADR 0014](decisions/0014-project-groups.md), [ADR 0015](decisions/0015-publish-from-relvora.md)) |
+| Next release — version suggestion, release checklist | **In progress** ([ADR 0016](decisions/0016-version-suggestion-and-release-checklist.md)) |
+
+The feature ideas are in [ROADMAP.md](ROADMAP.md).
 
 ## M00 checklist
 
@@ -116,5 +119,14 @@
 - [x] Package tests: 161 (21 new)
 - [x] Migration checked on a copy of an M04 test store opened by the new build
 - [x] UI tests: 18 pass locally, two new (groups: create, drag, Move to Group, delete; publishing from Relvora). They caught ⌥⌘N never firing (⌥N is a dead key), so New Group is ⌃⌘N
+- [x] CI on PR #10 (lint, 161 package tests, build, 18 UI tests)
+- [x] Owner: release v0.1.1 from Relvora (published 2026-10-23; release run 40021984629 attached the notarized app)
+
+## Next release checklist
+
+- [x] Version suggestion: rules from the release-note sections, on New Release Plan and on a plan being prepared
+- [x] Release checklist per project: blocks the draft until ticked, frozen with the release; schema V5 (V4 fixture from 0.1.1), backup format 6
+- [x] Package tests: 172 (11 new)
+- [x] UI tests: 20 pass locally, two new (the checklist blocks the draft until ticked; a new plan starts with the suggested version). They caught the check results not refreshing after a checklist change
 - [ ] CI on the PR
-- [ ] Owner: release v0.1.1 from Relvora
+- [ ] Owner: release it from Relvora

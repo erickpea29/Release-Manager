@@ -128,6 +128,9 @@ struct ProjectWorkspaceView: View {
             {
                 _ = try? await model.connect(remote)
             }
+            if app.options.openNewReleasePlan, app.options.initialProjectName == project.name {
+                model.planEditor = .new
+            }
         #endif
     }
 }

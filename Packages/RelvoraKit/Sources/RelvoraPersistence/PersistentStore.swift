@@ -12,6 +12,7 @@ public struct PersistentStore: Sendable {
     public let backups: any BackupRepository
     public let repositoryConnections: any RepositoryConnectionRepository
     public let releaseSnapshots: any ReleaseSnapshotRepository
+    public let releaseSteps: any ReleaseStepRepository
 
     /// `~/Library/Containers/<bundle id>/Data/Library/Application Support/Relvora/<name>.store` when sandboxed.
     public static func defaultURL(name: String = "Relvora") -> URL {
@@ -51,7 +52,7 @@ public struct PersistentStore: Sendable {
         let repository = SwiftDataRepository(modelContainer: container)
         return PersistentStore(
             projects: repository, groups: repository, board: repository, releasePlans: repository, backups: repository,
-            repositoryConnections: repository, releaseSnapshots: repository)
+            repositoryConnections: repository, releaseSnapshots: repository, releaseSteps: repository)
     }
 
     private static func unavailable(_ error: any Error) -> PersistenceError {
