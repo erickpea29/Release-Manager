@@ -15,13 +15,13 @@ A native macOS app for one developer managing several software projects: plan re
 | Area | Capabilities |
 |---|---|
 | Projects | Create, edit, archive, search. Show current version, next planned version, progress, connected repositories, recent release activity. Group projects, for example by company, in collapsible sidebar sections ([ADR 0014](decisions/0014-project-groups.md)) |
-| Release plans | Version string (semver, prerelease, or custom), optional title and description, planned date, target branch and commit. **One active plan per project** |
+| Release plans | Version string (semver, prerelease, or custom), optional title and description, planned date, target branch and commit. **One active plan per project**. The next version is suggested from the changes since the last release ([ADR 0016](decisions/0016-version-suggestion-and-release-checklist.md)) |
 | Backlog | Every unfinished task outside the version being planned, listed below that version's tasks (like a sprint above its backlog). Tasks move between them with a button, drag and drop, or the context menu ([ADR 0012](decisions/0012-backlog-tab-and-version-board.md)) |
 | Kanban (Board) | The tasks of the version being planned. Per-project configurable columns (defaults: To Do, In Progress, Review, Done; “Backlog” is reserved for the tab), drag-and-drop with persistent order, one completion column |
 | Tasks | Title, notes (Markdown), priority, type (feature, improvement, bug fix, documentation, maintenance, other), labels, basic checklist, optional release plan |
 | GitHub | Connect/disconnect, list repositories where the app is installed, associate one or more with a project, browse releases/tags/commits/merged PRs, show sync time and cached vs. fresh state, refresh the open repository automatically (every 5 minutes by default, Settings › GitHub), open items in the browser |
 | Changelog | Deterministic generation from commits and PRs between the previous tag and the target commit, grouped by category/label; edit; export Markdown; flag missing data |
-| Release | Validate tag and target SHA, confirm, create a **GitHub draft**, open it on GitHub, **publish it from Relvora** after a second confirmation (or on GitHub), verify publication, store an immutable snapshot |
+| Release | A per-project **release checklist** whose steps must all be ticked before the draft. Validate tag and target SHA, confirm, create a **GitHub draft**, open it on GitHub, **publish it from Relvora** after a second confirmation (or on GitHub), verify publication, store an immutable snapshot |
 | History | Browse snapshots with links to GitHub |
 | Appearance | System/light/dark, accent color, optional translucent window with opaque fallback |
 | Data | Local export, backup, and restore |

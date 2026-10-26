@@ -2,7 +2,7 @@
 
 A native, local-first macOS app for planning software releases: projects (grouped, for example by company), Kanban boards, GitHub release data, changelogs, GitHub draft releases, and an immutable release history.
 
-**Status:** M00–M05 complete, plus first-release polish ([report](docs/FIRST_RELEASE_POLISH.md)); v0.1.0 released. 0.1.1 adds project groups ([ADR 0014](docs/decisions/0014-project-groups.md)) and publishing releases from Relvora ([ADR 0015](docs/decisions/0015-publish-from-relvora.md)). Notarized release builds are set up. Install and build: [docs/INSTALLATION.md](docs/INSTALLATION.md). See [docs/PHASE_STATUS.md](docs/PHASE_STATUS.md).
+**Status:** M00–M05 complete, plus first-release polish ([report](docs/FIRST_RELEASE_POLISH.md)); v0.1.0 and v0.1.1 released. v0.1.1 added project groups ([ADR 0014](docs/decisions/0014-project-groups.md)) and publishing releases from Relvora ([ADR 0015](docs/decisions/0015-publish-from-relvora.md)). Ideas for what comes next: [docs/ROADMAP.md](docs/ROADMAP.md). Notarized release builds are set up. Install and build: [docs/INSTALLATION.md](docs/INSTALLATION.md). See [docs/PHASE_STATUS.md](docs/PHASE_STATUS.md).
 
 ## Requirements
 
@@ -45,7 +45,8 @@ Team-signed builds use bundle ID `com.erickpea29.Relvora.dev`. The two never sha
 | `-RelvoraStartGitHubConnect YES` | Starts the GitHub sign-in at launch |
 | `-RelvoraConnectRepository owner/name` | Connects that repository to the initial project once signed in |
 | `-RelvoraDemoGitHub YES` | Uses an in-memory fake GitHub (`relvora-demo/relvora`) instead of github.com; **Demo GitHub › Publish Drafts** publishes its drafts |
-| `-RelvoraDemoScenario <name>` | Steps the first release plan through the workflow: `prepare`, `review`, `draft`, `published`, `mismatch`, `timeout`, `history`, `publish` (the publish confirmation), `publishBlocked` (a tag at another commit) |
+| `-RelvoraDemoScenario <name>` | Steps the first release plan through the workflow: `prepare`, `review`, `draft`, `published`, `mismatch`, `timeout`, `history`, `publish` (the publish confirmation), `publishBlocked` (a tag at another commit), `checklist` (`prepare` with a release checklist) |
+| `-RelvoraNewReleasePlan YES` | Opens the New Release Plan sheet in the initial project (the version suggestion) |
 | `-RelvoraDemoGitHubOffline YES` | Starts the demo GitHub offline (**Demo GitHub › Go Offline / Go Online** switch it at run time) |
 | `-RelvoraDefaultsSuite <name>` | Keeps settings in that suite, emptied at launch (UI tests use it so they never change real settings) |
 

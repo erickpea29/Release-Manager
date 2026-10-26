@@ -1,6 +1,6 @@
 # Data Model
 
-Status: **schema V4 implemented** — V1 (M01: Project, BoardColumn, ProjectTask, ChecklistItem, ReleasePlan) + V2 (M03: RepositoryConnection) + V3 (M04: ReleaseSnapshot, plan repository/tag/compare base) + V4 (0.1.1: ProjectGroup). Changes from the plan's suggested fields are marked **Δ** and trace to [PRODUCT_SPEC §6](PRODUCT_SPEC.md#6-open-questions-and-plan-gaps).
+Status: **schema V5 implemented** — V1 (M01: Project, BoardColumn, ProjectTask, ChecklistItem, ReleasePlan) + V2 (M03: RepositoryConnection) + V3 (M04: ReleaseSnapshot, plan repository/tag/compare base) + V4 (0.1.1: ProjectGroup) + V5 (ReleaseStep, plan checklist ticks). Changes from the plan's suggested fields are marked **Δ** and trace to [PRODUCT_SPEC §6](PRODUCT_SPEC.md#6-open-questions-and-plan-gaps).
 
 ## 1. Conventions
 
@@ -45,7 +45,7 @@ Owner and name are refreshed on sync; renames and transfers keep the same `githu
 Cascade-deleted with its task.
 
 ### ReleasePlan
-`id`, `projectID`, **Δ `repositoryConnectionID?`** (V3), `version`, `title?`, `details?`, `status`, `targetBranch?`, `targetCommitSHA?` (full 40-character lowercase SHA), **Δ `tagName?`** (V3; Git ref rules), **Δ `compareBaseTag?`** (V3; the changelog's base, default the latest release), `plannedDate?`, **Δ `changelogMarkdown`** (working draft, kept through failures), `createdAt`, `updatedAt`, `releasedAt?`
+`id`, `projectID`, **Δ `repositoryConnectionID?`** (V3), **Δ `completedStepIDs`** (V5; the release checklist steps ticked on the plan, stored as strings; IDs of deleted steps are ignored), `version`, `title?`, `details?`, `status`, `targetBranch?`, `targetCommitSHA?` (full 40-character lowercase SHA), **Δ `tagName?`** (V3; Git ref rules), **Δ `compareBaseTag?`** (V3; the changelog's base, default the latest release), `plannedDate?`, **Δ `changelogMarkdown`** (working draft, kept through failures), `createdAt`, `updatedAt`, `releasedAt?`
 
 At most one plan per project in `planned | draftCreated | reconciliationNeeded` (the MVP's "one active plan"; enforced by a use case in M02). **Δ** The proposed `githubDraftReleaseID` was not added: the plan's open snapshot holds the GitHub release ID.
 
@@ -54,8 +54,13 @@ A plain save writes only `planned` or `cancelled`, and only over a `planned` pla
 ### GitHubReference (not implemented)
 Proposed: `id`, `projectID`, `taskID?`, `repositoryID: Int64`, `referenceType` (`commit|pullRequest|tag|release`), `number?`, `sha?`, `title?`, `htmlURL`, `mergedAt?`, `lastFetchedAt?`. **Δ** Not needed in M04: a snapshot records the pull requests of its release in its change summary. Linking tasks to pull requests remains a later option.
 
+### ReleaseStep (schema V5)
+`id`, `projectID`, `title` (trimmed, 1–200 characters), `sortOrder`, `createdAt`, `updatedAt`
+
+A step of the project's release checklist, such as "Test on a clean Mac". Every step must be ticked on a plan before its draft is created (`ReleaseIssue.checklistIncomplete`). Cascade-deleted with the project. The checklist is saved as a whole: existing steps keep their IDs, so plans keep their ticks ([ADR 0016](decisions/0016-version-suggestion-and-release-checklist.md)).
+
 ### ReleaseSnapshot (M04, schema V3, write-once)
-- **Content, frozen when the draft is requested (Δ G2):** `id`, `projectID`, `releasePlanID?` (plain value), **Δ `origin`** (`relvoraDraft | external`), `version`, `title?`, **Δ `releaseName`** (title sent to GitHub), `tagName`, `targetCommitSHA`, **Δ `targetBranch?`**, **Δ `isPrerelease`**, `releaseNotesMarkdown` (as submitted), and a JSON payload with `tasks` (`[TaskSnapshot]`: source ID, title, details, type, priority, labels, completion and date, column name, checklist counts) and **Δ `changes`** (base tag, commit count, merged pull requests, compare URL, completeness). Also `githubRepositoryID`, **Δ `repositoryFullName`**, **Δ `repositoryURL`** (as they were), `snapshotCreatedAt`.
+- **Content, frozen when the draft is requested (Δ G2):** `id`, `projectID`, `releasePlanID?` (plain value), **Δ `origin`** (`relvoraDraft | external`), `version`, `title?`, **Δ `releaseName`** (title sent to GitHub), `tagName`, `targetCommitSHA`, **Δ `targetBranch?`**, **Δ `isPrerelease`**, `releaseNotesMarkdown` (as submitted), and a JSON payload with `tasks` (`[TaskSnapshot]`: source ID, title, details, type, priority, labels, completion and date, column name, checklist counts) **Δ `changes`** (base tag, commit count, merged pull requests, compare URL, completeness), and **Δ `checklist`** (since V5: each release checklist step's title and whether it was ticked; absent in older snapshots). Also `githubRepositoryID`, **Δ `repositoryFullName`**, **Δ `repositoryURL`** (as they were), `snapshotCreatedAt`.
 - **Lifecycle, each set at most once:** `state`, `githubReleaseID`, `githubReleaseURL` (updated once more at publication, when GitHub moves the draft's `untagged-…` page), `publishedAt?`, `publishedNotesMarkdown?` (only if GitHub's notes differ, ignoring CRLF and trailing whitespace), **Δ `publishedTagName?`** (only if it differs and the user accepted it), **Δ `publishedCommitSHA?`** (the verified commit), **Δ `stateChangedAt`**.
 
 Immutability: the repository has no content update. `record` applies only the transitions `ReleaseSnapshot.applying` allows and writes lifecycle columns only; a new snapshot must be `pending` (Relvora draft) or `published` (recorded from GitHub); only a `pending` one can be discarded, after GitHub showed no draft was created. Covered by store and workflow tests.
@@ -104,11 +109,16 @@ Publishing from Relvora ([ADR 0015](decisions/0015-publish-from-relvora.md)) nee
 - Delete rules in V1: a project cascades to its columns, tasks, and plans, and a task cascades to its checklist. Deleting a column or plan nullifies the link; column deletion is guarded by a domain rule (M02).
 - Integrity rules enforced by the repository: a task's column and release plan must belong to the task's project, and records never move between projects. A rejected save is rolled back completely.
 - A fixture store per frozen schema version lives in `Tests/Fixtures/`, starting with V1 when V2 is introduced. Migration tests open each fixture with the current schema in a `.serialized` suite.
-- Fixture stores: `RelvoraV1.store` (frozen M02), `RelvoraV2.store` (frozen M03, generated from `backup-v2.json` before V3), and `RelvoraV3.store` (0.1.0, generated from `backup-v2.json` before V4).
-- Backup format 5 (`BackupDocument`; 1 = V1, 2 adds connections, 3 adds snapshots and plan targets, 4 adds settings, 5 adds groups and each project's group) uses string enum values and millisecond ISO 8601 dates. Restore refuses newer `formatVersion`s and validates the following before replacing data (format 3 adds: unique snapshot IDs, known states, full SHAs, a GitHub release ID for non-pending snapshots, at most one open snapshot per plan):
+- Fixture stores:
+  - `RelvoraV1.store`: frozen M02.
+  - `RelvoraV2.store`: frozen M03, generated from `backup-v2.json` before V3.
+  - `RelvoraV3.store`: 0.1.0, generated from `backup-v2.json` before V4.
+  - `RelvoraV4.store`: 0.1.1, generated from `backup-v5.json` (with a project group) before V5.
+- Backup format 6 (`BackupDocument`; 1 = V1, 2 adds connections, 3 adds snapshots and plan targets, 4 adds settings, 5 adds groups and each project's group, 6 adds release checklists, their ticks, and each snapshot's frozen checklist) uses string enum values and millisecond ISO 8601 dates. Restore refuses newer `formatVersion`s and validates the following before replacing data (format 3 adds: unique snapshot IDs, known states, full SHAs, a GitHub release ID for non-pending snapshots, at most one open snapshot per plan):
   - unique IDs;
   - exactly one completion column per project;
   - tasks referencing only their own project's columns and plans;
   - valid enums and versions;
   - at most one active plan;
-  - (format 5) unique group IDs and names, and projects only in the backup's groups.
+  - (format 5) unique group IDs and names, and projects only in the backup's groups;
+  - (format 6) unique checklist step IDs, with valid titles and positions.
