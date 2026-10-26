@@ -3,6 +3,7 @@ import Foundation
 import Observation
 import RelvoraCore
 import RelvoraPersistence
+import RelvoraUpdates
 
 /// Everything the UI depends on, built once at launch. Previews and checks build it from an in-memory store.
 struct AppEnvironment: Sendable {
@@ -53,22 +54,33 @@ struct LaunchOptions {
     var demoScenario: String?
     /// Keeps settings in this `UserDefaults` suite, emptied at launch (UI tests never touch the real settings).
     var defaultsSuite: String?
+    /// `check` runs Check for Updates at launch; `install` also installs what it finds (checks of the updater with
+    /// `-RelvoraDemoUpdateVersion`). Not repeated by the copy the update opens.
+    var updateAtLaunch: String?
 
     static func current(_ defaults: UserDefaults = .standard) -> LaunchOptions {
         var options = LaunchOptions()
         #if DEBUG
-            options.inMemoryStore = defaults.bool(forKey: "RelvoraInMemoryStore")
-            options.storeName = defaults.string(forKey: "RelvoraStoreName") ?? options.storeName
-            options.seedSampleData = defaults.bool(forKey: "RelvoraSeedSampleData")
-            options.initialProjectName = defaults.string(forKey: "RelvoraInitialProject")
-            options.initialView = defaults.string(forKey: "RelvoraInitialView")
-            options.initialTab = defaults.string(forKey: "RelvoraInitialTab")
-            options.openNewReleasePlan = defaults.bool(forKey: "RelvoraNewReleasePlan")
-            options.startGitHubConnect = defaults.bool(forKey: "RelvoraStartGitHubConnect")
-            options.connectRepository = defaults.string(forKey: "RelvoraConnectRepository")
-            options.demoGitHub = defaults.bool(forKey: "RelvoraDemoGitHub")
-            options.demoScenario = defaults.string(forKey: "RelvoraDemoScenario")
-            options.defaultsSuite = defaults.string(forKey: "RelvoraDefaultsSuite")
+            // A copy opened by an update gets the launch options of the copy that installed it.
+            let ticket = RelaunchTicket.pending(in: defaults)
+            func string(_ key: String) -> String? { defaults.string(forKey: key) ?? ticket?.option(key) }
+            func bool(_ key: String) -> Bool {
+                if defaults.object(forKey: key) != nil { return defaults.bool(forKey: key) }
+                return ticket?.option(key).map { ["YES", "1", "true"].contains($0) } ?? false
+            }
+            options.inMemoryStore = bool("RelvoraInMemoryStore")
+            options.storeName = string("RelvoraStoreName") ?? options.storeName
+            options.seedSampleData = bool("RelvoraSeedSampleData")
+            options.initialProjectName = string("RelvoraInitialProject")
+            options.initialView = string("RelvoraInitialView")
+            options.initialTab = string("RelvoraInitialTab")
+            options.openNewReleasePlan = bool("RelvoraNewReleasePlan")
+            options.startGitHubConnect = bool("RelvoraStartGitHubConnect")
+            options.connectRepository = string("RelvoraConnectRepository")
+            options.demoGitHub = bool("RelvoraDemoGitHub")
+            options.demoScenario = string("RelvoraDemoScenario")
+            options.defaultsSuite = string("RelvoraDefaultsSuite")
+            if ticket == nil { options.updateAtLaunch = defaults.string(forKey: "RelvoraUpdateAtLaunch") }
         #endif
         return options
     }
@@ -196,6 +208,9 @@ final class AppModel {
     let options: LaunchOptions
     let github: GitHubModel
     let preferences: Preferences
+    let updates: UpdateModel
+    /// Set when an update opened this copy.
+    private let relaunchTicket: RelaunchTicket?
 
     var activeProjects: [Project] { projects.filter { !$0.isArchived } }
     var archivedProjects: [Project] { projects.filter(\.isArchived) }
@@ -207,6 +222,12 @@ final class AppModel {
     }
 
     init(options: LaunchOptions = .current()) {
+        // Opened by an update: the previous copy closes the data first.
+        relaunchTicket = RelaunchTicket.pending()
+        if let relaunchTicket {
+            UpdateModel.waitForPreviousCopy(relaunchTicket)
+            RelaunchTicket.clear()
+        }
         self.options = options
         var defaults = UserDefaults.standard
         #if DEBUG
@@ -233,6 +254,7 @@ final class AppModel {
             startupError = error
         }
         github = GitHubModel(services: environment?.github)
+        updates = UpdateModel(github: github, preferences: preferences, isDemo: options.demoGitHub)
     }
 
     func start() async {
@@ -247,8 +269,16 @@ final class AppModel {
         #endif
         await loadProjects()
         await github.loadStatus()
+        if let notice = relaunchTicket.flatMap(UpdateModel.installedNotice) { alert = notice }
         #if DEBUG
             if options.startGitHubConnect && !github.isConnected { github.startConnecting() }
+            if options.updateAtLaunch != nil {
+                await updates.check(manual: true)
+                if options.updateAtLaunch == "install", case .available(let update) = updates.phase {
+                    try? await Task.sleep(for: .seconds(2))
+                    await updates.install(update) { try await self.saveUpdateBackup(for: update.version) }
+                }
+            }
         #endif
     }
 
@@ -437,10 +467,7 @@ final class AppModel {
         guard let pending = pendingRestore, let environment else { return }
         pendingRestore = nil
         do {
-            let safety = try await environment.backups.export(
-                appVersion: Self.appVersion, preferences: preferences.record)
-            let safetyURL = try Self.safetyBackupURL()
-            try safety.encoded().write(to: safetyURL, options: .atomic)
+            let safetyURL = try await saveSafetyBackup(named: "Before restore")
 
             let summary = try await environment.backups.restore(pending.document)
             if let record = pending.document.preferences { preferences.apply(record) }
@@ -457,6 +484,21 @@ final class AppModel {
         }
     }
 
+    /// A backup of all data before an update: a newer version can change the data so this one can't open it.
+    func saveUpdateBackup(for version: SemanticVersion) async throws -> URL {
+        try await saveSafetyBackup(named: "Before updating to \(version)")
+    }
+
+    /// Saves all data and settings in Safety Backups as "<name> <timestamp>.json".
+    private func saveSafetyBackup(named name: String) async throws -> URL {
+        guard let environment else { throw startupError ?? .storeUnavailable(reason: "No store") }
+        let document = try await environment.backups.export(
+            appVersion: Self.appVersion, preferences: preferences.record)
+        let url = try Self.safetyBackupURL(named: name)
+        try document.encoded().write(to: url, options: .atomic)
+        return url
+    }
+
     static var appVersion: String? {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
     }
@@ -465,13 +507,13 @@ final class AppModel {
         "Relvora Backup \(Date.now.formatted(.iso8601.year().month().day()))"
     }
 
-    private static func safetyBackupURL() throws -> URL {
+    private static func safetyBackupURL(named name: String) throws -> URL {
         let folder = URL.applicationSupportDirectory
             .appending(path: "Relvora", directoryHint: .isDirectory)
             .appending(path: "Safety Backups", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let stamp = Date.now.formatted(.iso8601.year().month().day().time(includingFractionalSeconds: false))
             .replacingOccurrences(of: ":", with: "")
-        return folder.appending(path: "Before restore \(stamp).json")
+        return folder.appending(path: "\(name) \(stamp).json")
     }
 }

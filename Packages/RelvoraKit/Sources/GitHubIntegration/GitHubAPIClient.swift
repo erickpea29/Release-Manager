@@ -1,7 +1,7 @@
 import Foundation
 import RelvoraCore
 
-/// Typed GitHub REST client for the signed-in user. Its only write is creating a draft release.
+/// Typed GitHub REST client for the signed-in user. Its only writes create and publish draft releases.
 ///
 /// - Sends `Authorization`, `Accept: application/vnd.github+json`, and the pinned `X-GitHub-Api-Version`.
 /// - Follows `Link: rel="next"` pagination up to a page limit, and only to the API host (the token never
@@ -177,6 +177,34 @@ public struct GitHubAPIClient: Sendable {
             .map { ($0.model, $0.base?.ref) }
     }
 
+    // MARK: Relvora's own releases (updates, ADR 0017)
+
+    /// The newest releases of `repository` (`owner/name`), with their files: the update check reads Relvora's own
+    /// repository by name, through the same sign-in.
+    public func appReleases(repository: String) async throws(GitHubError) -> [AppRelease] {
+        let path = try Self.repositoryPath(repository)
+        return try await get([ReleaseDTO].self, path: "\(path)/releases", query: [("per_page", "30")]).map(\.appRelease)
+    }
+
+    /// A release file's contents. GitHub answers with a redirect to its file storage; the transport never sends the
+    /// token there (`URLSessionTransport`).
+    public func releaseAsset(repository: String, id: Int64) async throws(GitHubError) -> Data {
+        let path = try Self.repositoryPath(repository)
+        return try await fetch(url: url("\(path)/releases/assets/\(id)"), accept: "application/octet-stream").data
+    }
+
+    /// `repos/owner/name`, for a name that can only be a repository: one slash, GitHub's characters only.
+    static func repositoryPath(_ fullName: String) throws(GitHubError) -> String {
+        let parts = fullName.split(separator: "/", omittingEmptySubsequences: false)
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_."))
+        guard parts.count == 2,
+            parts.allSatisfy({
+                !$0.isEmpty && $0 != "." && $0 != ".." && $0.unicodeScalars.allSatisfy(allowed.contains)
+            })
+        else { throw .invalidResponse("Not a repository name") }
+        return "repos/\(fullName)"
+    }
+
     // MARK: Request pipeline
 
     private func url(_ path: String, _ query: [(String, String)] = []) -> URL {
@@ -216,23 +244,30 @@ public struct GitHubAPIClient: Sendable {
     private func send<Body: Decodable>(
         _ type: Body.Type, url: URL, method: String = "GET", body: Data? = nil
     ) async throws(GitHubError) -> (body: Body, response: HTTPURLResponse) {
+        let (data, response) = try await fetch(url: url, method: method, body: body)
+        do {
+            return (try Self.decoder.decode(Body.self, from: data), response)
+        } catch {
+            Log.github.error(
+                "Decoding failed for \(url.path(), privacy: .private): \(String(describing: error), privacy: .private)"
+            )
+            throw .invalidResponse("Unexpected response format")
+        }
+    }
+
+    private func fetch(
+        url: URL, method: String = "GET", body: Data? = nil, accept: String = "application/vnd.github+json"
+    ) async throws(GitHubError) -> (data: Data, response: HTTPURLResponse) {
         let isRead = method == "GET"
         var token = try await session.accessToken()
         var refreshedAfterUnauthorized = false
         var attempt = 0
         while true {
             attempt += 1
-            let outcome = await perform(url: url, method: method, body: body, token: token)
+            let outcome = await perform(url: url, method: method, body: body, accept: accept, token: token)
             switch outcome {
             case .success(let data, let response):
-                do {
-                    return (try Self.decoder.decode(Body.self, from: data), response)
-                } catch {
-                    Log.github.error(
-                        "Decoding failed for \(url.path(), privacy: .private): \(String(describing: error), privacy: .private)"
-                    )
-                    throw .invalidResponse("Unexpected response format")
-                }
+                return (data, response)
             case .failure(.reauthorizationRequired) where !refreshedAfterUnauthorized:
                 refreshedAfterUnauthorized = true
                 token = try await session.tokenAfterUnauthorized(rejected: token)
@@ -254,14 +289,14 @@ public struct GitHubAPIClient: Sendable {
         case failure(GitHubError)
     }
 
-    private func perform(url: URL, method: String, body: Data?, token: Secret) async -> Outcome {
+    private func perform(url: URL, method: String, body: Data?, accept: String, token: Secret) async -> Outcome {
         var request = URLRequest(url: url)
         request.httpMethod = method
         if let body {
             request.httpBody = body
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.setValue(accept, forHTTPHeaderField: "Accept")
         request.setValue(configuration.apiVersion, forHTTPHeaderField: "X-GitHub-Api-Version")
         request.setValue("Bearer \(token.rawValue)", forHTTPHeaderField: "Authorization")
         do {
@@ -336,12 +371,33 @@ struct ReleaseDTO: Decodable {
     let targetCommitish: String
     let htmlUrl: URL
     let body: String?
+    /// Only the update check reads files; older test fixtures leave them out.
+    let assets: [AssetDTO]?
 
     var model: RemoteRelease {
         RemoteRelease(
             id: id, tagName: tagName, name: name?.isEmpty == true ? nil : name, isDraft: draft,
             isPrerelease: prerelease, createdAt: createdAt, publishedAt: publishedAt,
             targetCommitish: targetCommitish, htmlURL: htmlUrl, body: body)
+    }
+
+    var appRelease: AppRelease {
+        AppRelease(
+            tagName: tagName, name: name?.isEmpty == true ? nil : name, notes: body, htmlURL: htmlUrl,
+            publishedAt: publishedAt, isDraft: draft, isPrerelease: prerelease,
+            assets: (assets ?? []).map(\.model))
+    }
+}
+
+struct AssetDTO: Decodable {
+    let id: Int64
+    let name: String
+    let size: Int64
+    let state: String
+    let digest: String?
+
+    var model: AppRelease.Asset {
+        AppRelease.Asset(id: id, name: name, size: size, digest: digest, isUploaded: state == "uploaded")
     }
 }
 

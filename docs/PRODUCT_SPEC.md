@@ -25,6 +25,7 @@ A native macOS app for one developer managing several software projects: plan re
 | History | Browse snapshots with links to GitHub |
 | Appearance | System/light/dark, accent color, optional translucent window with opaque fallback |
 | Data | Local export, backup, and restore |
+| Updates | Relvora finds its new versions in its own repository's releases, and installs one when the user chooses: a backup first, then checksum and signature checks (Developer ID, same team, notarized), then it relaunches ([ADR 0017](decisions/0017-update-relvora-from-relvora.md)) |
 
 ## 3. Release lifecycle (user-visible states)
 

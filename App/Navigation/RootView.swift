@@ -38,6 +38,7 @@ struct RootView: View {
 
     var body: some View {
         @Bindable var model = model
+        @Bindable var updates = model.updates
         Group {
             if let startupError = model.startupError {
                 StoreUnavailableView(error: startupError)
@@ -132,6 +133,13 @@ struct RootView: View {
         }
         .sheet(isPresented: $model.isShowingQuickActions) {
             QuickActionsView()
+        }
+        .sheet(isPresented: $updates.isPresented) {
+            UpdateSheet()
+        }
+        .task {
+            guard model.startupError == nil else { return }
+            await model.updates.runAutomaticChecks()
         }
         .task {
             await model.start()

@@ -13,6 +13,8 @@
         nonisolated static let owner = "relvora-demo"
         nonisolated static let name = "relvora"
         nonisolated static var fullName: String { "\(owner)/\(name)" }
+        /// Relvora's own repository on demo GitHub: its releases are the updates the app offers.
+        nonisolated static let updateRepository = "\(owner)/relvora-app"
 
         private struct Commit {
             let sha: String
@@ -132,6 +134,12 @@
                 return reply(request, repository)
             case ("GET", base + "/releases"):
                 return reply(request, releases.sorted { $0.createdAt > $1.createdAt }.map(json))
+            case ("GET", "/repos/\(Self.updateRepository)/releases"):
+                return reply(request, await updateReleases())
+            case ("GET", "/repos/\(Self.updateRepository)/releases/assets/901"):
+                return raw(request, await updateFiles()?.archive)
+            case ("GET", "/repos/\(Self.updateRepository)/releases/assets/902"):
+                return raw(request, await updateFiles()?.checksum)
             case ("POST", base + "/releases"):
                 return try create(request)
             case ("GET", base + "/tags"):
@@ -195,6 +203,59 @@
                 if let index = index(of: rest) { return reply(request, json(commits[index])) }
             }
             return reply(request, ["message": "Not Found"], status: 404)
+        }
+
+        // MARK: Updates
+
+        /// A newer Relvora on demo GitHub, with `-RelvoraDemoUpdateVersion 9.9.0`. Its zip is downloaded from
+        /// `-RelvoraDemoUpdateArchive <URL>` (a local build, for checking the installer end to end), or is a placeholder
+        /// that the updater refuses.
+        private var updateVersion: String? { UserDefaults.standard.string(forKey: "RelvoraDemoUpdateVersion") }
+        private var cachedUpdateFiles: (archive: Data, checksum: Data)?
+
+        private func updateFiles() async -> (archive: Data, checksum: Data)? {
+            guard let version = updateVersion else { return nil }
+            if let cachedUpdateFiles { return cachedUpdateFiles }
+            var archive = Data("Not a real app: the updater refuses it.".utf8)
+            if let source = UserDefaults.standard.string(forKey: "RelvoraDemoUpdateArchive").flatMap(URL.init),
+                let download = try? await URLSession.shared.data(from: source)
+            {
+                archive = download.0
+            }
+            let checksum = Data("\(Self.sha256(archive))  Relvora-\(version).zip\n".utf8)
+            cachedUpdateFiles = (archive, checksum)
+            return cachedUpdateFiles
+        }
+
+        private func updateReleases() async -> [[String: Any]] {
+            guard let version = updateVersion, let files = await updateFiles() else { return [] }
+            return [
+                [
+                    "id": 900, "tag_name": "v\(version)", "name": version, "draft": false, "prerelease": false,
+                    "created_at": Self.iso(.now), "published_at": Self.iso(.now), "target_commitish": "main",
+                    "html_url": "https://github.com/\(Self.updateRepository)/releases/tag/v\(version)",
+                    "body": "## Features\n- Relvora updates itself: **Check for Updates** in the Relvora menu.\n\n"
+                        + "## Fixes\n- Demo release notes, shown before installing.",
+                    "assets": [
+                        [
+                            "id": 901, "name": "Relvora-\(version).zip", "size": files.archive.count,
+                            "state": "uploaded", "digest": "sha256:\(Self.sha256(files.archive))",
+                        ],
+                        [
+                            "id": 902, "name": "Relvora-\(version).zip.sha256", "size": files.checksum.count,
+                            "state": "uploaded", "digest": NSNull(),
+                        ],
+                    ],
+                ]
+            ]
+        }
+
+        private func raw(_ request: URLRequest, _ data: Data?) -> (Data, HTTPURLResponse) {
+            guard let data else { return reply(request, ["message": "Not Found"], status: 404) }
+            let response = HTTPURLResponse(
+                url: request.url!, statusCode: 200, httpVersion: "HTTP/1.1",
+                headerFields: ["Content-Type": "application/octet-stream"])!
+            return (data, response)
         }
 
         // MARK: Helpers
@@ -283,6 +344,10 @@
         private nonisolated static func sha(_ seed: String) -> String {
             Insecure.SHA1.hash(data: Data(seed.utf8)).map { String(format: "%02x", $0) }.joined()
         }
+
+        private nonisolated static func sha256(_ data: Data) -> String {
+            SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        }
     }
 
     extension GitHubServices {
@@ -299,7 +364,8 @@
                 // A fresh cache per launch, so one run's snapshot never shows up as another's cached data.
                 cache: SnapshotCache(
                     directory: FileManager.default.temporaryDirectory.appending(
-                        path: "RelvoraDemoCache-\(UUID().uuidString)")))
+                        path: "RelvoraDemoCache-\(UUID().uuidString)")),
+                updateRepository: DemoGitHub.updateRepository)
         }
     }
 

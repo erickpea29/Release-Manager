@@ -95,7 +95,7 @@ For a build that isn't tied to a release, use **Actions › Release › Run work
 3. It verifies the signature (`codesign --verify --deep --strict`) and that the hardened runtime is enabled.
 4. It submits the app with `notarytool` and waits. If the status isn't **Accepted**, it prints Apple's notarization log.
 5. It staples the ticket, validates it, and runs a Gatekeeper assessment (`spctl`).
-6. It zips the app with `ditto` and writes a SHA-256 checksum.
+6. It zips the app with `ditto` and writes a SHA-256 checksum. Relvora's updater reads both files ([ADR 0017](decisions/0017-update-relvora-from-relvora.md)). The updater service inside the app (`Contents/XPCServices/RelvoraUpdater.xpc`) is signed and notarized with the app.
 
 The script runs locally too, which is useful for testing the pipeline:
 - `VERSION=1.2.0 SIGNING=adhoc scripts/release/build-release.sh` builds an unsigned test package.
@@ -107,7 +107,7 @@ Credentials are only ever read from the environment or the temporary CI keychain
 
 - **Unsigned builds don't open normally.** Builds made without the secrets, including pull-request dry runs, are blocked by Gatekeeper on other Macs. They are for testing only and are never attached to a release.
 - **Certificates expire.** A Developer ID certificate is valid for five years. Replace the `DEVELOPER_ID_CERTIFICATE_*` secrets when you renew it. Apps already notarized keep working.
-- **No automatic updates.** Users download new versions from GitHub Releases. Their data stays, because the bundle ID and team are unchanged. An updater such as Sparkle is a possible later step.
+- **Updates come from this repository's releases** ([ADR 0017](decisions/0017-update-relvora-from-relvora.md)). Relvora looks for `Relvora-<version>.zip` and `Relvora-<version>.zip.sha256` on the newest published release, so keep those names. It installs the zip only if the app inside is Developer ID signed by the same team, notarized, has the same bundle ID, and has a CFBundleShortVersionString equal to the tag's version. Only people whose GitHub sign-in can read the repository get updates.
 - **Separate data per build type.** The release build (`com.erickpea29.Relvora`) has its own data container, separate from the `.dev` and `.adhoc` builds (F5). To move data, use **File › Export Backup…** and **Restore from Backup…**.
 - **Sign in to GitHub again.** The first launch of a release build needs a new GitHub sign-in, because the Keychain item belongs to each app identity.
 - **Private repository.** Release assets of `erickpea29/Release-Manager` are visible only to its collaborators. Public distribution needs a public repository, or another download location.

@@ -14,7 +14,22 @@ Relvora runs on **macOS 26 or later**, on both Apple silicon and Intel Macs.
 3. Double-click the zip and move **Relvora.app** to **Applications**.
 4. Open it. Release builds are signed with Developer ID and notarized, so macOS opens them without a warning ([DISTRIBUTION.md](DISTRIBUTION.md)).
 
-To **update**, quit Relvora and replace the app in Applications. Your projects, release history, and settings stay.
+## Updates
+
+Relvora updates itself from the next release after 0.1.2 ([ADR 0017](decisions/0017-update-relvora-from-relvora.md)):
+
+- It checks the repository's releases at launch and once a day, with your GitHub sign-in. A newer version appears at the bottom of the sidebar. **Relvora › Check for Updates…** checks right away.
+- **Install and Relaunch** does the rest:
+  - saves a backup of your data (Safety Backups);
+  - downloads the zip and checks it against the release's checksum;
+  - installs it only if Apple notarized it and it's signed by the same developer as your copy;
+  - reopens Relvora.
+  - The previous version goes to the Trash.
+- Turn automatic checks off in **Settings › General › Updates**.
+
+Updates need a GitHub sign-in that can read the repository. Relvora must also run from a folder you can change, such as Applications: not from a disk image, and not from Downloads, where macOS runs a temporary copy.
+
+To update by hand, quit Relvora and replace the app in Applications. Your projects, release history, and settings stay. **0.1.2 and older** have no updater, so install the first version with it this way.
 
 ## Build from source
 

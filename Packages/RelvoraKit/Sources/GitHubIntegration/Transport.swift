@@ -39,13 +39,31 @@ public struct URLSessionTransport: HTTPTransport {
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.httpCookieStorage = nil
         configuration.timeoutIntervalForRequest = 30
-        self.session = URLSession(configuration: configuration)
+        self.session = URLSession(configuration: configuration, delegate: RedirectGuard(), delegateQueue: nil)
     }
 
     public func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
         return (data, http)
+    }
+}
+
+/// Redirects keep the token on the host it was meant for. GitHub sends release files from another host (its file
+/// storage), which must never receive the `Authorization` header; a redirect away from HTTPS isn't followed.
+final class RedirectGuard: NSObject, URLSessionTaskDelegate, Sendable {
+    func urlSession(
+        _ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest
+    ) async -> URLRequest? {
+        Self.follow(request, from: task.originalRequest?.url)
+    }
+
+    static func follow(_ request: URLRequest, from original: URL?) -> URLRequest? {
+        guard let url = request.url, url.scheme == "https" else { return nil }
+        var request = request
+        if url.host() != original?.host() { request.setValue(nil, forHTTPHeaderField: "Authorization") }
+        return request
     }
 }
 

@@ -6,5 +6,7 @@
 	<string>$(RELVORA_GITHUB_CLIENT_ID)</string>
 	<key>RelvoraGitHubAppSlug</key>
 	<string>$(RELVORA_GITHUB_APP_SLUG)</string>
+	<key>RelvoraUpdateRepository</key>
+	<string>$(RELVORA_UPDATE_REPOSITORY)</string>
 </dict>
 </plist>

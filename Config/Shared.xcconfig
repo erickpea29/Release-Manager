@@ -19,6 +19,10 @@ DEVELOPMENT_TEAM =
 RELVORA_GITHUB_CLIENT_ID = Iv23liBlcZeg11deMH07
 RELVORA_GITHUB_APP_SLUG = relvora
 
+// Where Relvora finds its own updates: this repository's published releases, read with the user's GitHub sign-in
+// (ADR 0017). The release workflow attaches Relvora-<version>.zip and its .sha256 to each one. Empty: no updates.
+RELVORA_UPDATE_REPOSITORY = erickpea29/Release-Manager
+
 // The app icon, built from Design/logo.png by scripts/make-app-icon.swift.
 ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
 

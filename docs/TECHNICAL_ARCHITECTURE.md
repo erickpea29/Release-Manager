@@ -17,7 +17,9 @@ release-manager/                        # repository: erickpea29/Release-Manager
 │   ├── Sources/RelvoraCore/            # domain, pure planners/rules, services, repository protocols, backup format
 │   ├── Sources/RelvoraPersistence/     # SwiftData schema + repository implementation
 │   ├── Sources/GitHubIntegration/      # GitHub auth, REST client, sync, cache, release remote
+│   ├── Sources/RelvoraUpdates/         # updates of Relvora itself: signatures, installer, XPC protocol (ADR 0017)
 │   └── Tests/                          # swift test
+├── Updater/                            # RelvoraUpdater.xpc: the updater service, outside the sandbox (ADR 0017)
 ├── UITests/                            # XCUITest target RelvoraUITests (in-memory store, demo GitHub)
 ├── scripts/release/                    # build-release.sh: archive, sign, notarize, staple (ADR 0011)
 ├── Config/                             # Shared.xcconfig, Relvora.entitlements, Local.xcconfig (git-ignored)
@@ -34,7 +36,8 @@ release-manager/                        # repository: erickpea29/Release-Manager
 App (SwiftUI views, @Observable AppModel)
   ├─▶ RelvoraCore                              (no UI, no SwiftData, no networking)
   ├─▶ RelvoraPersistence ─▶ RelvoraCore        (SwiftData; @Model types internal)
-  └─▶ GitHubIntegration  ─▶ RelvoraCore        (M03; DTOs internal)
+  ├─▶ GitHubIntegration  ─▶ RelvoraCore        (M03; DTOs internal)
+  └─▶ RelvoraUpdates     ─▶ RelvoraCore        (Security framework; also linked by RelvoraUpdater.xpc)
 ```
 
 - Views never touch `URLSession`, SwiftData, or Keychain. They call `AppModel` (and later feature models), which calls use cases and repositories held by a single `AppEnvironment` built at launch.
@@ -81,6 +84,8 @@ App (SwiftUI views, @Observable AppModel)
 - Tokens live only in Keychain ([ADR 0005](decisions/0005-credential-storage.md)), wrapped in a redacting `Secret` type. No credentials appear in SwiftData, `UserDefaults`, logs, or crash reports.
 - Logging uses `os.Logger`, with any GitHub payload fields marked `.private`. The `Authorization` header is never logged.
 - App Sandbox entitlements: `network.client` and `files.user-selected.read-write` (for export and backup). Hardened Runtime is on.
+- The updater service (`RelvoraUpdater.xpc`) is the one part outside the sandbox, because it replaces the app. Only its app can connect to it. It checks every update itself (Developer ID, same team, notarized) before swapping it in ([ADR 0017](decisions/0017-update-relvora-from-relvora.md)).
+- Redirects never carry the `Authorization` header to another host (GitHub serves release files from its file storage), and never leave HTTPS.
 - No analytics. No third-party dependencies.
 
 ## 7. Testing and CI
@@ -91,7 +96,7 @@ App (SwiftUI views, @Observable AppModel)
   - the in-memory **demo GitHub**, a fake of the REST endpoints that drives the real API client, sync, and workflow;
   - a throwaway settings suite (`-RelvoraDefaultsSuite`).
   Tests therefore never touch real data, settings, or GitHub.
-- The UI tests cover navigation and quick actions, board editing by keyboard, the release flow (draft, publishing on GitHub or from Relvora, history), reconciliation after a timeout, project groups, offline states, settings, and an accessibility audit.
+- The UI tests cover navigation and quick actions, board editing by keyboard, the release flow (draft, publishing on GitHub or from Relvora, history), reconciliation after a timeout, project groups, offline states, settings, updates (an offered version, refused by the updater service), and an accessibility audit.
 - Live GitHub tests are opt-in only (environment variable), never run in CI.
 - CI runs on GitHub Actions with the `macos-26` image:
   - one job runs lint, `swift test`, and an ad-hoc app build;

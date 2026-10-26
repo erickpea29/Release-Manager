@@ -12,12 +12,15 @@ struct GitHubServices: Sendable {
     let sync: GitHubSyncService
     let cache: SnapshotCache
     let releases: GitHubReleaseRemote
+    /// Relvora's own repository (`owner/name`), whose releases are its updates; `nil` when the build names none.
+    let updateRepository: String?
 
     init(
         configuration: GitHubConfiguration, transport: any HTTPTransport, credentials: any CredentialStore,
-        cache: SnapshotCache
+        cache: SnapshotCache, updateRepository: String?
     ) {
         self.configuration = configuration
+        self.updateRepository = updateRepository
         deviceFlow = DeviceFlowClient(configuration: configuration, transport: transport)
         session = GitHubSession(store: credentials, deviceFlow: deviceFlow)
         api = GitHubAPIClient(configuration: configuration, session: session, transport: transport)
@@ -31,12 +34,15 @@ struct GitHubServices: Sendable {
         guard let clientID = bundle.object(forInfoDictionaryKey: "RelvoraGitHubClientID") as? String,
             !clientID.isEmpty, !clientID.hasPrefix("$(")
         else { return nil }
-        let slug = (bundle.object(forInfoDictionaryKey: "RelvoraGitHubAppSlug") as? String).flatMap {
-            $0.isEmpty || $0.hasPrefix("$(") ? nil : $0
+        func setting(_ key: String) -> String? {
+            let value = bundle.object(forInfoDictionaryKey: key) as? String
+            return value.flatMap { $0.isEmpty || $0.hasPrefix("$(") ? nil : $0 }
         }
         return GitHubServices(
-            configuration: GitHubConfiguration(clientID: clientID, appSlug: slug), transport: URLSessionTransport(),
-            credentials: KeychainCredentialStore(), cache: SnapshotCache(directory: SnapshotCache.defaultDirectory))
+            configuration: GitHubConfiguration(clientID: clientID, appSlug: setting("RelvoraGitHubAppSlug")),
+            transport: URLSessionTransport(), credentials: KeychainCredentialStore(),
+            cache: SnapshotCache(directory: SnapshotCache.defaultDirectory),
+            updateRepository: setting("RelvoraUpdateRepository"))
     }
 }
 

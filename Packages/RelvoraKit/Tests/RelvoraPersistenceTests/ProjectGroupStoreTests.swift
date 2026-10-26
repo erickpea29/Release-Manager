@@ -89,7 +89,9 @@ extension StoreTests {
             #expect(restored.map(\.id) == original.map(\.id) && restored.map(\.name) == ["Relvora", "Pilou"])
             #expect(restored.map(\.sortOrder) == original.map(\.sortOrder))
             #expect(try await other.projects.project(id: web.id).groupID == pilou.id)
-            #expect(try await other.projects.projects(includeArchived: true).map(\.groupID) == [pilou.id, nil])
+            // By name: both projects can share a millisecond, so their order after a restore isn't fixed.
+            let membership = try await other.projects.projects(includeArchived: true).map { ($0.name, $0.groupID) }
+            #expect(Dictionary(uniqueKeysWithValues: membership) == ["Web": pilou.id, "Side": nil])
         }
     }
 }

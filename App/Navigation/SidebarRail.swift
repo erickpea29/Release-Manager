@@ -39,6 +39,16 @@ struct SidebarRail: View {
                 }
             }
             .scrollIndicators(.never)
+            if let update = model.updates.offered {
+                Button {
+                    model.updates.showOffered()
+                } label: {
+                    Image(systemName: "arrow.down.circle.fill").foregroundStyle(.tint)
+                }
+                .buttonStyle(RailButtonStyle(isSelected: false, isFilled: false))
+                .accessibilityLabel("Relvora \(update.version.description) is available")
+                .help("Relvora \(update.version.description) is available")
+            }
             Button {
                 model.projectEditor = .new
             } label: {
