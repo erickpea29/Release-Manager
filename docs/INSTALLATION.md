@@ -31,6 +31,20 @@ Updates need a GitHub sign-in that can read the repository. Relvora must also ru
 
 To update by hand, quit Relvora and replace the app in Applications. Your projects, release history, and settings stay. **0.1.2 and older** have no updater, so install the first version with it this way.
 
+## Connect Claude Code
+
+Claude Code sessions on your Mac can read your projects and add tasks to the version being planned ([ADR 0018](decisions/0018-claude-creates-tasks.md)).
+
+1. In Relvora, open **Settings › Claude** and turn on **Let Claude read projects and add tasks**.
+2. Click **Copy Setup Command** and paste it into Terminal once. It runs `claude mcp add --scope user …`, so every Claude Code session on this Mac gets Relvora. A session that's already open picks it up after `/mcp` or a restart.
+3. Ask Claude, for example: "Add tasks for the new update screen to Relvora's version being planned."
+
+Good to know:
+- **Relvora must be open.** Claude reaches it only on this Mac (127.0.0.1), with the key in the setup command.
+- **What Claude can do:** read projects, the versions being planned, and tasks, and create tasks, which it labels **claude**. It can't edit, move, complete, or delete tasks, plan versions, or touch GitHub.
+- **New Key…** in Settings stops the old setup command working; run the new one.
+- **To disconnect,** turn the setting off. You can also remove it from Claude Code with `claude mcp remove relvora --scope user`.
+
 ## Build from source
 
 You need Xcode 26 (validated with Xcode 26.6) and no other tools.

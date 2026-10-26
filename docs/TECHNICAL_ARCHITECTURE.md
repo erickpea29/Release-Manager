@@ -18,6 +18,7 @@ release-manager/                        # repository: erickpea29/Release-Manager
 │   ├── Sources/RelvoraPersistence/     # SwiftData schema + repository implementation
 │   ├── Sources/GitHubIntegration/      # GitHub auth, REST client, sync, cache, release remote
 │   ├── Sources/RelvoraUpdates/         # updates of Relvora itself: signatures, installer, XPC protocol (ADR 0017)
+│   ├── Sources/RelvoraMCP/             # Claude's connection: MCP over HTTP on 127.0.0.1, task tools (ADR 0018)
 │   └── Tests/                          # swift test
 ├── Updater/                            # RelvoraUpdater.xpc: the updater service, outside the sandbox (ADR 0017)
 ├── UITests/                            # XCUITest target RelvoraUITests (in-memory store, demo GitHub)
@@ -37,7 +38,8 @@ App (SwiftUI views, @Observable AppModel)
   ├─▶ RelvoraCore                              (no UI, no SwiftData, no networking)
   ├─▶ RelvoraPersistence ─▶ RelvoraCore        (SwiftData; @Model types internal)
   ├─▶ GitHubIntegration  ─▶ RelvoraCore        (M03; DTOs internal)
-  └─▶ RelvoraUpdates     ─▶ RelvoraCore        (Security framework; also linked by RelvoraUpdater.xpc)
+  ├─▶ RelvoraUpdates     ─▶ RelvoraCore        (Security framework; also linked by RelvoraUpdater.xpc)
+  └─▶ RelvoraMCP         ─▶ RelvoraCore        (Network.framework; the tools use RelvoraCore services)
 ```
 
 - Views never touch `URLSession`, SwiftData, or Keychain. They call `AppModel` (and later feature models), which calls use cases and repositories held by a single `AppEnvironment` built at launch.
@@ -83,7 +85,8 @@ App (SwiftUI views, @Observable AppModel)
 
 - Tokens live only in Keychain ([ADR 0005](decisions/0005-credential-storage.md)), wrapped in a redacting `Secret` type. No credentials appear in SwiftData, `UserDefaults`, logs, or crash reports.
 - Logging uses `os.Logger`, with any GitHub payload fields marked `.private`. The `Authorization` header is never logged.
-- App Sandbox entitlements: `network.client` and `files.user-selected.read-write` (for export and backup). Hardened Runtime is on.
+- App Sandbox entitlements: `network.client`, `network.server` (Claude's connection on 127.0.0.1), and `files.user-selected.read-write` (for export and backup). Hardened Runtime is on.
+- Claude's MCP server is off by default. It listens on 127.0.0.1 only, refuses other `Host` headers (DNS rebinding) and any `Origin` (web pages), and requires an access key kept in the Keychain. Its tools read projects and create tasks, nothing else ([ADR 0018](decisions/0018-claude-creates-tasks.md)).
 - The updater service (`RelvoraUpdater.xpc`) is the one part outside the sandbox, because it replaces the app. Only its app can connect to it. It checks every update itself (Developer ID, same team, notarized) before swapping it in ([ADR 0017](decisions/0017-update-relvora-from-relvora.md)).
 - Redirects never carry the `Authorization` header to another host (GitHub serves release files from its file storage), and never leave HTTPS.
 - No analytics. No third-party dependencies.
@@ -96,7 +99,7 @@ App (SwiftUI views, @Observable AppModel)
   - the in-memory **demo GitHub**, a fake of the REST endpoints that drives the real API client, sync, and workflow;
   - a throwaway settings suite (`-RelvoraDefaultsSuite`).
   Tests therefore never touch real data, settings, or GitHub.
-- The UI tests cover navigation and quick actions, board editing by keyboard, the release flow (draft, publishing on GitHub or from Relvora, history), reconciliation after a timeout, project groups, offline states, settings, updates (an offered version, refused by the updater service), and an accessibility audit.
+- The UI tests cover navigation and quick actions, board editing by keyboard, the release flow (draft, publishing on GitHub or from Relvora, history), reconciliation after a timeout, project groups, offline states, settings, updates (an offered version, refused by the updater service), Claude's connection (tasks created over MCP appear on the open Board), and an accessibility audit.
 - Live GitHub tests are opt-in only (environment variable), never run in CI.
 - CI runs on GitHub Actions with the `macos-26` image:
   - one job runs lint, `swift test`, and an ad-hoc app build;

@@ -19,5 +19,6 @@
 | [0015](0015-publish-from-relvora.md) | Publishing a release from Relvora | Accepted |
 | [0016](0016-version-suggestion-and-release-checklist.md) | Version suggestions and release checklists | Accepted |
 | [0017](0017-update-relvora-from-relvora.md) | Updating Relvora from Relvora | Accepted |
+| [0018](0018-claude-creates-tasks.md) | Claude creates tasks through MCP | Accepted |
 
 New records: copy the shape of an existing one (Status, Date, Context, Decision, Consequences, Evidence). Keep them short.

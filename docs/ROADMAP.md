@@ -17,7 +17,7 @@ These three were recommended first. Together they finish the release loop inside
   - After a release is published, the plan shows the GitHub Actions run live: building, notarizing, and the attached `Relvora-x.y.z.zip`.
   - It ends with a link to the release's files, or with the run's error.
   - Needs **Actions: read** on the GitHub App. The owner adds it; every installation accepts the new permission once.
-- [ ] **Update Relvora from inside Relvora** (M) — in progress: branch `feature/self-update` ([ADR 0017](decisions/0017-update-relvora-from-relvora.md))
+- [ ] **Update Relvora from inside Relvora** (M) — merged in PR #12, ships in the next release ([ADR 0017](decisions/0017-update-relvora-from-relvora.md))
   - Relvora reads its own repository's releases through the user's sign-in and offers "Version x.y.z is available."
   - It downloads the zip, checks the checksum, the Developer ID signature, and that the Team ID is the same as the running app's, then replaces the app and relaunches.
   - It never installs an unsigned or differently signed build.
@@ -25,6 +25,18 @@ These three were recommended first. Together they finish the release loop inside
   - Examples: "0.1.1 is published", "The build is attached", "0.2.0 was planned for today".
   - Each kind can be turned off in Settings.
   - Permission is asked the first time a notification is needed.
+
+## Claude
+
+Added by the owner on 2026-10-26.
+
+- [ ] **Claude creates tasks** (M) — in progress: branch `feature/claude-mcp` ([ADR 0018](decisions/0018-claude-creates-tasks.md))
+  - Any Claude Code session on the Mac reads the projects and the version being planned, and adds tasks to it or to the Backlog, through an MCP server in Relvora.
+  - Set up once with a command copied from Settings › Claude. Tasks get the label "claude".
+- [ ] **Claude Desktop** (S)
+  - A small stdio bridge in the app bundle, so the Claude Desktop app can connect too.
+- [ ] **Claude edits tasks** (S–M)
+  - Also edit, move between columns, and complete tasks. Still no deletions and nothing on GitHub.
 
 ## Releasing
 

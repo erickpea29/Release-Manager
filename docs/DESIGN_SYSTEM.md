@@ -10,7 +10,7 @@ Status: finished in M05. Material rules follow [ADR 0006](decisions/0006-window-
 
 ## 2. Navigation
 
-A sidebar holds **Dashboard**, **Release History**, and the projects; each project has the tabs **Backlog**, **Board**, **Releases**, and **GitHub**. Settings is its own scene (⌘,).
+A sidebar holds **Dashboard**, **Release History**, and the projects; each project has the tabs **Backlog**, **Board**, **Releases**, and **GitHub**. Settings is its own scene (⌘,), with the tabs General, Board, Releases, GitHub, and Claude.
 
 - **Groups.** Projects are listed by group, one collapsible section each, then **Other Projects** (**Projects** while there are no groups). A group's heading has its menu (new project, rename, move up or down, delete); an empty group says "No projects" and takes dropped projects. Projects change groups by drag and drop, **Move to Group**, or the project editor ([ADR 0014](decisions/0014-project-groups.md)).
 - **Collapsed sidebar.** Hiding the sidebar (⌃⌘S or the toolbar button) narrows it to a strip of icons: Dashboard, Release History, each active project by its initials in the sidebar's order, with a line between groups (the group and name in the tooltip), and New Project. It widens again as the same piece; the list and the icons cross-fade.

@@ -11,7 +11,7 @@
 | First-release polish | **Complete**: merged in PR #9 ([report](FIRST_RELEASE_POLISH.md)) |
 | 0.1.1 — Project groups, publishing from Relvora | **Complete**: merged in PR #10, released as v0.1.1 ([ADR 0014](decisions/0014-project-groups.md), [ADR 0015](decisions/0015-publish-from-relvora.md)) |
 | 0.1.2 — Version suggestion, release checklist | **Complete**: merged in PR #11, released as v0.1.2 ([ADR 0016](decisions/0016-version-suggestion-and-release-checklist.md)) |
-| Next release — updating Relvora from Relvora | **In progress** ([ADR 0017](decisions/0017-update-relvora-from-relvora.md)) |
+| Next release — updating Relvora from Relvora, Claude creates tasks | **In progress**: updates merged in PR #12 ([ADR 0017](decisions/0017-update-relvora-from-relvora.md)); Claude on branch `feature/claude-mcp` ([ADR 0018](decisions/0018-claude-creates-tasks.md)) |
 
 The feature ideas are in [ROADMAP.md](ROADMAP.md).
 
@@ -140,6 +140,11 @@ The feature ideas are in [ROADMAP.md](ROADMAP.md).
 - [x] Package tests: 193 (21 new); opt-in check of the published 0.1.2 app against the Release requirement. Also fixed a flaky group-backup test (two projects in one millisecond)
 - [x] End to end with throwaway team-signed copies: 0.0.1 → 0.0.2 installed and relaunched; an ad-hoc 0.0.3 refused
 - [x] UI tests: 22 pass locally, two new (the offered update and its refused demo download, skip, Check for Updates, Settings). They caught the Settings switch having no VoiceOver label
-- [ ] CI on the PR
+- [x] CI on PR #12 (lint, 193 package tests, build, 22 UI tests); merged
+- [x] Claude creates tasks: an MCP server on 127.0.0.1 (Streamable HTTP, Host and Origin checks, access key in the Keychain) with `list_projects`, `list_tasks`, and `create_tasks`; Settings › Claude ([ADR 0018](decisions/0018-claude-creates-tasks.md))
+- [x] Package tests: 211 (18 new); end to end with curl against the sandboxed app, and with Claude Code 2.1.309 against a test copy
+- [x] UI tests: 24 pass locally, two new (a task created over MCP appears on the open Board and in Settings › Claude; a request without the key is refused)
+- [ ] CI on the Claude PR
 - [ ] Owner: release it, then install it by hand once (0.1.2 has no updater)
+- [ ] Owner: turn on Settings › Claude and run the setup command once
 - [ ] Owner: the next release after that is the first update installed from Relvora, in `/Applications`
