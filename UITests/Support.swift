@@ -79,3 +79,34 @@ extension XCTestCase {
         add(attachment)
     }
 }
+
+/// Plays Claude Code: MCP requests to the app's server on 127.0.0.1 (ADR 0018).
+struct MCPTestClient {
+    let port: Int
+    let key: String
+
+    func call(_ tool: String, _ arguments: [String: Any]) async throws -> [String: Any] {
+        var request = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/mcp")!)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": ["name": tool, "arguments": arguments],
+        ])
+        let (data, status) = try await Self.send(request)
+        guard status == 200 else { throw URLError(.badServerResponse) }
+        let reply = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        return reply?["result"] as? [String: Any] ?? [:]
+    }
+
+    /// The server starts just after launch: retries until it answers.
+    static func send(_ request: URLRequest) async throws -> (data: Data, status: Int) {
+        for attempt in 1...20 {
+            if let reply = try? await URLSession(configuration: .ephemeral).data(for: request) {
+                return (reply.0, (reply.1 as? HTTPURLResponse)?.statusCode ?? 0)
+            }
+            if attempt < 20 { try await Task.sleep(for: .milliseconds(500)) }
+        }
+        throw URLError(.cannotConnectToHost)
+    }
+}

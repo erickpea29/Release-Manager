@@ -12,6 +12,8 @@ struct SettingsView: View {
                 .tabItem { Label("Releases", systemImage: "shippingbox") }
             GitHubSettingsView()
                 .tabItem { Label("GitHub", systemImage: "link") }
+            NotificationSettingsView()
+                .tabItem { Label("Notifications", systemImage: "bell") }
             ClaudeSettingsView()
                 .tabItem { Label("Claude", systemImage: "sparkles") }
         }

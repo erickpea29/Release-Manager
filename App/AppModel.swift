@@ -224,6 +224,9 @@ final class AppModel {
     let preferences: Preferences
     let updates: UpdateModel
     let claude: ClaudeConnection
+    let notifier: Notifier
+    /// Published snapshots per project already seen, so each publication is announced once.
+    private var knownPublished: [UUID: Set<UUID>] = [:]
     /// Set when an update opened this copy.
     private let relaunchTicket: RelaunchTicket?
 
@@ -277,6 +280,12 @@ final class AppModel {
         github = GitHubModel(services: environment?.github)
         updates = UpdateModel(github: github, preferences: preferences, isDemo: options.demoGitHub)
         claude = ClaudeConnection(environment: environment, preferences: preferences, fixedKey: options.claudeKey)
+        var recordsNotifications = false
+        #if DEBUG
+            // Tests and checks with a throwaway settings suite never show real notifications.
+            recordsNotifications = options.defaultsSuite != nil
+        #endif
+        notifier = Notifier(preferences: preferences, records: recordsNotifications)
     }
 
     func start() async {
@@ -289,8 +298,21 @@ final class AppModel {
                 }
             }
         #endif
+        notifier.open = { [weak self] target in self?.open(target) }
+        notifier.start()
+        updates.onOffered = { [weak self] update in
+            guard let self else { return }
+            await notifier.deliver(AppNotifications.updateAvailable(update.version, current: updates.currentVersion))
+        }
         await loadProjects()
-        claude.onTasksCreated = { [weak self] projectID in await self?.tasksChanged(in: projectID) }
+        claude.onTasksCreated = { [weak self] activity in
+            guard let self else { return }
+            await dataChanged(in: activity.projectID)
+            await notifier.deliver(
+                AppNotifications.claudeAddedTasks(
+                    count: activity.count, projectID: activity.projectID, projectName: activity.projectName,
+                    version: activity.version))
+        }
         claude.apply()
         await github.loadStatus()
         if let notice = relaunchTicket.flatMap(UpdateModel.installedNotice) { alert = notice }
@@ -311,20 +333,27 @@ final class AppModel {
         do {
             groups = try await environment.groups.groups()
             projects = try await environment.store.projects.projects(includeArchived: true)
-            for project in projects { await refreshStats(for: project.id) }
+            // What's already published is only remembered, not announced.
+            for project in projects { await refreshStats(for: project.id, announce: false) }
+            for id in notifier.scheduledProjectIDs where !projects.contains(where: { $0.id == id }) {
+                await notifier.schedulePlanned([], projectID: id)
+            }
         } catch {
             alert = AppAlert(title: "Couldn’t load projects", error: error)
         }
         hasLoaded = true
     }
 
-    /// Tasks were created outside the views (by Claude): the sidebar, the Dashboard, and an open workspace update.
-    func tasksChanged(in projectID: UUID) async {
+    /// Data changed outside the views (Claude created tasks, a draft was found published): the sidebar, the
+    /// Dashboard, and an open workspace update.
+    func dataChanged(in projectID: UUID) async {
         await refreshStats(for: projectID)
         externalChange = ExternalChange(projectID: projectID)
     }
 
-    func refreshStats(for projectID: UUID) async {
+    /// Updates a project's numbers, and its notifications: a publication not seen before is announced (unless
+    /// `announce` is false), and "planned for today" follows the plans.
+    func refreshStats(for projectID: UUID, announce: Bool = true) async {
         guard let environment else { return }
         do {
             let state = try await environment.board.load(projectID: projectID)
@@ -339,8 +368,70 @@ final class AppModel {
                     ($0.publishedAt ?? .distantPast) < ($1.publishedAt ?? .distantPast)
                 }
             )
+            await updateNotifications(projectID: projectID, plans: plans, snapshots: snapshots, announce: announce)
         } catch {
             stats[projectID] = nil
+        }
+    }
+
+    // MARK: Notifications
+
+    private func updateNotifications(
+        projectID: UUID, plans: [ReleasePlan], snapshots: [ReleaseSnapshot], announce: Bool
+    ) async {
+        guard let project = projects.first(where: { $0.id == projectID }) else { return }
+        for snapshot in AppNotifications.newlyPublished(snapshots, known: announce ? knownPublished[projectID] : nil) {
+            await notifier.deliver(AppNotifications.published(snapshot, project: project))
+        }
+        knownPublished[projectID] = Set(snapshots.filter { $0.state == .published }.map(\.id))
+        await notifier.schedulePlanned(
+            AppNotifications.plannedForToday(plans, project: project, now: .now), projectID: projectID)
+    }
+
+    /// Settings › Notifications changed: scheduled notifications follow it.
+    func notificationSettingsChanged() async {
+        if !preferences.notifies(.plannedForToday) { notifier.removeAllPlanned() }
+        for project in projects { await refreshStats(for: project.id, announce: false) }
+    }
+
+    /// Opens what a clicked notification is about.
+    func open(_ target: NotificationTarget) {
+        switch target {
+        case .project(let id, let tab):
+            openProject(id, tab: WorkspaceTab(rawValue: tab))
+        case .update:
+            if updates.offered != nil {
+                updates.showOffered()
+            } else {
+                Task { await updates.check(manual: true) }
+            }
+        }
+    }
+
+    static let draftCheckInterval: TimeInterval = 5 * 60
+
+    /// While Relvora is open, drafts waiting on GitHub are checked every 5 minutes. A draft published on GitHub is then
+    /// recorded, and announced, without opening its plan.
+    func watchDrafts() async {
+        try? await Task.sleep(for: .seconds(30))
+        while !Task.isCancelled {
+            await checkDrafts()
+            try? await Task.sleep(for: .seconds(Self.draftCheckInterval))
+        }
+    }
+
+    func checkDrafts() async {
+        guard preferences.notifies(.releasePublished), github.isConnected,
+            let workflow = environment?.releaseWorkflow
+        else { return }
+        for project in activeProjects {
+            guard let plan = stats[project.id]?.activePlan, plan.status == .draftCreated,
+                let outcome = try? await workflow.reconcile(plan)
+            else { continue }
+            switch outcome.kind {
+            case .stillDraft, .nothingToCheck: continue
+            default: await dataChanged(in: project.id)
+            }
         }
     }
 
@@ -387,6 +478,8 @@ final class AppModel {
             try await environment.projects.delete(project.id)
             projects.removeAll { $0.id == project.id }
             stats[project.id] = nil
+            knownPublished[project.id] = nil
+            await notifier.schedulePlanned([], projectID: project.id)
         } catch {
             alert = AppAlert(title: "Couldn’t delete project", error: error)
         }

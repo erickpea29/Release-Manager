@@ -1,38 +1,32 @@
 # Roadmap
 
-Feature ideas for Relvora after 0.1.1, chosen by the owner on 2026-10-26.
+Feature ideas for Relvora that aren't built yet, chosen by the owner on 2026-10-26.
 
 **How to use this list:**
-- When work on an idea starts, add its branch or PR after it: `— in progress: PR #12`.
-- When it ships, tick the box and add the version: `- [x] … — shipped in 0.2.0`.
+- When work on an idea starts, add its branch or PR after it: `— in progress: PR #14`.
+- When it ships, remove it. [PHASE_STATUS.md](PHASE_STATUS.md) keeps what shipped in each version.
 - An idea that needs a decision gets an ADR in `docs/decisions/`, linked from here.
 
 Sizes are rough: **S** is a few hours, **M** a day or two, **L** several days, with schema or workflow changes.
 
 ## Next up
 
-These three were recommended first. Together they finish the release loop inside Relvora: publish, watch the build, update.
+Recommended first. With publishing and updates already in Relvora, they close the release loop: publish, watch the build, hear about it.
 
 - [ ] **Watch the build after publishing** (S–M)
   - After a release is published, the plan shows the GitHub Actions run live: building, notarizing, and the attached `Relvora-x.y.z.zip`.
   - It ends with a link to the release's files, or with the run's error.
   - Needs **Actions: read** on the GitHub App. The owner adds it; every installation accepts the new permission once.
-- [ ] **Update Relvora from inside Relvora** (M) — merged in PR #12, ships in the next release ([ADR 0017](decisions/0017-update-relvora-from-relvora.md))
-  - Relvora reads its own repository's releases through the user's sign-in and offers "Version x.y.z is available."
-  - It downloads the zip, checks the checksum, the Developer ID signature, and that the Team ID is the same as the running app's, then replaces the app and relaunches.
-  - It never installs an unsigned or differently signed build.
-- [ ] **Notifications** (S)
-  - Examples: "0.1.1 is published", "The build is attached", "0.2.0 was planned for today".
-  - Each kind can be turned off in Settings.
-  - Permission is asked the first time a notification is needed.
+- [ ] **Notifications** (S–M) — in progress: branch `feature/notifications` ([ADR 0019](decisions/0019-notifications.md))
+  - A release is published, a version is planned for today, a new Relvora is available, Claude added tasks.
+  - Each kind can be turned off in Settings. Permission is asked the first time a notification is needed.
 
 ## Claude
 
 Added by the owner on 2026-10-26.
 
-- [ ] **Claude creates tasks** (M) — in progress: branch `feature/claude-mcp` ([ADR 0018](decisions/0018-claude-creates-tasks.md))
-  - Any Claude Code session on the Mac reads the projects and the version being planned, and adds tasks to it or to the Backlog, through an MCP server in Relvora.
-  - Set up once with a command copied from Settings › Claude. Tasks get the label "claude".
+Claude Code already reads projects and creates tasks ([ADR 0018](decisions/0018-claude-creates-tasks.md)).
+
 - [ ] **Claude Desktop** (S)
   - A small stdio bridge in the app bundle, so the Claude Desktop app can connect too.
 - [ ] **Claude edits tasks** (S–M)
@@ -40,13 +34,6 @@ Added by the owner on 2026-10-26.
 
 ## Releasing
 
-- [x] **Suggest the next version** (S) — shipped in 0.1.2 ([ADR 0016](decisions/0016-version-suggestion-and-release-checklist.md))
-  - Based on the changes since the last release: new features → minor, only fixes → patch, breaking changes → major.
-  - The suggestion fills the version and tag; the user can change it.
-- [x] **Release checklist per project** (M) — shipped in 0.1.2 ([ADR 0016](decisions/0016-version-suggestion-and-release-checklist.md))
-  - The owner's own steps, such as "test on a clean Mac" or "update screenshots".
-  - Every step must be ticked before the draft can be created.
-  - Kept with the release in Release History.
 - [ ] **Hotfix next to a planned version** (L)
   - Ship 0.1.2 from an older commit while 0.2.0 is still being planned.
   - Today a project has one version in progress. This changes the Board and Backlog rules ([ADR 0012](decisions/0012-backlog-tab-and-version-board.md)), so it needs an ADR first.
@@ -104,15 +91,3 @@ Added by the owner on 2026-10-26.
 - [ ] **App Store Connect** (L)
   - Upload builds and submit for review, beside the GitHub release.
   - Needs App Store Connect API keys, kept in the Keychain like the GitHub sign-in.
-
-## Shipped
-
-Already in Relvora; listed so the history is in one place.
-
-- [x] Projects, Kanban board, release plans, backups (M02)
-- [x] GitHub sign-in, repositories, releases, commits, and pull requests (M03)
-- [x] GitHub drafts, publication check, and Release History (M04)
-- [x] Design polish, accessibility, notarized builds (M05)
-- [x] Backlog tab, collapsible sidebar, automatic GitHub refresh: shipped in 0.1.0
-- [x] Project groups, publishing from Relvora, app icon: shipped in 0.1.1
-- [x] Version suggestion, release checklist per project: shipped in 0.1.2
