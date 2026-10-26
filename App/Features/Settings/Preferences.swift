@@ -74,6 +74,8 @@ final class Preferences {
         static let changelogLabelRules = "changelogLabelRules"
         static let githubRefresh = "githubRefreshInterval"
         static let checksForUpdates = "checksForUpdates"
+        static let claudeEnabled = "claudeEnabled"
+        static let claudePort = "claudePort"
     }
 
     @ObservationIgnored let defaults: UserDefaults
@@ -105,6 +107,18 @@ final class Preferences {
     var checksForUpdates: Bool {
         didSet { defaults.set(checksForUpdates, forKey: Key.checksForUpdates) }
     }
+    /// Claude Code can read projects and add tasks through the MCP server on 127.0.0.1 (ADR 0018). Off until the user
+    /// turns it on; kept per Mac, not in backups.
+    var claudeEnabled: Bool {
+        didSet { defaults.set(claudeEnabled, forKey: Key.claudeEnabled) }
+    }
+    var claudePort: Int {
+        didSet {
+            let valid = min(max(claudePort, 1024), 65_535)
+            if valid != claudePort { claudePort = valid }
+            defaults.set(claudePort, forKey: Key.claudePort)
+        }
+    }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -121,6 +135,8 @@ final class Preferences {
             Self.load([ChangelogLabelRule].self, from: defaults, forKey: Key.changelogLabelRules) ?? [])
         githubRefresh = defaults.string(forKey: Key.githubRefresh).flatMap(GitHubRefreshInterval.init) ?? .fiveMinutes
         checksForUpdates = defaults.object(forKey: Key.checksForUpdates) as? Bool ?? true
+        claudeEnabled = defaults.bool(forKey: Key.claudeEnabled)
+        claudePort = (defaults.object(forKey: Key.claudePort) as? Int) ?? Int(ClaudeConnection.defaultPort)
     }
 
     /// Validates and stores the board template for new projects.

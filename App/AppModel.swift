@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 import Observation
 import RelvoraCore
+import RelvoraMCP
 import RelvoraPersistence
 import RelvoraUpdates
 
@@ -57,6 +58,9 @@ struct LaunchOptions {
     /// `check` runs Check for Updates at launch; `install` also installs what it finds (checks of the updater with
     /// `-RelvoraDemoUpdateVersion`). Not repeated by the copy the update opens.
     var updateAtLaunch: String?
+    /// Turns on Claude's connection on this port with this key, instead of the Keychain's (UI tests).
+    var claudePort: Int?
+    var claudeKey: String?
 
     static func current(_ defaults: UserDefaults = .standard) -> LaunchOptions {
         var options = LaunchOptions()
@@ -81,6 +85,8 @@ struct LaunchOptions {
             options.demoScenario = string("RelvoraDemoScenario")
             options.defaultsSuite = string("RelvoraDefaultsSuite")
             if ticket == nil { options.updateAtLaunch = defaults.string(forKey: "RelvoraUpdateAtLaunch") }
+            options.claudePort = string("RelvoraClaudePort").flatMap(Int.init)
+            options.claudeKey = string("RelvoraClaudeKey").flatMap { AccessKey.isWellFormed($0) ? $0 : nil }
         #endif
         return options
     }
@@ -151,6 +157,12 @@ enum GroupEditorRequest: Identifiable {
     }
 }
 
+/// Tasks changed outside the project's views (Claude created some): open views reload.
+struct ExternalChange: Equatable {
+    let projectID: UUID
+    let id = UUID()
+}
+
 /// Something to do in a project's workspace, requested from outside it (quick actions, menus).
 struct WorkspaceRequest: Equatable {
     enum Action: Equatable {
@@ -203,12 +215,15 @@ final class AppModel {
     var currentProjectID: UUID?
     var workspaceRequest: WorkspaceRequest?
     var isShowingQuickActions = false
+    /// The last change made outside the views, such as tasks Claude created.
+    private(set) var externalChange: ExternalChange?
 
     let environment: AppEnvironment?
     let options: LaunchOptions
     let github: GitHubModel
     let preferences: Preferences
     let updates: UpdateModel
+    let claude: ClaudeConnection
     /// Set when an update opened this copy.
     private let relaunchTicket: RelaunchTicket?
 
@@ -237,6 +252,12 @@ final class AppModel {
             }
         #endif
         preferences = Preferences(defaults: defaults)
+        #if DEBUG
+            if let port = options.claudePort, options.claudeKey != nil {
+                preferences.claudePort = port
+                preferences.claudeEnabled = true
+            }
+        #endif
         do {
             let store =
                 options.inMemoryStore
@@ -255,6 +276,7 @@ final class AppModel {
         }
         github = GitHubModel(services: environment?.github)
         updates = UpdateModel(github: github, preferences: preferences, isDemo: options.demoGitHub)
+        claude = ClaudeConnection(environment: environment, preferences: preferences, fixedKey: options.claudeKey)
     }
 
     func start() async {
@@ -268,6 +290,8 @@ final class AppModel {
             }
         #endif
         await loadProjects()
+        claude.onTasksCreated = { [weak self] projectID in await self?.tasksChanged(in: projectID) }
+        claude.apply()
         await github.loadStatus()
         if let notice = relaunchTicket.flatMap(UpdateModel.installedNotice) { alert = notice }
         #if DEBUG
@@ -292,6 +316,12 @@ final class AppModel {
             alert = AppAlert(title: "Couldn’t load projects", error: error)
         }
         hasLoaded = true
+    }
+
+    /// Tasks were created outside the views (by Claude): the sidebar, the Dashboard, and an open workspace update.
+    func tasksChanged(in projectID: UUID) async {
+        await refreshStats(for: projectID)
+        externalChange = ExternalChange(projectID: projectID)
     }
 
     func refreshStats(for projectID: UUID) async {
