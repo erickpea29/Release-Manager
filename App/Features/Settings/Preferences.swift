@@ -73,6 +73,7 @@ final class Preferences {
         static let newProjectColumns = "newProjectColumns"
         static let changelogLabelRules = "changelogLabelRules"
         static let githubRefresh = "githubRefreshInterval"
+        static let checksForUpdates = "checksForUpdates"
     }
 
     @ObservationIgnored let defaults: UserDefaults
@@ -100,6 +101,10 @@ final class Preferences {
     var githubRefresh: GitHubRefreshInterval {
         didSet { defaults.set(githubRefresh.rawValue, forKey: Key.githubRefresh) }
     }
+    /// Looks for a newer Relvora at launch and once a day (ADR 0017). Kept per Mac: not in backups.
+    var checksForUpdates: Bool {
+        didSet { defaults.set(checksForUpdates, forKey: Key.checksForUpdates) }
+    }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -115,6 +120,7 @@ final class Preferences {
         changelogLabelRules = ChangelogLabelRule.normalized(
             Self.load([ChangelogLabelRule].self, from: defaults, forKey: Key.changelogLabelRules) ?? [])
         githubRefresh = defaults.string(forKey: Key.githubRefresh).flatMap(GitHubRefreshInterval.init) ?? .fiveMinutes
+        checksForUpdates = defaults.object(forKey: Key.checksForUpdates) as? Bool ?? true
     }
 
     /// Validates and stores the board template for new projects.

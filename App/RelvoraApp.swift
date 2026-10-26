@@ -14,6 +14,10 @@ struct RelvoraApp: App {
         }
         .defaultSize(width: 1280, height: 800)
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { Task { await model.updates.check(manual: true) } }
+                    .disabled(model.startupError != nil || model.updates.isInstalling)
+            }
             CommandGroup(replacing: .sidebar) {
                 SidebarToggleCommand(preferences: model.preferences)
             }

@@ -67,13 +67,16 @@ struct SidebarView: View {
                 .padding(.bottom, Spacing.xxs)
         }
         .safeAreaInset(edge: .bottom) {
-            HStack {
-                Button("New Project", systemImage: "plus") { model.projectEditor = .new }
-                    .help("New Project (⇧⌘N)")
-                Spacer()
-                Button("New Group", systemImage: "folder.badge.plus") { model.groupEditor = .new(moving: nil) }
-                    .labelStyle(.iconOnly)
-                    .help("New Group (⌃⌘N)")
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                UpdateAvailableButton()
+                HStack {
+                    Button("New Project", systemImage: "plus") { model.projectEditor = .new }
+                        .help("New Project (⇧⌘N)")
+                    Spacer()
+                    Button("New Group", systemImage: "folder.badge.plus") { model.groupEditor = .new(moving: nil) }
+                        .labelStyle(.iconOnly)
+                        .help("New Group (⌃⌘N)")
+                }
             }
             .buttonStyle(.borderless)
             .padding(Spacing.s)
