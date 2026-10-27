@@ -15,8 +15,7 @@ public struct RelvoraTools: Sendable {
     }
 
     public static let label = "claude"
-    public static let maximumTasksPerCall = 50
-    public static let maximumNotesLength = 10_000
+    public static let maximumTasksPerCall = TaskCreationService.maximumTasks
     static let maximumListedTasks = 500
     static let maximumListedNotesLength = 2_000
 
@@ -224,64 +223,41 @@ public struct RelvoraTools: Sendable {
 
     private func create(_ arguments: [String: JSONValue]) async throws -> JSONValue {
         let project = try await project(arguments["project"])
-        guard !project.isArchived else {
-            throw ToolError("\(project.name) is archived. Ask the user to unarchive it in Relvora first.")
-        }
-        let destination = arguments["destination"]?.stringValue ?? "version"
-        guard ["version", "backlog"].contains(destination) else {
-            throw ToolError("destination must be version or backlog.")
+        let destination: TaskDestination
+        switch arguments["destination"]?.stringValue ?? "version" {
+        case "version": destination = .version
+        case "backlog": destination = .backlog
+        default: throw ToolError("destination must be version or backlog.")
         }
         guard let items = arguments["tasks"]?.arrayValue, !items.isEmpty else {
             throw ToolError("Give at least one task.")
         }
-        guard items.count <= Self.maximumTasksPerCall else {
-            throw ToolError("Create at most \(Self.maximumTasksPerCall) tasks per call.")
-        }
-        let state = try await board.load(projectID: project.id)
-        var plan: ReleasePlan?
-        if destination == "version" {
-            plan = try await plans.plans(projectID: project.id).first(where: \.status.isActive)
-            guard plan != nil else {
-                throw ToolError(
-                    "\(project.name) has no version being planned. Use destination \"backlog\", or ask the user to "
-                        + "plan a version in Relvora.")
-            }
+        let tasks = try items.enumerated().map { index, item in
+            try Self.newTask(item, name: Self.taskName(index + 1, of: items.count))
         }
 
-        // Every task is checked before any is created.
-        let drafts = try items.enumerated().map { index, item in
-            try draft(item, number: index + 1, of: items.count, project: project, plan: plan, state: state)
+        // The rules Shortcuts uses too (TaskCreationService): every task is checked before any is created.
+        let result: CreatedTasks
+        do {
+            result = try await TaskCreationService(board: board, plans: plans).create(
+                tasks, in: project, destination: destination)
+        } catch let error as TaskCreationError {
+            throw ToolError(Self.message(error, taskCount: items.count))
         }
-        var created: [JSONValue] = []
-        for draft in drafts {
-            let after = try await board.createTask(draft)
-            let task = after.task(draft.id) ?? draft
-            created.append(Self.json(task, column: after.column(task.columnID)?.name, version: plan?.version))
-        }
-        await didCreate(
-            Activity(projectID: project.id, projectName: project.name, version: plan?.version, count: drafts.count))
-        let place = plan.map { "\(project.name) \($0.version)" } ?? "the Backlog of \(project.name)"
+        let version = result.plan?.version
+        let count = result.tasks.count
+        await didCreate(Activity(projectID: project.id, projectName: project.name, version: version, count: count))
+        let place = version.map { "\(project.name) \($0)" } ?? "the Backlog of \(project.name)"
         return [
-            "created": .array(created),
-            "summary": .string("Created \(drafts.count) \(drafts.count == 1 ? "task" : "tasks") in \(place)."),
+            "created": .array(
+                result.tasks.map { Self.json($0, column: result.board.column($0.columnID)?.name, version: version) }),
+            "summary": .string("Created \(count) \(count == 1 ? "task" : "tasks") in \(place)."),
         ]
     }
 
-    private func draft(
-        _ item: JSONValue, number: Int, of count: Int, project: Project, plan: ReleasePlan?, state: BoardState
-    ) throws -> ProjectTask {
-        let name = count == 1 ? "The task" : "Task \(number)"
+    /// A task from Claude's arguments, labeled `claude`. Its title, notes, and column are checked with the others.
+    private static func newTask(_ item: JSONValue, name: String) throws -> NewTask {
         guard let fields = item.objectValue else { throw ToolError("\(name) must be an object.") }
-        let title: String
-        do {
-            title = try BoardPlanner.validatedTitle(fields["title"]?.stringValue ?? "")
-        } catch {
-            throw ToolError("\(name): \(error.localizedDescription)")
-        }
-        let notes = fields["notes"]?.stringValue
-        if let notes, notes.count > Self.maximumNotesLength {
-            throw ToolError("\(name): notes are limited to \(Self.maximumNotesLength) characters.")
-        }
         let type = try fields["type"].map { value in
             guard let type = Self.taskType(value.stringValue) else {
                 throw ToolError("\(name): unknown type. Use one of \(Self.list(TaskType.allCases.map(\.rawValue))).")
@@ -295,33 +271,29 @@ public struct RelvoraTools: Sendable {
             }
             return priority
         }
-        let columns = state.orderedColumns.filter { !$0.isCompletionColumn }
-        let column: BoardColumn
-        if let wanted = fields["column"]?.stringValue {
-            guard
-                let match = state.orderedColumns.first(where: {
-                    $0.name.compare(wanted, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
-                })
-            else {
-                throw ToolError(
-                    "\(name): \(project.name) has no column “\(wanted)”. Its columns: "
-                        + Self.list(state.orderedColumns.map(\.name)) + ".")
-            }
-            guard !match.isCompletionColumn else {
-                throw ToolError("\(name): tasks can’t be created in “\(match.name)”, which marks them done.")
-            }
-            column = match
-        } else {
-            guard let first = columns.first else { throw ToolError("\(project.name) has no columns.") }
-            column = first
+        return NewTask(
+            title: fields["title"]?.stringValue ?? "", notes: fields["notes"]?.stringValue, type: type ?? .feature,
+            priority: priority ?? .medium,
+            labels: (fields["labels"]?.arrayValue ?? []).compactMap(\.stringValue) + [Self.label],
+            checklist: (fields["checklist"]?.arrayValue ?? []).compactMap(\.stringValue),
+            column: fields["column"]?.stringValue)
+    }
+
+    private static func taskName(_ number: Int, of count: Int) -> String {
+        count == 1 ? "The task" : "Task \(number)"
+    }
+
+    /// Problems in Claude's terms: what to change in the call, or what to ask the user.
+    private static func message(_ error: TaskCreationError, taskCount: Int) -> String {
+        switch error {
+        case .archivedProject(let name): "\(name) is archived. Ask the user to unarchive it in Relvora first."
+        case .noVersionBeingPlanned(let name):
+            "\(name) has no version being planned. Use destination \"backlog\", or ask the user to plan a version in "
+                + "Relvora."
+        case .noTasks: "Give at least one task."
+        case .tooManyTasks(let maximum): "Create at most \(maximum) tasks per call."
+        default: (error.task.map { "\(taskName($0, of: taskCount)): " } ?? "") + (error.errorDescription ?? "")
         }
-        let labels = (fields["labels"]?.arrayValue ?? []).compactMap(\.stringValue) + [Self.label]
-        let checklist = (fields["checklist"]?.arrayValue ?? []).compactMap(\.stringValue).enumerated().map {
-            ChecklistItem(title: $0.element, sortOrder: Double($0.offset + 1))
-        }
-        return ProjectTask(
-            projectID: project.id, columnID: column.id, releasePlanID: plan?.id, title: title, details: notes,
-            priority: priority ?? .medium, type: type ?? .feature, labels: labels, checklist: checklist, sortOrder: 0)
     }
 
     // MARK: Helpers
