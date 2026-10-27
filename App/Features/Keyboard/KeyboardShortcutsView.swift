@@ -117,13 +117,14 @@ private struct KeyCap: View {
 
     var body: some View {
         Text(key)
-            .font(.callout)
+            .font(.callout.weight(.medium))
+            // Primary: a row's trailing content is secondary, and gray ⇧ ⌃ ⌥ on the key failed the contrast audit.
+            .foregroundStyle(.primary)
             .frame(minWidth: 14)
             .padding(.horizontal, Spacing.xxs)
             .padding(.vertical, 2)
-            .background(
-                .quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-            )
+            // An outline, not a fill: three filled keys outweigh a short title, and the contrast audit then measures
+            // the fill against the row instead of the text.
             .overlay {
                 RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
                     .strokeBorder(Color(nsColor: .separatorColor))

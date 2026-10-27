@@ -19,8 +19,8 @@ struct MenuBarScene: Scene {
         .menuBarExtraStyle(.menu)
     }
 
-    /// The logo's R as a template image. The status item takes its VoiceOver name from the image: the title of
-    /// `MenuBarExtra("Relvora", image:)` didn't reach it.
+    /// The logo's R as a template image, named "Relvora" for VoiceOver. `MenuBarExtra("Relvora", image:)` gives the
+    /// status item the image's name, "MenuBarIcon", instead.
     private static let icon: NSImage = {
         let image = NSImage(named: "MenuBarIcon")?.copy() as? NSImage ?? NSImage()
         image.isTemplate = true

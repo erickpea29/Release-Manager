@@ -191,7 +191,7 @@ Built by four agents in parallel, one branch each, then combined on `feature/mac
 - [x] The menu bar, the widget, and Get the Next Release count the same thing: the tasks of the version being planned
 - [x] Package tests: 250 (24 new)
 - [x] Release script checks the widget's hardened runtime and App Group; an exported team-signed build passed the updater's signature check, which also refused it after one file in the widget changed
-- [ ] UI tests: the new ones (`KeyboardShortcutsUITests`, `MenuBarUITests`, `IntentsUITests`) and the rest, which this change selects in full
+- [x] UI tests: the 8 new ones (`KeyboardShortcutsUITests`, `MenuBarUITests`, `IntentsUITests`) and the accessibility audits pass locally on a Retina display. They caught the menu bar icon being named "MenuBarIcon" for VoiceOver, shortcut rows with no role or value, and keycaps that failed the contrast audit
 - [ ] CI on the PR
 - [ ] Owner: a Release workflow run: notarization accepted, the widget's entitlements show `<TeamID>.com.erickpea29.Relvora`, and the widget appears in the gallery with real data once installed in `/Applications`
 - [ ] Owner: try Shortcuts ("Add a task to Relvora"), Spotlight, and the widget's tinted and clear styles on the real app

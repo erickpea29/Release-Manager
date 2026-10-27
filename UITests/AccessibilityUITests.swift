@@ -71,6 +71,12 @@ extension XCTestCase {
             if let windowFrames, let element = issue.element, element.exists, !windowFrames.contains(element.frame) {
                 return true
             }
+            // A row scrolled out of the window has nothing on screen to measure.
+            if issue.auditType == .contrast, let window, let element = issue.element, element.exists,
+                !window.frame.contains(element.frame)
+            {
+                return true
+            }
             if issue.auditType == .contrast, let element = issue.element, element.exists {
                 let frame = element.frame
                 if selectedRows.contains(where: { $0.contains(frame) }) { return true }

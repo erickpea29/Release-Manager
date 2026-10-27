@@ -9,7 +9,7 @@ final class MenuBarUITests: XCTestCase {
         app.staticTexts["Dashboard"].firstMatch.wait()
         let icon = app.statusItems.firstMatch.wait()
         attachTree(icon, "status-item-tree")
-        XCTAssertEqual(icon.label, "Relvora")
+        XCTAssertEqual(icon.title, "Relvora")  // VoiceOver's name for it
 
         app.typeKey(",", modifierFlags: .command)
         // Settings reopens on the last tab used, which may be another test's.
@@ -51,7 +51,8 @@ final class MenuBarUITests: XCTestCase {
         app.staticTexts["Dashboard"].firstMatch.wait()
         app.statusItems.firstMatch.wait()
 
-        app.typeKey("/", modifierFlags: .command)  // Help › Keyboard Shortcuts
+        app.menuBars.menuBarItems["Help"].click()  // not ⌘/: other keyboard layouts type / with Shift
+        app.menuItems["Keyboard Shortcuts"].wait().click()
         let shortcuts = app.windows.matching(NSPredicate(format: "title == %@", "Keyboard Shortcuts")).firstMatch.wait()
         let main = app.windows["main"]
         main.buttons[XCUIIdentifierCloseWindow].click()
