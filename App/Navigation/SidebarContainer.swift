@@ -56,7 +56,7 @@ struct SidebarContainer<Detail: View>: View {
                 Button(isExpanded ? "Hide Sidebar" : "Show Sidebar", systemImage: "sidebar.left") {
                     preferences.sidebarVisible.toggle()
                 }
-                .help(isExpanded ? "Hide Sidebar (⌃⌘S)" : "Show Sidebar (⌃⌘S)")
+                .help("\(isExpanded ? "Hide" : "Show") Sidebar (\(KeyCommand.toggleSidebar.glyphs))")
             }
         }
     }
@@ -85,7 +85,7 @@ struct SidebarToggleCommand: View {
         Button(preferences.sidebarVisible ? "Hide Sidebar" : "Show Sidebar") {
             preferences.sidebarVisible.toggle()
         }
-        .keyboardShortcut("s", modifiers: [.control, .command])
+        .keyboardShortcut(.toggleSidebar)
     }
 }
 

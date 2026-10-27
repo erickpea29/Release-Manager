@@ -12,6 +12,7 @@ Status: finished in M05. Material rules follow [ADR 0006](decisions/0006-window-
 
 A sidebar holds **Dashboard**, **Release History**, and the projects; each project has the tabs **Backlog**, **Board**, **Releases**, and **GitHub**. Settings is its own scene (⌘,), with the tabs General, Board, Releases, GitHub, Notifications, and Claude.
 - **Notifications.** A banner only when Relvora isn't the active app; otherwise straight to Notification Center. A click opens the project's tab, or the update sheet ([ADR 0019](decisions/0019-notifications.md)).
+- **Menu bar icon.** While Relvora is open, its R in the menu bar opens a menu: **Drafts Waiting**, then **Versions in Progress** (by group when there are more than five), each with its status icon and a second line ("Planned for 9 Nov · 1 of 7 tasks done"). A click opens the project's Releases tab. Then **Open Relvora**, **Settings…**, and **Quit Relvora**. **Settings › General** turns it off ([ADR 0022](decisions/0022-menu-bar-icon.md)).
 
 - **Groups.** Projects are listed by group, one collapsible section each, then **Other Projects** (**Projects** while there are no groups). A group's heading has its menu (new project, rename, move up or down, delete); an empty group says "No projects" and takes dropped projects. Projects change groups by drag and drop, **Move to Group**, or the project editor ([ADR 0014](decisions/0014-project-groups.md)).
 - **Collapsed sidebar.** Hiding the sidebar (⌃⌘S or the toolbar button) narrows it to a strip of icons: Dashboard, Release History, each active project by its initials in the sidebar's order, with a line between groups (the group and name in the tooltip), and New Project. It widens again as the same piece; the list and the icons cross-fade.
@@ -27,6 +28,12 @@ The white **R** on a dark rounded square (0.1.1). The source is `Design/logo.png
 
 ```sh
 swift scripts/make-app-icon.swift Design/logo.png App/Assets.xcassets/AppIcon.appiconset
+```
+
+The menu bar icon is the same logo as a 16-point template image: the square opaque, the R cut out. To rebuild it:
+
+```sh
+swift scripts/make-menu-bar-icon.swift Design/logo.png App/Assets.xcassets/MenuBarIcon.imageset
 ```
 
 ## 3. Tokens
@@ -68,29 +75,34 @@ Every remote-data view defines all five states:
   - Icon-only buttons use `Label` with `.labelStyle(.iconOnly)`.
   - Icon-only links use `GitHubLinkIcon`, which adds a tooltip and a spoken label.
   - Containers (board columns, plan lists, the projects grid) have labels.
-- **Keyboard map.**
+- **Keyboard map.** The same list, grouped the same way, is in **Help › Keyboard Shortcuts** (⌘/, also in Quick Actions): a small window with a search field. Each row reads as one line in VoiceOver ("New Task, Command N").
 
-  | Keys | Action |
-  |---|---|
-  | ⌘K | Quick actions: go to a project, tab, or view, or run an action |
-  | ⌘1 / ⌘2 | Dashboard / Release History |
-  | ⌥⌘1 / ⌥⌘2 / ⌥⌘3 / ⌥⌘4 | Backlog / Board / Releases / GitHub of the open project |
-  | ⌃⌘S | Hide or show the sidebar (it narrows to an icon strip) |
-  | ⌘N / ⇧⌘N / ⌃⌘N | New task / New project / New group (not ⌥⌘N: ⌥N is a dead key on many keyboards, and the shortcut never fires) |
-  | Arrow keys (board focused) | Move the card selection, across columns with ← → |
-  | Return or Space | Open the selected card |
-  | ⌥⌘← / ⌥⌘→ | Move the selected card to the previous / next column (**Task** menu) |
-  | ⌥⌘↑ / ⌥⌘↓ | Move the selected card up / down (**Task** menu) |
-  | ⌘O | Open the selected card (**Task** menu) |
-  | ⌘⌫ or ⌫ | Delete the selected card, after confirmation |
-  | Return / ⌫ (Backlog) | Open / delete the selected task |
-  | ⌘R | Refresh a repository |
-  | ⇧⌘E | Export backup |
+  | Group | Keys | Action |
+  |---|---|---|
+  | General | ⌘, | Settings |
+  | | ⌃⌘S | Hide or show the sidebar (it narrows to an icon strip) |
+  | | ⌘/ | Keyboard Shortcuts |
+  | File | ⌘N / ⇧⌘N / ⌃⌘N | New task / New project / New group (not ⌥⌘N: ⌥N is a dead key on many keyboards, and the shortcut never fires) |
+  | | ⇧⌘E | Export backup |
+  | Go | ⌘K | Quick actions: go to a project, tab, or view, or run an action |
+  | | ⌘1 / ⌘2 | Dashboard / Release History |
+  | | ⌥⌘1 / ⌥⌘2 / ⌥⌘3 / ⌥⌘4 | Backlog / Board / Releases / GitHub of the open project |
+  | Task | ⌘O | Open the selected card |
+  | | ⌥⌘← / ⌥⌘→ | Move the selected card to the previous / next column |
+  | | ⌥⌘↑ / ⌥⌘↓ | Move the selected card up / down |
+  | | ⌘⌫ | Delete the selected card, after confirmation |
+  | Board (focused) | Arrow keys | Move the card selection, across columns with ← → |
+  | | Return or Space | Open the selected card |
+  | | ⌫ | Delete the selected card, after confirmation |
+  | Backlog | Return / ⌫ | Open / delete the selected task (double-click also opens it) |
+  | GitHub | ⌘R | Refresh a repository |
+  | Quick Actions | ↑ ↓ / Return / Esc | Choose / run / close |
 
+  - **One list.** `KeyCommand` (`App/Features/Keyboard/KeyboardShortcuts.swift`) holds every shortcut. The menus take their keys from it (`.keyboardShortcut(.newTask)`), and the Keyboard Shortcuts window lists all of it, so they can't drift apart. Keys a view handles itself (the board's arrows, the Backlog's Return) are listed there too. Add or change a shortcut there first, then in this table.
   - The board can be reached with Tab, even with macOS keyboard navigation off.
   - Task commands are enabled only while the board itself has focus, so ⌘⌫ and ⌥⌘ arrows still work in text fields.
   - Moving a task never requires drag-and-drop. VoiceOver users get **Move to Previous/Next Column** actions on each card.
-- **Automated audit.** UI tests run Xcode's accessibility audit on the dashboard, the board, the Backlog, and a release plan.
+- **Automated audit.** UI tests run Xcode's accessibility audit on the dashboard, the board, the Backlog, a release plan, and the Keyboard Shortcuts window.
   - Our own findings are fixed, not suppressed.
   - Accepted platform behavior, kept narrow and listed in `UITests/AccessibilityUITests.swift`:
     - SwiftUI pickers and menus expose "show menu" rather than "press".

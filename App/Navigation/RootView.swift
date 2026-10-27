@@ -119,7 +119,8 @@ struct RootView: View {
         } message: { alert in
             Text(alert.message)
         }
-        .onChange(of: model.navigationRequest) { _, request in
+        // Initial too: the menu bar icon, a Spotlight result, or a Shortcut can ask before this window appears.
+        .onChange(of: model.navigationRequest, initial: true) { _, request in
             guard let request else { return }
             select(request)
             model.navigationRequest = nil

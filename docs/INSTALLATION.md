@@ -88,7 +88,7 @@ xcodebuild test -project Relvora.xcodeproj -scheme Relvora \
 3. Install the **Relvora** GitHub App on the repositories you release from. Use the **Add repositories on GitHub…** link in the repository picker. To register your own GitHub App instead, see [GITHUB_APP_SETUP.md](GITHUB_APP_SETUP.md).
 4. In the project, open the **GitHub** tab and click **Connect Repository…**.
 
-Press **⌘K** at any time to jump to a project or run an action.
+Press **⌘K** at any time to jump to a project or run an action, and **⌘/** for every keyboard shortcut (**Help › Keyboard Shortcuts**).
 
 ## Back up and recover
 

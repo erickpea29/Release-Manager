@@ -14,6 +14,10 @@
 		B20000000000000000000036 /* RelvoraUpdater.xpc in Embed XPC Services */ = {isa = PBXBuildFile; fileRef = B2000000000000000000002B /* RelvoraUpdater.xpc */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B20000000000000000000039 /* RelvoraUpdates in Frameworks */ = {isa = PBXBuildFile; productRef = B2000000000000000000003A /* RelvoraUpdates */; };
 		B2000000000000000000003C /* RelvoraMCP in Frameworks */ = {isa = PBXBuildFile; productRef = B2000000000000000000003D /* RelvoraMCP */; };
+		B20000000000000000A0000B /* RelvoraWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B20000000000000000A00001 /* RelvoraWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B20000000000000000A0000F /* RelvoraWidgetData in Frameworks */ = {isa = PBXBuildFile; productRef = B20000000000000000A0000E /* RelvoraWidgetData */; };
+		B20000000000000000A00011 /* RelvoraWidgetData in Frameworks */ = {isa = PBXBuildFile; productRef = B20000000000000000A00010 /* RelvoraWidgetData */; };
+		B20000000000000000A00015 /* RelvoraCore in Frameworks */ = {isa = PBXBuildFile; productRef = B20000000000000000A00014 /* RelvoraCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -31,6 +35,13 @@
 			remoteGlobalIDString = B20000000000000000000031;
 			remoteInfo = RelvoraUpdater;
 		};
+		B20000000000000000A0000C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B20000000000000000000009 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B20000000000000000A00003;
+			remoteInfo = RelvoraWidget;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -45,6 +56,17 @@
 			name = "Embed XPC Services";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B20000000000000000A0000A /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				B20000000000000000A0000B /* RelvoraWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -56,6 +78,9 @@
 		B20000000000000000000020 /* RelvoraUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RelvoraUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B2000000000000000000002B /* RelvoraUpdater.xpc */ = {isa = PBXFileReference; explicitFileType = "wrapper.xpc-service"; includeInIndex = 0; path = RelvoraUpdater.xpc; sourceTree = BUILT_PRODUCTS_DIR; };
 		B2000000000000000000003B /* Updater-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Updater-Info.plist"; sourceTree = "<group>"; };
+		B20000000000000000A00001 /* RelvoraWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RelvoraWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		B20000000000000000A00012 /* RelvoraWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RelvoraWidget.entitlements; sourceTree = "<group>"; };
+		B20000000000000000A00013 /* Widget-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Widget-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -74,6 +99,11 @@
 			path = Updater;
 			sourceTree = "<group>";
 		};
+		B20000000000000000A00002 /* Widget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Widget;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -86,6 +116,7 @@
 				B2000000000000000000001B /* GitHubIntegration in Frameworks */,
 				B20000000000000000000039 /* RelvoraUpdates in Frameworks */,
 				B2000000000000000000003C /* RelvoraMCP in Frameworks */,
+				B20000000000000000A0000F /* RelvoraWidgetData in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -104,6 +135,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B20000000000000000A00005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B20000000000000000A00011 /* RelvoraWidgetData in Frameworks */,
+				B20000000000000000A00015 /* RelvoraCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -113,6 +153,7 @@
 				B20000000000000000000002 /* App */,
 				B20000000000000000000022 /* UITests */,
 				B2000000000000000000002C /* Updater */,
+				B20000000000000000A00002 /* Widget */,
 				B2000000000000000000001A /* Config */,
 				B20000000000000000000005 /* Products */,
 			);
@@ -124,6 +165,7 @@
 				B20000000000000000000001 /* Relvora.app */,
 				B20000000000000000000020 /* RelvoraUITests.xctest */,
 				B2000000000000000000002B /* RelvoraUpdater.xpc */,
+				B20000000000000000A00001 /* RelvoraWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -136,6 +178,8 @@
 				B20000000000000000000019 /* Relvora.entitlements */,
 				B2000000000000000000001D /* Info.plist */,
 				B2000000000000000000003B /* Updater-Info.plist */,
+				B20000000000000000A00012 /* RelvoraWidget.entitlements */,
+				B20000000000000000A00013 /* Widget-Info.plist */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -151,11 +195,13 @@
 				B20000000000000000000003 /* Frameworks */,
 				B20000000000000000000008 /* Resources */,
 				B20000000000000000000035 /* Embed XPC Services */,
+				B20000000000000000A0000A /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				B20000000000000000000037 /* PBXTargetDependency */,
+				B20000000000000000A0000D /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				B20000000000000000000002 /* App */,
@@ -167,6 +213,7 @@
 				B2000000000000000000001C /* GitHubIntegration */,
 				B2000000000000000000003A /* RelvoraUpdates */,
 				B2000000000000000000003D /* RelvoraMCP */,
+				B20000000000000000A0000E /* RelvoraWidgetData */,
 			);
 			productName = Relvora;
 			productReference = B20000000000000000000001 /* Relvora.app */;
@@ -215,6 +262,30 @@
 			productReference = B2000000000000000000002B /* RelvoraUpdater.xpc */;
 			productType = "com.apple.product-type.xpc-service";
 		};
+		B20000000000000000A00003 /* RelvoraWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B20000000000000000A00007 /* Build configuration list for PBXNativeTarget "RelvoraWidget" */;
+			buildPhases = (
+				B20000000000000000A00004 /* Sources */,
+				B20000000000000000A00005 /* Frameworks */,
+				B20000000000000000A00006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B20000000000000000A00002 /* Widget */,
+			);
+			name = RelvoraWidget;
+			packageProductDependencies = (
+				B20000000000000000A00010 /* RelvoraWidgetData */,
+				B20000000000000000A00014 /* RelvoraCore */,
+			);
+			productName = RelvoraWidget;
+			productReference = B20000000000000000A00001 /* RelvoraWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -233,6 +304,9 @@
 						TestTargetID = B20000000000000000000006;
 					};
 					B20000000000000000000031 = {
+						CreatedOnToolsVersion = 26.0;
+					};
+					B20000000000000000A00003 = {
 						CreatedOnToolsVersion = 26.0;
 					};
 				};
@@ -257,6 +331,7 @@
 				B20000000000000000000006 /* Relvora */,
 				B20000000000000000000024 /* RelvoraUITests */,
 				B20000000000000000000031 /* RelvoraUpdater */,
+				B20000000000000000A00003 /* RelvoraWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -270,6 +345,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		B20000000000000000000027 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B20000000000000000A00006 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -300,6 +382,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B20000000000000000A00004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -312,6 +401,11 @@
 			isa = PBXTargetDependency;
 			target = B20000000000000000000031 /* RelvoraUpdater */;
 			targetProxy = B20000000000000000000038 /* PBXContainerItemProxy */;
+		};
+		B20000000000000000A0000D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B20000000000000000A00003 /* RelvoraWidget */;
+			targetProxy = B20000000000000000A0000C /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -479,6 +573,48 @@
 			};
 			name = Release;
 		};
+		B20000000000000000A00008 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B20000000000000000000017 /* Shared.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/RelvoraWidget.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/Widget-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Relvora;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(RELVORA_BUNDLE_ID_BASE)$(RELVORA_BUNDLE_ID_SUFFIX).Widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		B20000000000000000A00009 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B20000000000000000000017 /* Shared.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/RelvoraWidget.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/Widget-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Relvora;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(RELVORA_BUNDLE_ID_BASE)$(RELVORA_BUNDLE_ID_SUFFIX).Widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -518,6 +654,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		B20000000000000000A00007 /* Build configuration list for PBXNativeTarget "RelvoraWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B20000000000000000A00008 /* Debug */,
+				B20000000000000000A00009 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -551,6 +696,18 @@
 		B2000000000000000000003D /* RelvoraMCP */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RelvoraMCP;
+		};
+		B20000000000000000A0000E /* RelvoraWidgetData */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RelvoraWidgetData;
+		};
+		B20000000000000000A00010 /* RelvoraWidgetData */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RelvoraWidgetData;
+		};
+		B20000000000000000A00014 /* RelvoraCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RelvoraCore;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

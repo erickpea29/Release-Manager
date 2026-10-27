@@ -54,6 +54,18 @@ developer-id)
     codesign --verify --deep --strict --verbose=2 "$APP"
     codesign --display --verbose=2 "$APP" 2>&1 | grep -q "flags=0x10000(runtime)" ||
         { echo "error: hardened runtime is off" >&2; exit 1; }
+    # The updater service and the widget are notarized with the app, so they need the hardened runtime too. The App
+    # Group the app and its widget share must start with the team ID, or macOS asks before Relvora can use it (ADR 0024).
+    for nested in "$APP"/Contents/XPCServices/*.xpc "$APP"/Contents/PlugIns/*.appex; do
+        details=$(codesign --display --verbose=2 "$nested" 2>&1)
+        [[ "$details" == *"flags=0x10000(runtime)"* ]] ||
+            { echo "error: hardened runtime is off in $(basename "$nested")" >&2; exit 1; }
+    done
+    for code in "$APP" "$APP"/Contents/PlugIns/*.appex; do
+        entitlements=$(codesign -d --entitlements - --xml "$code" 2>/dev/null)
+        [[ "$entitlements" == *"<string>$TEAM_ID.com.erickpea29.Relvora</string>"* ]] ||
+            { echo "error: $(basename "$code") isn't entitled to the team's App Group" >&2; exit 1; }
+    done
 
     if [[ -n "${NOTARY_KEY_PATH:-}" ]]; then
         echo "▸ Notarizing (this can take a few minutes)"

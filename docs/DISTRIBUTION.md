@@ -92,10 +92,10 @@ For a build that isn't tied to a release, use **Actions › Release › Run work
 `scripts/release/build-release.sh` checks the following, and fails the build if any check fails:
 1. It archives the Release configuration as a universal (Apple silicon and Intel) app, with bundle ID `com.erickpea29.Relvora`.
 2. It signs the app with **Developer ID Application**, using the hardened runtime and a secure timestamp.
-3. It verifies the signature (`codesign --verify --deep --strict`) and that the hardened runtime is enabled.
+3. It verifies the signature (`codesign --verify --deep --strict`) and that the hardened runtime is enabled, in the app and in its nested code (the updater service and the widget). The app and the widget must be entitled to the team's App Group ([ADR 0024](decisions/0024-desktop-widget.md)).
 4. It submits the app with `notarytool` and waits. If the status isn't **Accepted**, it prints Apple's notarization log.
 5. It staples the ticket, validates it, and runs a Gatekeeper assessment (`spctl`).
-6. It zips the app with `ditto` and writes a SHA-256 checksum. Relvora's updater reads both files ([ADR 0017](decisions/0017-update-relvora-from-relvora.md)). The updater service inside the app (`Contents/XPCServices/RelvoraUpdater.xpc`) is signed and notarized with the app.
+6. It zips the app with `ditto` and writes a SHA-256 checksum. Relvora's updater reads both files ([ADR 0017](decisions/0017-update-relvora-from-relvora.md)). The updater service (`Contents/XPCServices/RelvoraUpdater.xpc`) and the desktop widget (`Contents/PlugIns/RelvoraWidget.appex`) are signed and notarized with the app.
 
 The script runs locally too, which is useful for testing the pipeline:
 - `VERSION=1.2.0 SIGNING=adhoc scripts/release/build-release.sh` builds an unsigned test package.
@@ -109,6 +109,7 @@ Credentials are only ever read from the environment or the temporary CI keychain
 - **Certificates expire.** A Developer ID certificate is valid for five years. Replace the `DEVELOPER_ID_CERTIFICATE_*` secrets when you renew it. Apps already notarized keep working.
 - **Updates come from this repository's releases** ([ADR 0017](decisions/0017-update-relvora-from-relvora.md)). Relvora looks for `Relvora-<version>.zip` and `Relvora-<version>.zip.sha256` on the newest published release, so keep those names. It installs the zip only if the app inside is Developer ID signed by the same team, notarized, has the same bundle ID, and has a CFBundleShortVersionString equal to the tag's version. Only people whose GitHub sign-in can read the repository get updates.
 - **Separate data per build type.** The release build (`com.erickpea29.Relvora`) has its own data container, separate from the `.dev` and `.adhoc` builds (F5). To move data, use **File › Export Backup…** and **Restore from Backup…**.
+- **The desktop widget needs a team-signed build.** The app and its widget share an App Group named after the team ID (`<TeamID>.com.erickpea29.Relvora`), which needs no provisioning profile. Each build type has its own. Ad-hoc builds can't use one, so their widget only says "Open Relvora" ([ADR 0024](decisions/0024-desktop-widget.md)).
 - **Sign in to GitHub again.** The first launch of a release build needs a new GitHub sign-in, because the Keychain item belongs to each app identity.
 - **Private repository.** Release assets of `erickpea29/Release-Manager` are visible only to its collaborators. Public distribution needs a public repository, or another download location.
 - **Licence still undecided.** Choose a licence before distributing to others (PRODUCT_SPEC G10).

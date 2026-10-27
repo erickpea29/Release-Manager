@@ -37,7 +37,7 @@ struct BackupDocumentTests {
                 ColumnTemplate(name: "Todo", isCompletion: false), ColumnTemplate(name: "Done", isCompletion: true),
             ],
             changelogLabelRules: [ChangelogLabelRule(label: "ui", category: .improvements)],
-            githubRefreshInterval: "15m")
+            githubRefreshInterval: "15m", showsMenuBarIcon: false)
         let document = BackupDocument(bundles: [], exportedAt: .now, appVersion: nil, preferences: preferences)
         let decoded = try BackupDocument.decode(try document.encoded())
         #expect(decoded.preferences == preferences)
@@ -46,6 +46,13 @@ struct BackupDocumentTests {
         let old = try BackupDocument.decode(
             Data(#"{"formatVersion": 3, "exportedAt": "2026-03-15T08:00:00Z", "projects": []}"#.utf8))
         #expect(old.preferences == nil)
+        // A format 6 file from before the menu bar icon (0.2.3) restores without the switch.
+        let formatSix =
+            #"{"formatVersion": 6, "exportedAt": "2026-10-26T08:00:00Z", "projects": [], "#
+            + #""preferences": {"appearance": "dark"}}"#
+        let beforeMenuBar = try BackupDocument.decode(Data(formatSix.utf8))
+        #expect(beforeMenuBar.preferences?.showsMenuBarIcon == nil)
+        #expect(beforeMenuBar.preferences?.appearance == "dark")
 
         var broken = document
         broken.preferences?.newProjectColumns = [ColumnTemplate(name: "Only", isCompletion: false)]

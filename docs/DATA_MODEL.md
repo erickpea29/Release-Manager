@@ -77,6 +77,7 @@ Stored in `UserDefaults` through one `Preferences` store in the app. Keys from M
 - **Columns for new projects**: `[ColumnTemplate]` (name, isCompletion), validated by `ProjectRules.validatedTemplate` (one or more columns, exactly one completion column, names differ ignoring case, none named “Backlog”; a saved template from before the Backlog tab drops it).
 - **Release-note label rules**: `[ChangelogLabelRule]` (label → `ChangelogCategory` key), which win over the built-in label meanings.
 - **GitHub refresh** (`5m|15m|1h|never`, default `5m`): how often the repository open in the GitHub tab refreshes while Relvora is active.
+- **Menu bar icon** (on by default): whether Relvora shows its menu bar icon ([ADR 0022](decisions/0022-menu-bar-icon.md)). In backups as an optional field within format 6.
 
 Backup format 4 carries these settings, except sidebar visibility, as a `preferences` record. Restore applies the known, valid values and keeps the current ones otherwise (G12). The last-selected project and tab are window state (`SceneStorage`), not preferences.
 

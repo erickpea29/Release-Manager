@@ -25,7 +25,10 @@ while IFS= read -r file; do
     case "$file" in
         # Nothing the app runs.
         docs/* | *.md | Design/* | spikes/* | .gitignore | .swift-format | Packages/RelvoraKit/Tests/*) ;;
-        scripts/make-app-icon.swift | scripts/release/* | .github/workflows/release.yml) ;;
+        scripts/make-app-icon.swift | scripts/make-menu-bar-icon.swift | scripts/release/* | \
+            .github/workflows/release.yml) ;;
+        # The desktop widget's extension: the app embeds it but never runs it, and UI tests can't see widgets.
+        Widget/* | Config/Widget-Info.plist | Config/RelvoraWidget.entitlements) ;;
         # How UI tests run: one quick test shows the job still works.
         .github/workflows/ci.yml | scripts/ui-tests-for-changes.sh) pick "$launch" ;;
         # A UI test file: that test.
@@ -47,7 +50,14 @@ while IFS= read -r file; do
         App/Features/Claude/*) pick ClaudeUITests NotificationUITests ;;
         App/Features/Updates/*) pick UpdateUITests NotificationUITests ;;
         App/Features/Settings/*) pick SettingsUITests ;;
+        App/Features/MenuBar/*) pick MenuBarUITests ;;
+        App/Features/Intents/*)
+            pick IntentsUITests SettingsUITests UpdateUITests/testCheckForUpdatesWhenUpToDate ;;
         App/Features/Backup/*) pick "$launch" ;;
+        # The shortcuts window, and the menu keys it defines: the tests that press them.
+        App/Features/Keyboard/*) pick KeyboardShortcutsUITests NavigationUITests BoardUITests ;;
+        # The widget's snapshot and links: test copies never write it, so the launch test shows it's harmless.
+        App/Features/Widget/* | Packages/RelvoraKit/Sources/RelvoraWidgetData/*) pick "$launch" ;;
         App/Navigation/*) pick NavigationUITests AccessibilityUITests ;;
         App/DesignSystem/* | App/Assets.xcassets/*) pick NavigationUITests AccessibilityUITests ;;
         App/AppModel.swift) pick "$launch" NotificationUITests ;;
@@ -62,6 +72,9 @@ while IFS= read -r file; do
         Packages/RelvoraKit/Sources/RelvoraCore/Services/AppNotifications.swift) pick NotificationUITests ;;
         Packages/RelvoraKit/Sources/RelvoraCore/Services/PullRequests.swift) pick PullRequestUITests NotificationUITests ;;
         Packages/RelvoraKit/Sources/RelvoraCore/Services/AppUpdate.swift) pick UpdateUITests ;;
+        Packages/RelvoraKit/Sources/RelvoraCore/Services/ReleaseOverview.swift) pick MenuBarUITests ;;
+        Packages/RelvoraKit/Sources/RelvoraCore/Services/TaskCreation.swift) pick ClaudeUITests ;;
+        Packages/RelvoraKit/Sources/RelvoraCore/Services/SystemSearch.swift) pick IntentsUITests ;;
         Packages/RelvoraKit/Sources/RelvoraCore/Services/BoardPlanner.swift | \
             Packages/RelvoraKit/Sources/RelvoraCore/Services/BoardService.swift | \
             Packages/RelvoraKit/Sources/RelvoraCore/Services/Filtering.swift)

@@ -34,11 +34,13 @@ public struct BackupDocument: Codable, Sendable, Equatable {
         public var changelogLabelRules: [ChangelogLabelRule]?
         /// How often open repositories refresh from GitHub. Optional within format 4: older files restore without it.
         public var githubRefreshInterval: String?
+        /// Whether Relvora shows its menu bar icon (ADR 0022). Optional within format 6: older files restore without it.
+        public var showsMenuBarIcon: Bool?
 
         public init(
             appearance: String? = nil, accentColor: String? = nil, windowMaterial: String? = nil,
             newProjectColumns: [ColumnTemplate]? = nil, changelogLabelRules: [ChangelogLabelRule]? = nil,
-            githubRefreshInterval: String? = nil
+            githubRefreshInterval: String? = nil, showsMenuBarIcon: Bool? = nil
         ) {
             self.appearance = appearance
             self.accentColor = accentColor
@@ -46,6 +48,7 @@ public struct BackupDocument: Codable, Sendable, Equatable {
             self.newProjectColumns = newProjectColumns
             self.changelogLabelRules = changelogLabelRules
             self.githubRefreshInterval = githubRefreshInterval
+            self.showsMenuBarIcon = showsMenuBarIcon
         }
     }
 
