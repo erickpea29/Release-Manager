@@ -71,11 +71,11 @@ struct SidebarView: View {
                 UpdateAvailableButton()
                 HStack {
                     Button("New Project", systemImage: "plus") { model.projectEditor = .new }
-                        .help("New Project (⇧⌘N)")
+                        .help("New Project (\(KeyCommand.newProject.glyphs))")
                     Spacer()
                     Button("New Group", systemImage: "folder.badge.plus") { model.groupEditor = .new(moving: nil) }
                         .labelStyle(.iconOnly)
-                        .help("New Group (⌃⌘N)")
+                        .help("New Group (\(KeyCommand.newGroup.glyphs))")
                 }
             }
             .buttonStyle(.borderless)

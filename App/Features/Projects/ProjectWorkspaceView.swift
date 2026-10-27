@@ -59,10 +59,10 @@ struct ProjectWorkspaceView: View {
                 switch tab {
                 case .backlog:
                     Button("New Task", systemImage: "plus") { model?.beginNewTask(inVersion: false) }
-                        .help("New Task in the Backlog (⌘N)")
+                        .help("New Task in the Backlog (\(KeyCommand.newTask.glyphs))")
                 case .board:
                     Button("New Task", systemImage: "plus") { model?.beginNewTask() }
-                        .help("New Task (⌘N)")
+                        .help("New Task (\(KeyCommand.newTask.glyphs))")
                 case .releases:
                     Button("New Release Plan", systemImage: "plus") { model?.planEditor = .new }
                         .disabled(model?.activePlan != nil)

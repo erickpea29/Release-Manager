@@ -68,29 +68,34 @@ Every remote-data view defines all five states:
   - Icon-only buttons use `Label` with `.labelStyle(.iconOnly)`.
   - Icon-only links use `GitHubLinkIcon`, which adds a tooltip and a spoken label.
   - Containers (board columns, plan lists, the projects grid) have labels.
-- **Keyboard map.**
+- **Keyboard map.** The same list, grouped the same way, is in **Help › Keyboard Shortcuts** (⌘/, also in Quick Actions): a small window with a search field. Each row reads as one line in VoiceOver ("New Task, Command N").
 
-  | Keys | Action |
-  |---|---|
-  | ⌘K | Quick actions: go to a project, tab, or view, or run an action |
-  | ⌘1 / ⌘2 | Dashboard / Release History |
-  | ⌥⌘1 / ⌥⌘2 / ⌥⌘3 / ⌥⌘4 | Backlog / Board / Releases / GitHub of the open project |
-  | ⌃⌘S | Hide or show the sidebar (it narrows to an icon strip) |
-  | ⌘N / ⇧⌘N / ⌃⌘N | New task / New project / New group (not ⌥⌘N: ⌥N is a dead key on many keyboards, and the shortcut never fires) |
-  | Arrow keys (board focused) | Move the card selection, across columns with ← → |
-  | Return or Space | Open the selected card |
-  | ⌥⌘← / ⌥⌘→ | Move the selected card to the previous / next column (**Task** menu) |
-  | ⌥⌘↑ / ⌥⌘↓ | Move the selected card up / down (**Task** menu) |
-  | ⌘O | Open the selected card (**Task** menu) |
-  | ⌘⌫ or ⌫ | Delete the selected card, after confirmation |
-  | Return / ⌫ (Backlog) | Open / delete the selected task |
-  | ⌘R | Refresh a repository |
-  | ⇧⌘E | Export backup |
+  | Group | Keys | Action |
+  |---|---|---|
+  | General | ⌘, | Settings |
+  | | ⌃⌘S | Hide or show the sidebar (it narrows to an icon strip) |
+  | | ⌘/ | Keyboard Shortcuts |
+  | File | ⌘N / ⇧⌘N / ⌃⌘N | New task / New project / New group (not ⌥⌘N: ⌥N is a dead key on many keyboards, and the shortcut never fires) |
+  | | ⇧⌘E | Export backup |
+  | Go | ⌘K | Quick actions: go to a project, tab, or view, or run an action |
+  | | ⌘1 / ⌘2 | Dashboard / Release History |
+  | | ⌥⌘1 / ⌥⌘2 / ⌥⌘3 / ⌥⌘4 | Backlog / Board / Releases / GitHub of the open project |
+  | Task | ⌘O | Open the selected card |
+  | | ⌥⌘← / ⌥⌘→ | Move the selected card to the previous / next column |
+  | | ⌥⌘↑ / ⌥⌘↓ | Move the selected card up / down |
+  | | ⌘⌫ | Delete the selected card, after confirmation |
+  | Board (focused) | Arrow keys | Move the card selection, across columns with ← → |
+  | | Return or Space | Open the selected card |
+  | | ⌫ | Delete the selected card, after confirmation |
+  | Backlog | Return / ⌫ | Open / delete the selected task (double-click also opens it) |
+  | GitHub | ⌘R | Refresh a repository |
+  | Quick Actions | ↑ ↓ / Return / Esc | Choose / run / close |
 
+  - **One list.** `KeyCommand` (`App/Features/Keyboard/KeyboardShortcuts.swift`) holds every shortcut. The menus take their keys from it (`.keyboardShortcut(.newTask)`), and the Keyboard Shortcuts window lists all of it, so they can't drift apart. Keys a view handles itself (the board's arrows, the Backlog's Return) are listed there too. Add or change a shortcut there first, then in this table.
   - The board can be reached with Tab, even with macOS keyboard navigation off.
   - Task commands are enabled only while the board itself has focus, so ⌘⌫ and ⌥⌘ arrows still work in text fields.
   - Moving a task never requires drag-and-drop. VoiceOver users get **Move to Previous/Next Column** actions on each card.
-- **Automated audit.** UI tests run Xcode's accessibility audit on the dashboard, the board, the Backlog, and a release plan.
+- **Automated audit.** UI tests run Xcode's accessibility audit on the dashboard, the board, the Backlog, a release plan, and the Keyboard Shortcuts window.
   - Our own findings are fixed, not suppressed.
   - Accepted platform behavior, kept narrow and listed in `UITests/AccessibilityUITests.swift`:
     - SwiftUI pickers and menus expose "show menu" rather than "press".

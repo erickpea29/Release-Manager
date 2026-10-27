@@ -24,21 +24,21 @@ struct RelvoraApp: App {
             CommandGroup(after: .newItem) {
                 NewTaskCommand()
                 Button("New Project…") { model.projectEditor = .new }
-                    .keyboardShortcut("n", modifiers: [.command, .shift])
+                    .keyboardShortcut(.newProject)
                     .disabled(model.startupError != nil)
                 Button("New Group…") { model.groupEditor = .new(moving: nil) }
-                    .keyboardShortcut("n", modifiers: [.command, .control])
+                    .keyboardShortcut(.newGroup)
                     .disabled(model.startupError != nil)
             }
             CommandMenu("Go") {
                 Button("Quick Actions…") { model.isShowingQuickActions = true }
-                    .keyboardShortcut("k")
+                    .keyboardShortcut(.quickActions)
                     .disabled(model.startupError != nil)
                 Divider()
                 Button("Dashboard") { model.navigationRequest = .dashboard }
-                    .keyboardShortcut("1")
+                    .keyboardShortcut(.dashboard)
                 Button("Release History") { model.navigationRequest = .history }
-                    .keyboardShortcut("2")
+                    .keyboardShortcut(.releaseHistory)
                 Divider()
                 WorkspaceTabCommands()
             }
@@ -47,10 +47,13 @@ struct RelvoraApp: App {
             }
             CommandGroup(replacing: .importExport) {
                 Button("Export Backup…") { Task { await model.beginBackupExport() } }
-                    .keyboardShortcut("e", modifiers: [.command, .shift])
+                    .keyboardShortcut(.exportBackup)
                     .disabled(model.startupError != nil)
                 Button("Restore from Backup…") { model.isChoosingBackup = true }
                     .disabled(model.startupError != nil)
+            }
+            CommandGroup(replacing: .help) {
+                KeyboardShortcutsCommand()
             }
             #if DEBUG
                 CommandMenu("Demo GitHub") {
@@ -71,6 +74,8 @@ struct RelvoraApp: App {
                 .preferredColorScheme(model.preferences.appearance.colorScheme)
                 .tint(model.preferences.accent.color)
         }
+
+        KeyboardShortcutsWindow(preferences: model.preferences)
     }
 }
 
@@ -79,9 +84,9 @@ private struct WorkspaceTabCommands: View {
     @FocusedValue(\.workspaceTab) private var tab
 
     var body: some View {
-        ForEach(Array(WorkspaceTab.allCases.enumerated()), id: \.element) { index, item in
+        ForEach(WorkspaceTab.allCases) { item in
             Button(item.title) { tab?.wrappedValue = item.rawValue }
-                .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: [.command, .option])
+                .keyboardShortcut(KeyCommand.tab(item))
                 .disabled(tab == nil)
         }
     }
@@ -93,22 +98,22 @@ private struct TaskCommands: View {
 
     var body: some View {
         Button("Open Task") { actions?.open() }
-            .keyboardShortcut("o")
+            .keyboardShortcut(.openTask)
             .disabled(actions?.hasSelection != true)
         Divider()
-        move("Move to Previous Column", .left, .leftArrow)
-        move("Move to Next Column", .right, .rightArrow)
-        move("Move Up", .up, .upArrow)
-        move("Move Down", .down, .downArrow)
+        move("Move to Previous Column", .left, .moveTaskLeft)
+        move("Move to Next Column", .right, .moveTaskRight)
+        move("Move Up", .up, .moveTaskUp)
+        move("Move Down", .down, .moveTaskDown)
         Divider()
         Button("Delete Task…") { actions?.requestDelete() }
-            .keyboardShortcut(.delete)
+            .keyboardShortcut(.deleteTask)
             .disabled(actions?.hasSelection != true)
     }
 
-    private func move(_ title: String, _ direction: WorkspaceModel.Direction, _ key: KeyEquivalent) -> some View {
+    private func move(_ title: String, _ direction: WorkspaceModel.Direction, _ command: KeyCommand) -> some View {
         Button(title) { actions?.move(direction) }
-            .keyboardShortcut(key, modifiers: [.command, .option])
+            .keyboardShortcut(command)
             .disabled(actions?.canMove(direction) != true)
     }
 }
@@ -118,7 +123,7 @@ private struct NewTaskCommand: View {
 
     var body: some View {
         Button("New Task") { newTask?() }
-            .keyboardShortcut("n")
+            .keyboardShortcut(.newTask)
             .disabled(newTask == nil)
     }
 }

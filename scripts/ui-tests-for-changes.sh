@@ -48,6 +48,8 @@ while IFS= read -r file; do
         App/Features/Updates/*) pick UpdateUITests NotificationUITests ;;
         App/Features/Settings/*) pick SettingsUITests ;;
         App/Features/Backup/*) pick "$launch" ;;
+        # The shortcuts window, and the menu keys it defines: the tests that press them.
+        App/Features/Keyboard/*) pick KeyboardShortcutsUITests NavigationUITests BoardUITests ;;
         App/Navigation/*) pick NavigationUITests AccessibilityUITests ;;
         App/DesignSystem/* | App/Assets.xcassets/*) pick NavigationUITests AccessibilityUITests ;;
         App/AppModel.swift) pick "$launch" NotificationUITests ;;

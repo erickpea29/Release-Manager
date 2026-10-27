@@ -10,10 +10,12 @@ struct SidebarRail: View {
 
     var body: some View {
         VStack(spacing: Spacing.xs) {
-            destination(.dashboard, title: "Dashboard", help: "Dashboard (⌘1)") {
+            destination(.dashboard, title: "Dashboard", help: "Dashboard (\(KeyCommand.dashboard.glyphs))") {
                 Image(systemName: "square.grid.2x2")
             }
-            destination(.history, title: "Release History", help: "Release History (⌘2)") {
+            destination(
+                .history, title: "Release History", help: "Release History (\(KeyCommand.releaseHistory.glyphs))"
+            ) {
                 Image(systemName: "clock.arrow.circlepath")
             }
             Divider()
@@ -56,7 +58,7 @@ struct SidebarRail: View {
             }
             .buttonStyle(RailButtonStyle(isSelected: false, isFilled: false))
             .accessibilityLabel("New Project")
-            .help("New Project (⇧⌘N)")
+            .help("New Project (\(KeyCommand.newProject.glyphs))")
         }
         .padding(.vertical, Spacing.xs)
         .frame(width: Self.width)

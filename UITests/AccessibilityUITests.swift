@@ -28,7 +28,10 @@ final class AccessibilityUITests: XCTestCase {
         app.buttons["Create GitHub Draft…"].wait(20)
         try audit(app)
     }
+}
 
+@MainActor
+extension XCTestCase {
     /// Runs the audit and attaches every finding with its element, so failures say exactly what to fix.
     /// Known platform behavior is accepted (docs/DESIGN_SYSTEM.md §6):
     /// - SwiftUI pickers and menus expose "show menu" rather than "press" (`action` on pop-up and menu buttons).
@@ -38,7 +41,8 @@ final class AccessibilityUITests: XCTestCase {
     /// - Text in selected list rows uses the system selection colors (F24).
     /// - Sidebar and toolbar contrast varies with what is behind the window (system Liquid Glass chrome, F30).
     /// Contrast is audited only on Retina displays (F29).
-    private func audit(_ app: XCUIApplication) throws {
+    /// With `window`, only that window's elements count: the main window, partly behind it, has its own audits.
+    func audit(_ app: XCUIApplication, window: XCUIElement? = nil) throws {
         screenshot(app, "audited-screen")
         // Text in a selected list row is drawn in the system's selection colors (white on the accent color, or dark
         // on gray when the list isn't focused). The audit flags it in both states although it measures well above
@@ -60,9 +64,13 @@ final class AccessibilityUITests: XCTestCase {
         // their measured contrast changes with the desktop (F30). Our content (the detail area) is fully audited.
         let sidebar = app.outlines.allElementsBoundByIndex.map(\.frame).min { $0.minX < $1.minX }
         let chrome = [sidebar, app.toolbars.firstMatch.exists ? app.toolbars.firstMatch.frame : nil].compactMap(\.self)
+        let windowFrames = try window.map { try Self.frames(in: $0.snapshot()) }
         var findings: [String] = []
         try app.performAccessibilityAudit(for: types) { issue in
             if Self.isAcceptedPlatformBehavior(issue) { return true }
+            if let windowFrames, let element = issue.element, element.exists, !windowFrames.contains(element.frame) {
+                return true
+            }
             if issue.auditType == .contrast, let element = issue.element, element.exists {
                 let frame = element.frame
                 if selectedRows.contains(where: { $0.contains(frame) }) { return true }
@@ -96,5 +104,10 @@ final class AccessibilityUITests: XCTestCase {
         case .contrast: return issue.compactDescription.localizedCaseInsensitiveContains("nearly")
         default: return false
         }
+    }
+
+    /// The frames of an element and everything in it.
+    private static func frames(in snapshot: any XCUIElementSnapshot) -> [CGRect] {
+        [snapshot.frame] + snapshot.children.flatMap { frames(in: $0) }
     }
 }

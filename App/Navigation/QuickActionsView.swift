@@ -16,16 +16,22 @@ struct QuickActionsView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.openWindow) private var openWindow
     @State private var query = ""
     @State private var selection = 0
     @FocusState private var isSearchFocused: Bool
 
     private var items: [Item] {
         var items = [
-            Item(id: "dashboard", title: "Dashboard", symbol: "square.grid.2x2", shortcut: "⌘1") {
+            Item(
+                id: "dashboard", title: "Dashboard", symbol: "square.grid.2x2", shortcut: KeyCommand.dashboard.glyphs
+            ) {
                 $0.navigationRequest = .dashboard
             },
-            Item(id: "history", title: "Release History", symbol: "clock.arrow.circlepath", shortcut: "⌘2") {
+            Item(
+                id: "history", title: "Release History", symbol: "clock.arrow.circlepath",
+                shortcut: KeyCommand.releaseHistory.glyphs
+            ) {
                 $0.navigationRequest = .history
             },
         ]
@@ -54,8 +60,10 @@ struct QuickActionsView: View {
         }
         if let current = app.currentProjectID, let project = app.projects.first(where: { $0.id == current }) {
             items.append(
-                Item(id: "new-task", title: "New Task", subtitle: "in \(project.name)", symbol: "plus", shortcut: "⌘N")
-                {
+                Item(
+                    id: "new-task", title: "New Task", subtitle: "in \(project.name)", symbol: "plus",
+                    shortcut: KeyCommand.newTask.glyphs
+                ) {
                     $0.openProject(current, action: .newTask)
                 })
             items.append(
@@ -65,20 +73,34 @@ struct QuickActionsView: View {
                 ) { $0.openProject(current, action: .newReleasePlan) })
         }
         let settings = openSettings
+        let openWindow = openWindow
         items += [
-            Item(id: "new-project", title: "New Project…", symbol: "plus.square", shortcut: "⇧⌘N") {
+            Item(
+                id: "new-project", title: "New Project…", symbol: "plus.square", shortcut: KeyCommand.newProject.glyphs
+            ) {
                 $0.projectEditor = .new
             },
-            Item(id: "new-group", title: "New Group…", symbol: "folder.badge.plus", shortcut: "⌃⌘N") {
+            Item(
+                id: "new-group", title: "New Group…", symbol: "folder.badge.plus", shortcut: KeyCommand.newGroup.glyphs
+            ) {
                 $0.groupEditor = .new(moving: nil)
             },
-            Item(id: "export", title: "Export Backup…", symbol: "square.and.arrow.up", shortcut: "⇧⌘E") { model in
+            Item(
+                id: "export", title: "Export Backup…", symbol: "square.and.arrow.up",
+                shortcut: KeyCommand.exportBackup.glyphs
+            ) { model in
                 Task { await model.beginBackupExport() }
             },
             Item(id: "restore", title: "Restore from Backup…", symbol: "arrow.uturn.backward.circle") {
                 $0.isChoosingBackup = true
             },
-            Item(id: "settings", title: "Settings…", symbol: "gearshape", shortcut: "⌘,") { _ in settings() },
+            Item(id: "settings", title: "Settings…", symbol: "gearshape", shortcut: KeyCommand.settings.glyphs) { _ in
+                settings()
+            },
+            Item(
+                id: "keyboard-shortcuts", title: "Keyboard Shortcuts", symbol: "keyboard",
+                shortcut: KeyCommand.keyboardShortcuts.glyphs
+            ) { _ in openWindow(id: KeyboardShortcutsWindow.windowID) },
         ]
         return items
     }

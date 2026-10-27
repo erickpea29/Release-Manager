@@ -67,11 +67,12 @@ struct RepositoryDetailView: View {
             Link(destination: connection.htmlURL) { Label("Open on GitHub", systemImage: "arrow.up.right.square") }
             Button("Refresh", systemImage: "arrow.clockwise") { Task { await refresh() } }
                 .disabled(syncState == .refreshing || !github.isConnected)
-                .keyboardShortcut("r", modifiers: .command)
+                .keyboardShortcut(.refreshRepository)
                 .help(
                     refreshInterval.seconds == nil
-                        ? "Refresh from GitHub (⌘R)"
-                        : "Refresh from GitHub now (⌘R). Relvora also refreshes \(refreshInterval.title.lowercased()).")
+                        ? "Refresh from GitHub (\(KeyCommand.refreshRepository.glyphs))"
+                        : "Refresh from GitHub now (\(KeyCommand.refreshRepository.glyphs)). Relvora also refreshes "
+                            + "\(refreshInterval.title.lowercased()).")
         }
     }
 
