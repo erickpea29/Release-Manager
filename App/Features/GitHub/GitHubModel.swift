@@ -259,6 +259,45 @@ final class GitHubModel {
         return result
     }
 
+    // MARK: Pull requests and CI (ADR 0020)
+
+    func openPullRequests(of repositoryID: Int64) async throws -> [PullRequest] {
+        let services = try connectedServices()
+        let repository = try await repository(id: repositoryID)
+        return try await reading { try await services.api.openPullRequests(of: repository) }
+    }
+
+    func closedPullRequests(of repositoryID: Int64) async throws -> [PullRequest] {
+        let services = try connectedServices()
+        let repository = try await repository(id: repositoryID)
+        return try await reading { try await services.api.closedPullRequests(of: repository) }
+    }
+
+    func pullRequest(of repositoryID: Int64, number: Int) async throws -> (
+        pullRequest: PullRequest, mergeability: Mergeability
+    ) {
+        let services = try connectedServices()
+        let repository = try await repository(id: repositoryID)
+        return try await reading { try await services.api.pullRequest(of: repository, number: number) }
+    }
+
+    func checkRuns(of repositoryID: Int64, sha: String) async throws -> [CheckRun] {
+        let services = try connectedServices()
+        let repository = try await repository(id: repositoryID)
+        return try await reading { try await services.api.checkRuns(of: repository, sha: sha) }
+    }
+
+    /// The only GitHub write outside the release workflow: the user confirmed it in the merge sheet.
+    func mergePullRequest(of repositoryID: Int64, number: Int, headSHA: String, method: MergeMethod) async throws
+        -> String
+    {
+        let services = try connectedServices()
+        let repository = try await repository(id: repositoryID)
+        return try await reading {
+            try await services.api.mergePullRequest(in: repository, number: number, headSHA: headSHA, method: method)
+        }
+    }
+
     private func connectedServices() throws(GitHubError) -> GitHubServices {
         guard let services else { throw .notConnected }
         return services

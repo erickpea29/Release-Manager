@@ -3,9 +3,10 @@ import GitHubIntegration
 import RelvoraCore
 import SwiftUI
 
-/// One connected repository: sync status (fresh vs. cached), unreleased changes, releases, and tags.
+/// One connected repository: sync status (fresh vs. cached), pull requests, unreleased changes, releases, and tags.
 struct RepositoryDetailView: View {
     enum Section: String, CaseIterable, Identifiable {
+        case pullRequests = "Pull Requests"
         case unreleased = "Unreleased"
         case releases = "Releases"
         case tags = "Tags"
@@ -15,7 +16,7 @@ struct RepositoryDetailView: View {
     @Environment(AppModel.self) private var app
     let connection: RepositoryConnection
     let model: WorkspaceModel
-    @State private var section = Section.unreleased
+    @State private var section = Section.pullRequests
 
     private var github: GitHubModel { app.github }
     private var snapshot: RepositorySnapshot? { github.snapshot(for: connection.githubRepositoryID) }
@@ -123,8 +124,19 @@ struct RepositoryDetailView: View {
 
     @ViewBuilder
     private var content: some View {
-        if let snapshot {
+        if section == .pullRequests {
+            // Read live from GitHub, apart from the repository snapshot (ADR 0020).
+            ScrollView {
+                PullRequestList(
+                    connection: connection, base: nil, branches: [connection.defaultBranch].compactMap(\.self)
+                ) { _, _ in
+                    Task { await refresh() }
+                }
+                .padding(.vertical, Spacing.xs)
+            }
+        } else if let snapshot {
             switch section {
+            case .pullRequests: EmptyView()
             case .unreleased: unreleased(snapshot)
             case .releases: releases(snapshot)
             case .tags: tags(snapshot)

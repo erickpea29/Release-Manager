@@ -11,15 +11,15 @@ Sizes are rough: **S** is a few hours, **M** a day or two, **L** several days, w
 
 ## Next up
 
-Recommended first. With publishing and updates already in Relvora, they close the release loop: publish, watch the build, hear about it.
+Recommended first. With publishing, updates, and notifications already in Relvora, they close the release loop: merge when CI passes, release, watch the build.
 
 - [ ] **Watch the build after publishing** (S–M)
   - After a release is published, the plan shows the GitHub Actions run live: building, notarizing, and the attached `Relvora-x.y.z.zip`.
   - It ends with a link to the release's files, or with the run's error.
   - Needs **Actions: read** on the GitHub App. The owner adds it; every installation accepts the new permission once.
-- [ ] **Notifications** (S–M) — in progress: branch `feature/notifications` ([ADR 0019](decisions/0019-notifications.md))
-  - A release is published, a version is planned for today, a new Relvora is available, Claude added tasks.
-  - Each kind can be turned off in Settings. Permission is asked the first time a notification is needed.
+- [ ] **Pull requests and CI in Relvora** (M), added by the owner on 2026-10-26 — in progress: branch `feature/pull-requests` ([ADR 0020](decisions/0020-pull-requests-and-ci.md))
+  - Open pull requests with their CI, merged from Relvora once CI passed, and the latest commit whose CI passed offered for the release.
+  - A notification when CI finishes. Needs **Checks: read** on the GitHub App.
 
 ## Claude
 
@@ -46,7 +46,7 @@ Claude Code already reads projects and creates tasks ([ADR 0018](decisions/0018-
 - [ ] **Tasks linked to pull requests and issues** (M–L)
   - A card shows its pull request's status, and the task can move to Done when the pull request merges.
   - Linking: by number, or found from the branch name.
-  - Needs **Issues: read** to import issues. Pull requests are already readable.
+  - Needs **Issues: read** to import issues. Pull requests and their CI are already read ([ADR 0020](decisions/0020-pull-requests-and-ci.md)).
 - [ ] **Import GitHub issues into the Backlog** (M)
   - Choose issues by label or milestone. The task keeps a link to its issue.
   - Part of the item above, but can ship on its own.

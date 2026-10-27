@@ -15,6 +15,8 @@ public enum GitHubError: Error, Sendable, Equatable, LocalizedError {
     case forbidden(neededPermission: String?)
     case notFound
     case validationFailed(message: String?)
+    /// GitHub won't do it as things are, such as merging a pull request its rules block (HTTP 405).
+    case refused(message: String?)
     case conflict
     case server(status: Int)
     case credentialStorage(status: Int32)
@@ -34,6 +36,7 @@ public enum GitHubError: Error, Sendable, Equatable, LocalizedError {
         case .forbidden: "Relvora doesn’t have permission to do that on GitHub."
         case .notFound: "GitHub couldn’t find this repository, or Relvora can’t access it."
         case .validationFailed(let message): "GitHub rejected the request\(message.map { ": \($0)" } ?? ".")"
+        case .refused(let message): "GitHub refused\(message.map { ": \($0)" } ?? ".")"
         case .conflict: "GitHub reported a conflict."
         case .server(let status): "GitHub is having problems (error \(status))."
         case .credentialStorage: "Relvora couldn’t access your GitHub sign-in in the Keychain."
@@ -68,6 +71,8 @@ public enum GitHubError: Error, Sendable, Equatable, LocalizedError {
             "Make sure the Relvora app is installed on this repository: GitHub › Settings › Applications › Relvora › Configure."
         case .validationFailed:
             "Check the values and try again."
+        case .refused:
+            "Nothing was changed. Open it on GitHub to see why."
         case .conflict:
             "Refresh and try again."
         case .server:
@@ -101,6 +106,8 @@ public enum GitHubError: Error, Sendable, Equatable, LocalizedError {
             return .forbidden(neededPermission: header("x-accepted-github-permissions"))
         case 404:
             return .notFound
+        case 405:
+            return .refused(message: message)
         case 409:
             return .conflict
         case 422:

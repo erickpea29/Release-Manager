@@ -20,13 +20,14 @@ A native macOS app for one developer managing several software projects: plan re
 | Kanban (Board) | The tasks of the version being planned. Per-project configurable columns (defaults: To Do, In Progress, Review, Done; “Backlog” is reserved for the tab), drag-and-drop with persistent order, one completion column |
 | Tasks | Title, notes (Markdown), priority, type (feature, improvement, bug fix, documentation, maintenance, other), labels, basic checklist, optional release plan |
 | GitHub | Connect/disconnect, list repositories where the app is installed, associate one or more with a project, browse releases/tags/commits/merged PRs, show sync time and cached vs. fresh state, refresh the open repository automatically (every 5 minutes by default, Settings › GitHub), open items in the browser |
+| Pull requests and CI | Open pull requests with their CI and whether they can merge, in the release plan and the GitHub tab; **merge from Relvora** after a confirmation, only once CI passed; the latest commit whose CI passed offered as the release's commit ([ADR 0020](decisions/0020-pull-requests-and-ci.md)) |
 | Changelog | Deterministic generation from commits and PRs between the previous tag and the target commit, grouped by category/label; edit; export Markdown; flag missing data |
 | Release | A per-project **release checklist** whose steps must all be ticked before the draft. Validate tag and target SHA, confirm, create a **GitHub draft**, open it on GitHub, **publish it from Relvora** after a second confirmation (or on GitHub), verify publication, store an immutable snapshot |
 | History | Browse snapshots with links to GitHub |
 | Appearance | System/light/dark, accent color, optional translucent window with opaque fallback |
 | Data | Local export, backup, and restore |
 | Claude | Claude Code sessions on the Mac read projects and the version being planned, and add tasks to it or to the Backlog, through an MCP server in Relvora that is off until turned on in Settings › Claude ([ADR 0018](decisions/0018-claude-creates-tasks.md)) |
-| Notifications | macOS notifications when a release is published (drafts waiting on GitHub are checked every 5 minutes), a version is planned for today, a new Relvora is available, or Claude added tasks. Each kind can be turned off ([ADR 0019](decisions/0019-notifications.md)) |
+| Notifications | macOS notifications when a release is published (drafts waiting on GitHub are checked every 5 minutes), a version is planned for today, a new Relvora is available, Claude added tasks, or CI finished on a pull request or on the release's branch ([ADR 0020](decisions/0020-pull-requests-and-ci.md)). Each kind can be turned off ([ADR 0019](decisions/0019-notifications.md)) |
 | Updates | Relvora finds its new versions in its own repository's releases, and installs one when the user chooses: a backup first, then checksum and signature checks (Developer ID, same team, notarized), then it relaunches ([ADR 0017](decisions/0017-update-relvora-from-relvora.md)) |
 
 ## 3. Release lifecycle (user-visible states)

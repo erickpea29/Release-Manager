@@ -96,7 +96,7 @@ struct AppNotificationsTests {
 
     @Test("Every kind has a title and an explanation for Settings")
     func kinds() {
-        #expect(NotificationKind.allCases.count == 4)
+        #expect(NotificationKind.allCases.count == 5)
         #expect(NotificationKind.allCases.allSatisfy { !$0.title.isEmpty && !$0.explanation.isEmpty })
     }
 }

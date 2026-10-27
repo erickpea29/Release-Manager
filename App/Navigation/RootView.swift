@@ -146,6 +146,10 @@ struct RootView: View {
             await model.watchDrafts()
         }
         .task {
+            guard model.startupError == nil else { return }
+            await model.watchPullRequests()
+        }
+        .task {
             await model.start()
             if let name = model.options.initialProjectName,
                 let project = model.projects.first(where: { $0.name == name })
