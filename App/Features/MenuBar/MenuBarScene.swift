@@ -93,7 +93,8 @@ private struct MenuBarMenu: View {
             }
             let stats = model.stats[item.project.id] ?? ProjectStats()
             let tasks =
-                stats.taskCount == 0 ? "No tasks yet" : "\(stats.completedCount) of \(stats.taskCount) tasks done"
+                stats.versionTaskCount == 0
+                ? "No tasks yet" : "\(stats.versionCompletedCount) of \(stats.versionTaskCount) tasks done"
             return "\(status ?? item.plan.status.title) · \(tasks)"
         }
     }

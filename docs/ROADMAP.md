@@ -11,15 +11,12 @@ Sizes are rough: **S** is a few hours, **M** a day or two, **L** several days, w
 
 ## Next up
 
-Recommended first. With publishing, updates, and notifications already in Relvora, they close the release loop: merge when CI passes, release, watch the build.
+Recommended first. With publishing, updates, notifications, and pull requests with their CI already in Relvora, this closes the release loop: merge when CI passes, release, watch the build.
 
 - [ ] **Watch the build after publishing** (S–M)
   - After a release is published, the plan shows the GitHub Actions run live: building, notarizing, and the attached `Relvora-x.y.z.zip`.
   - It ends with a link to the release's files, or with the run's error.
   - Needs **Actions: read** on the GitHub App. The owner adds it; every installation accepts the new permission once.
-- [ ] **Pull requests and CI in Relvora** (M), added by the owner on 2026-10-26 — in progress: branch `feature/pull-requests` ([ADR 0020](decisions/0020-pull-requests-and-ci.md))
-  - Open pull requests with their CI, merged from Relvora once CI passed, and the latest commit whose CI passed offered for the release.
-  - A notification when CI finishes. Needs **Checks: read** on the GitHub App.
 
 ## Claude
 
@@ -64,13 +61,13 @@ Claude Code already reads projects and creates tasks ([ADR 0018](decisions/0018-
 
 ## macOS
 
-- [ ] **Menu bar icon** (S–M)
+- [ ] **Menu bar icon** (S–M) — in progress: branch `feature/macos-0.2.4` ([ADR 0022](decisions/0022-menu-bar-icon.md))
   - Versions in progress and drafts waiting, each one click from opening.
   - Can be turned off in Settings.
-- [ ] **Shortcuts and Spotlight** (S–M)
+- [ ] **Shortcuts and Spotlight** (S–M) — in progress: branch `feature/macos-0.2.4` ([ADR 0023](decisions/0023-shortcuts-and-spotlight.md))
   - App Intents: "Add a task to Relvora", "What's the next release of …".
   - Tasks and projects can be found in Spotlight.
-- [ ] **Desktop widget** (M)
+- [ ] **Desktop widget** (M) — in progress: branch `feature/macos-0.2.4` ([ADR 0024](decisions/0024-desktop-widget.md))
   - Progress of the next release of a chosen project, or of every project.
   - Needs a widget extension and a shared container.
 

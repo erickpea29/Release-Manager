@@ -19,7 +19,7 @@ Until now, seeing what's in progress meant bringing Relvora's window forward and
    - **A panel (`.window` style)** could show progress bars and badges. It would need its own layout, focus, and closing, for little more information.
 2. **What it lists** (`ReleaseOverview` in RelvoraCore), across active projects:
    - **Drafts Waiting**, first: versions whose draft is on GitHub and not yet published, or that need reconciliation. These are the Dashboard's **Needs Attention**: "Draft created · not published yet", "Needs reconciliation · check GitHub".
-   - **Versions in Progress:** the other versions being planned, with the planned date if there's one, and the project's tasks done (the Dashboard card's numbers).
+   - **Versions in Progress:** the other versions being planned, with the planned date if there's one, and the version's tasks done (its Board, as in the desktop widget).
    - **Each version once,** in the sidebar's order.
    - **Groups in a long list:** more than five versions in progress, from more than one sidebar section, are listed under each group's name, then **Other Projects**. A shorter list stays under one heading.
    - **Nothing planned:** "No Versions in Progress", with "Plan one in a project's Releases tab."
@@ -46,7 +46,7 @@ Until now, seeing what's in progress meant bringing Relvora's window forward and
 
 - **From any app,** the versions in progress and the drafts waiting are one click away while Relvora is open.
 - **The icon is there only while Relvora runs.** To keep it in the menu bar, keep Relvora open; its window can be minimized or hidden (⌘H).
-- **Progress is the project's tasks done,** as on the Dashboard, not only the version's.
+- **Progress is the version's tasks done** (its Board), like the desktop widget ([ADR 0024](0024-desktop-widget.md)). The Dashboard card counts all of a project's tasks.
 - **No schema or backup format change.** The switch is one more optional field in a backup's settings.
 
 ## Evidence

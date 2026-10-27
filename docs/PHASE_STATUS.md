@@ -14,7 +14,8 @@
 | 0.2.0 — Updating Relvora from Relvora | **Complete**: merged in PR #12, released as v0.2.0 ([ADR 0017](decisions/0017-update-relvora-from-relvora.md)) |
 | 0.2.1 — Claude creates tasks | **Complete**: merged in PR #13, released as v0.2.1, the first version installed by Relvora's updater ([ADR 0018](decisions/0018-claude-creates-tasks.md)) |
 | 0.2.2 — Notifications | **Complete**: merged in PR #14, released as v0.2.2 ([ADR 0019](decisions/0019-notifications.md)) |
-| Next release (0.2.3) — Pull requests and CI | **In progress** on branch `feature/pull-requests` ([ADR 0020](decisions/0020-pull-requests-and-ci.md)) |
+| 0.2.3 — Pull requests and CI | **Complete**: merged in PR #15, released as v0.2.3 ([ADR 0020](decisions/0020-pull-requests-and-ci.md), [ADR 0021](decisions/0021-ui-tests-chosen-by-change.md)) |
+| Next release (0.2.4) — Keyboard shortcuts, menu bar, Shortcuts and Spotlight, widget | **In progress** on branch `feature/macos-0.2.4` ([ADR 0022](decisions/0022-menu-bar-icon.md), [ADR 0023](decisions/0023-shortcuts-and-spotlight.md), [ADR 0024](decisions/0024-desktop-widget.md)) |
 
 The feature ideas are in [ROADMAP.md](ROADMAP.md).
 
@@ -164,7 +165,7 @@ The feature ideas are in [ROADMAP.md](ROADMAP.md).
 - [x] Owner: released v0.2.2 (2026-10-26)
 - [ ] Owner: the first real notification, with macOS's permission prompt (not reported yet)
 
-## Next release checklist (0.2.3)
+## 0.2.3 checklist
 
 - [x] Pull requests and CI in the release plan and the GitHub tab: open pull requests with their CI and whether they can merge, and recently merged ones with CI on the merge commit ([ADR 0020](decisions/0020-pull-requests-and-ci.md))
 - [x] Merge… with a confirmation, only when CI passed and GitHub says it can merge; the head commit is sent, so a branch that moved isn't merged
@@ -173,6 +174,26 @@ The feature ideas are in [ROADMAP.md](ROADMAP.md).
 - [x] Package tests: 226 (10 new)
 - [x] UI tests chosen by change: pull requests run only the UI tests their changes can affect; pushes to main run all ([ADR 0021](decisions/0021-ui-tests-chosen-by-change.md))
 - [x] UI tests: the 23 this change selects pass locally (8 of 10 classes), two new (merge from the release plan, then use main's commit once its CI passes, with the notifications recorded; the GitHub tab lists pull requests)
-- [ ] CI on the PR
+- [x] CI on PR #15 (lint, 226 package tests, build, the UI tests it selects); merged
 - [ ] Owner: add **Checks: Read-only** to the Relvora GitHub App and accept it on the installation ([GitHub App setup](GITHUB_APP_SETUP.md#checks-permission-for-ci-023))
+- [x] Owner: released v0.2.3 (2026-10-27; release run 40433842565 attached the notarized app)
+
+## Next release checklist (0.2.4)
+
+Built by four agents in parallel, one branch each, then combined on `feature/macos-0.2.4`.
+
+- [x] Keyboard shortcuts: one list for the menus, tooltips, and Quick Actions; **Help › Keyboard Shortcuts** (⌘/) shows it, with search and VoiceOver values ("Command N")
+- [x] Menu bar icon: drafts waiting and versions in progress, each opening its project's Releases tab; Settings › General turns it off; the switch is in backups without a format change ([ADR 0022](decisions/0022-menu-bar-icon.md))
+- [x] Relvora still quits when its last window closes (an app delegate, now that Keyboard Shortcuts is a second window)
+- [x] Shortcuts: Add a Task, Get the Next Release, Open Project, Open Task, with eight phrases; the task rules are shared with Claude's `create_tasks` (`TaskCreationService`) ([ADR 0023](decisions/0023-shortcuts-and-spotlight.md))
+- [x] Spotlight: active projects and their tasks, opened in Relvora; Settings › General turns it off; test copies never index
+- [x] Desktop widget: a `RelvoraWidget` extension shows a snapshot the app writes to a team-prefixed App Group; small, medium, and large; a click opens the project through `relvora://` ([ADR 0024](decisions/0024-desktop-widget.md))
+- [x] The menu bar, the widget, and Get the Next Release count the same thing: the tasks of the version being planned
+- [x] Package tests: 250 (24 new)
+- [x] Release script checks the widget's hardened runtime and App Group; an exported team-signed build passed the updater's signature check, which also refused it after one file in the widget changed
+- [ ] UI tests: the new ones (`KeyboardShortcutsUITests`, `MenuBarUITests`, `IntentsUITests`) and the rest, which this change selects in full
+- [ ] CI on the PR
+- [ ] Owner: a Release workflow run: notarization accepted, the widget's entitlements show `<TeamID>.com.erickpea29.Relvora`, and the widget appears in the gallery with real data once installed in `/Applications`
+- [ ] Owner: try Shortcuts ("Add a task to Relvora"), Spotlight, and the widget's tinted and clear styles on the real app
 - [ ] Owner: release it
+
