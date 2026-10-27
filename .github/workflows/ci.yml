@@ -30,7 +30,7 @@ jobs:
           swift --version
 
       - name: Lint
-        run: xcrun swift-format lint --strict --recursive --parallel App Packages UITests Updater
+        run: xcrun swift-format lint --strict --recursive --parallel App Packages UITests Updater Widget
 
       - name: Test RelvoraKit
         working-directory: Packages/RelvoraKit

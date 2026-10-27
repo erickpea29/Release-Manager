@@ -11,6 +11,7 @@ let package = Package(
         .library(name: "GitHubIntegration", targets: ["GitHubIntegration"]),
         .library(name: "RelvoraUpdates", targets: ["RelvoraUpdates"]),
         .library(name: "RelvoraMCP", targets: ["RelvoraMCP"]),
+        .library(name: "RelvoraWidgetData", targets: ["RelvoraWidgetData"]),
     ],
     targets: [
         // Domain types, rules, use cases, and repository protocols. Must not import SwiftData.
@@ -24,10 +25,14 @@ let package = Package(
         .target(name: "RelvoraUpdates", dependencies: ["RelvoraCore"]),
         // Claude's connection: an MCP server on 127.0.0.1 that reads projects and creates tasks (ADR 0018).
         .target(name: "RelvoraMCP", dependencies: ["RelvoraCore"]),
+        // The desktop widget's snapshot, its shared container, and its links (ADR 0024). The app and the widget
+        // extension both link it; the widget never opens the store.
+        .target(name: "RelvoraWidgetData", dependencies: ["RelvoraCore"]),
         .testTarget(name: "RelvoraCoreTests", dependencies: ["RelvoraCore"]),
         .testTarget(name: "GitHubIntegrationTests", dependencies: ["GitHubIntegration", "RelvoraCore"]),
         .testTarget(name: "RelvoraUpdatesTests", dependencies: ["RelvoraUpdates", "RelvoraCore"]),
         .testTarget(name: "RelvoraMCPTests", dependencies: ["RelvoraMCP", "RelvoraCore", "RelvoraPersistence"]),
+        .testTarget(name: "RelvoraWidgetDataTests", dependencies: ["RelvoraWidgetData", "RelvoraCore"]),
         .testTarget(
             name: "RelvoraPersistenceTests",
             dependencies: ["RelvoraCore", "RelvoraPersistence"],

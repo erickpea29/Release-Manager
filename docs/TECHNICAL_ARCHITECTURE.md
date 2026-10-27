@@ -19,8 +19,10 @@ release-manager/                        # repository: erickpea29/Release-Manager
 │   ├── Sources/GitHubIntegration/      # GitHub auth, REST client, sync, cache, release remote
 │   ├── Sources/RelvoraUpdates/         # updates of Relvora itself: signatures, installer, XPC protocol (ADR 0017)
 │   ├── Sources/RelvoraMCP/             # Claude's connection: MCP over HTTP on 127.0.0.1, task tools (ADR 0018)
+│   ├── Sources/RelvoraWidgetData/      # the desktop widget's snapshot, its shared container, and links (ADR 0024)
 │   └── Tests/                          # swift test
 ├── Updater/                            # RelvoraUpdater.xpc: the updater service, outside the sandbox (ADR 0017)
+├── Widget/                             # RelvoraWidget.appex: the desktop widget, reads only the snapshot (ADR 0024)
 ├── UITests/                            # XCUITest target RelvoraUITests (in-memory store, demo GitHub)
 ├── scripts/release/                    # build-release.sh: archive, sign, notarize, staple (ADR 0011)
 ├── Config/                             # Shared.xcconfig, Relvora.entitlements, Local.xcconfig (git-ignored)
@@ -39,7 +41,8 @@ App (SwiftUI views, @Observable AppModel)
   ├─▶ RelvoraPersistence ─▶ RelvoraCore        (SwiftData; @Model types internal)
   ├─▶ GitHubIntegration  ─▶ RelvoraCore        (M03; DTOs internal)
   ├─▶ RelvoraUpdates     ─▶ RelvoraCore        (Security framework; also linked by RelvoraUpdater.xpc)
-  └─▶ RelvoraMCP         ─▶ RelvoraCore        (Network.framework; the tools use RelvoraCore services)
+  ├─▶ RelvoraMCP         ─▶ RelvoraCore        (Network.framework; the tools use RelvoraCore services)
+  └─▶ RelvoraWidgetData  ─▶ RelvoraCore        (Security framework; the widget extension links it and RelvoraCore only)
 ```
 
 - Views never touch `URLSession`, SwiftData, or Keychain. They call `AppModel` (and later feature models), which calls use cases and repositories held by a single `AppEnvironment` built at launch.

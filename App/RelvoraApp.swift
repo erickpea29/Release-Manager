@@ -24,6 +24,7 @@ struct RelvoraApp: App {
                 .preferredColorScheme(model.preferences.appearance.colorScheme)
                 .tint(model.preferences.accent.color)
                 .modifier(OpensSearchResults(model: model))
+                .desktopWidget(model)
         }
         .defaultSize(width: 1280, height: 800)
         .commands {

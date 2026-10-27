@@ -27,6 +27,8 @@ while IFS= read -r file; do
         docs/* | *.md | Design/* | spikes/* | .gitignore | .swift-format | Packages/RelvoraKit/Tests/*) ;;
         scripts/make-app-icon.swift | scripts/make-menu-bar-icon.swift | scripts/release/* | \
             .github/workflows/release.yml) ;;
+        # The desktop widget's extension: the app embeds it but never runs it, and UI tests can't see widgets.
+        Widget/* | Config/Widget-Info.plist | Config/RelvoraWidget.entitlements) ;;
         # How UI tests run: one quick test shows the job still works.
         .github/workflows/ci.yml | scripts/ui-tests-for-changes.sh) pick "$launch" ;;
         # A UI test file: that test.
@@ -54,6 +56,8 @@ while IFS= read -r file; do
         App/Features/Backup/*) pick "$launch" ;;
         # The shortcuts window, and the menu keys it defines: the tests that press them.
         App/Features/Keyboard/*) pick KeyboardShortcutsUITests NavigationUITests BoardUITests ;;
+        # The widget's snapshot and links: test copies never write it, so the launch test shows it's harmless.
+        App/Features/Widget/* | Packages/RelvoraKit/Sources/RelvoraWidgetData/*) pick "$launch" ;;
         App/Navigation/*) pick NavigationUITests AccessibilityUITests ;;
         App/DesignSystem/* | App/Assets.xcassets/*) pick NavigationUITests AccessibilityUITests ;;
         App/AppModel.swift) pick "$launch" NotificationUITests ;;

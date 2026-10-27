@@ -8,5 +8,16 @@
 	<string>$(RELVORA_GITHUB_APP_SLUG)</string>
 	<key>RelvoraUpdateRepository</key>
 	<string>$(RELVORA_UPDATE_REPOSITORY)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>relvora</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

@@ -131,6 +131,9 @@ struct ProjectStats: Equatable {
     var activePlan: ReleasePlan?
     /// The newest verified publication.
     var lastRelease: ReleaseSnapshot?
+    /// Tasks of the version being planned (its Board), and those done; the desktop widget shows them.
+    var versionTaskCount = 0
+    var versionCompletedCount = 0
 
     var progress: Double? { taskCount == 0 ? nil : Double(completedCount) / Double(taskCount) }
 }
@@ -373,6 +376,8 @@ final class AppModel {
             let state = try await environment.board.load(projectID: projectID)
             let plans = try await environment.releasePlans.plans(projectID: projectID)
             let snapshots = try await environment.store.releaseSnapshots.snapshots(projectID: projectID)
+            let activePlanID = plans.first(where: \.status.isActive)?.id
+            let versionTasks = state.tasks.filter { VersionScope.isOnBoard($0, activePlanID: activePlanID) }
             stats[projectID] = ProjectStats(
                 taskCount: state.tasks.count,
                 completedCount: state.tasks.filter { $0.completedAt != nil }.count,
@@ -380,7 +385,9 @@ final class AppModel {
                 activePlan: plans.first(where: \.status.isActive),
                 lastRelease: snapshots.filter { $0.state == .published }.max {
                     ($0.publishedAt ?? .distantPast) < ($1.publishedAt ?? .distantPast)
-                }
+                },
+                versionTaskCount: versionTasks.count,
+                versionCompletedCount: versionTasks.count { $0.completedAt != nil }
             )
             await updateNotifications(projectID: projectID, plans: plans, snapshots: snapshots, announce: announce)
         } catch {
