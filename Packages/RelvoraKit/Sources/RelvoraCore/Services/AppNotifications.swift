@@ -7,6 +7,7 @@ public enum NotificationKind: String, Sendable, CaseIterable, Codable, Identifia
     case plannedForToday
     case updateAvailable
     case claudeAddedTasks
+    case ciFinished
 
     public var id: Self { self }
 
@@ -16,6 +17,7 @@ public enum NotificationKind: String, Sendable, CaseIterable, Codable, Identifia
         case .plannedForToday: "A version is planned for today"
         case .updateAvailable: "A new Relvora is available"
         case .claudeAddedTasks: "Claude added tasks"
+        case .ciFinished: "CI finishes"
         }
     }
 
@@ -30,6 +32,9 @@ public enum NotificationKind: String, Sendable, CaseIterable, Codable, Identifia
             "When the daily update check finds a new version, with its build ready to install."
         case .claudeAddedTasks:
             "When a Claude Code session creates tasks (Settings › Claude)."
+        case .ciFinished:
+            "On an open pull request, or on the latest commit of the branch a version is planned from. While Relvora "
+                + "is open, it checks the repositories of versions being planned every 2 minutes."
         }
     }
 }

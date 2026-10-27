@@ -100,11 +100,18 @@ App (SwiftUI views, @Observable AppModel)
   - a throwaway settings suite (`-RelvoraDefaultsSuite`).
   Tests therefore never touch real data, settings, or GitHub.
 - Notifications: wording, timing, and "announce once" are pure (`AppNotifications`). Debug builds with a throwaway settings suite record notifications instead of showing them ([ADR 0019](decisions/0019-notifications.md)).
-- The UI tests cover navigation and quick actions, board editing by keyboard, the release flow (draft, publishing on GitHub or from Relvora, history), reconciliation after a timeout, project groups, offline states, settings, updates (an offered version, refused by the updater service), Claude's connection (tasks created over MCP appear on the open Board), notifications (recorded), and an accessibility audit.
+- Pull requests and CI: CI summaries, when merging is offered, and the suggested release commit are pure (`PullRequestRules`, `MergeReadiness`). The demo GitHub has open pull requests whose CI finishes after a few seconds, and merges them ([ADR 0020](decisions/0020-pull-requests-and-ci.md)).
+- The UI tests cover navigation and quick actions, board editing by keyboard, the release flow (draft, publishing on GitHub or from Relvora, history), reconciliation after a timeout, project groups, offline states, settings, updates (an offered version, refused by the updater service), Claude's connection (tasks created over MCP appear on the open Board), notifications (recorded), pull requests (merged from the release plan, then main's commit used once its CI passes), and an accessibility audit.
 - Live GitHub tests are opt-in only (environment variable), never run in CI.
 - CI runs on GitHub Actions with the `macos-26` image:
   - one job runs lint, `swift test`, and an ad-hoc app build;
   - a parallel job runs the UI tests, after allowing UI automation with `automationmodetool`.
+- **Which UI tests run** ([ADR 0021](decisions/0021-ui-tests-chosen-by-change.md)):
+  - **A pull request** runs only the UI tests its changes can affect. `scripts/ui-tests-for-changes.sh` maps changed paths to test classes or single tests. Documentation and package tests select none; unmapped paths select all.
+  - **A push to main** and a run started by hand (`gh workflow run CI --ref <branch>`) run every UI test.
+  - **Locally,** run the same selection: `xcodebuild test … $(scripts/ui-tests-for-changes.sh | sed 's|^|-only-testing:RelvoraUITests/|')`, or everything when it prints `all`.
+  - **A new UI test class** is selected by its own file. Add it to the script's map for the code it covers.
+  - **A run that selects tests but runs none fails:** CI reads the test count from the result bundle.
 - The **Release** workflow builds notarized Developer ID apps ([ADR 0011](decisions/0011-distribution-developer-id.md), [DISTRIBUTION.md](DISTRIBUTION.md)).
 
 ## 8. Signing and builds

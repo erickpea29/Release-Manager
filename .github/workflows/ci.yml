@@ -50,19 +50,60 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
+        with:
+          # A pull request's UI tests are chosen from what it changes since main.
+          fetch-depth: 0
+
+      # Pull requests run the UI tests their changes can affect (scripts/ui-tests-for-changes.sh). Pushes to main and
+      # runs started by hand run them all, so main is fully tested before a release.
+      - name: Choose UI tests
+        id: choose
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            tests=$(scripts/ui-tests-for-changes.sh "origin/$BASE_REF")
+          else
+            tests=all
+          fi
+          echo "UI tests: $(echo ${tests:-none})"
+          if [ "$tests" = all ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "only=" >> "$GITHUB_OUTPUT"
+          elif [ -n "$tests" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "only=$(echo "$tests" | sed 's|^|-only-testing:RelvoraUITests/|' | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
 
       # XCUITest drives the app through the accessibility API; allow it without an interactive prompt.
       - name: Allow UI automation
+        if: steps.choose.outputs.run == 'true'
         run: sudo automationmodetool enable-automationmode-without-authentication
 
       # In-memory store, demo GitHub, and a separate settings suite: no real data, account, or network.
       - name: UI tests
+        if: steps.choose.outputs.run == 'true'
+        env:
+          ONLY_TESTING: ${{ steps.choose.outputs.only }}
         run: >-
           xcodebuild test -quiet
           -project Relvora.xcodeproj -scheme Relvora
           -destination "platform=macOS,arch=arm64"
           -derivedDataPath build/DerivedData
           -resultBundlePath build/UITests.xcresult
+          $ONLY_TESTING
+
+      # A selection that matches no test would pass without testing anything.
+      - name: Check that UI tests ran
+        if: steps.choose.outputs.run == 'true'
+        run: |
+          count=$(xcrun xcresulttool get test-results summary --path build/UITests.xcresult \
+            | plutil -extract totalTestCount raw -o - -)
+          echo "UI tests run: $count"
+          [ "$count" -gt 0 ]
 
       - name: Keep the test results
         if: failure()

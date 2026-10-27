@@ -111,6 +111,7 @@ struct ReleasePlanDetailView: View {
                 )
                 .foregroundStyle(.secondary)
             }
+            ReleasePullRequestsSection(release: release)
             ReleaseTargetSection(release: release)
             ReleaseTasksSection(release: release)
             ReleaseNotesEditor(release: release)
@@ -403,6 +404,38 @@ struct NoticeBanner: View {
     }
 }
 
+/// Open pull requests into the release's branch, with their CI and Merge… (ADR 0020). When the branch gets a new
+/// commit, such as a merge, the commit picker reloads.
+struct ReleasePullRequestsSection: View {
+    @Environment(AppModel.self) private var app
+    let release: ReleaseModel
+
+    var body: some View {
+        if let connection = release.connection, let branch = release.plan?.targetBranch ?? connection.defaultBranch,
+            app.github.isConnected
+        {
+            let repositoryID = connection.githubRepositoryID
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                SectionTitle(
+                    "Pull Requests",
+                    detail: "Open pull requests into \(branch), with their CI. Merge one here once its CI passed.")
+                PullRequestList(connection: connection, base: branch, branches: [branch]) { pull, sha in
+                    Task { await release.didMerge(pull, sha: sha) }
+                }
+            }
+            .panel()
+            .onChange(of: app.pullRequests.state(repositoryID).heads[branch]?.sha) { _, head in
+                if let head, !release.commits.isEmpty, !release.commits.contains(where: { $0.sha == head }) {
+                    Task { await release.loadCommits() }
+                }
+            }
+            .onChange(of: app.pullRequests.state(repositoryID).fetchedAt) {
+                Task { await release.loadCommitCI() }
+            }
+        }
+    }
+}
+
 /// Repository, branch, commit, tag, and compare base.
 struct ReleaseTargetSection: View {
     @Environment(AppModel.self) private var app
@@ -502,7 +535,7 @@ struct ReleaseTargetSection: View {
                 ) {
                     Text("Choose a commit…").tag("")
                     ForEach(Array(release.commits.enumerated()), id: \.element.sha) { index, commit in
-                        Text("\(commit.shortSHA)  \(commit.summary)\(index == 0 ? "  (latest)" : "")")
+                        Text("\(commit.shortSHA)  \(commit.summary)\(index == 0 ? "  (latest)" : "")\(ciNote(commit))")
                             .tag(commit.sha)
                     }
                     if let sha = plan.targetCommitSHA, release.targetCommit == nil {
@@ -514,10 +547,14 @@ struct ReleaseTargetSection: View {
                 Button("Other…") { isEnteringSHA = true }
                     .popover(isPresented: $isEnteringSHA) { shaPopover }
             }
+            latestPassingSuggestion(plan)
             if let sha = plan.targetCommitSHA {
                 Text(sha)
                     .font(.callout.monospaced())
                     .textSelection(.enabled)
+                CIStatusLabel(status: release.ci(of: sha))
+                    .font(.caption)
+                    .accessibilityIdentifier("targetCommitCI")
                 if let commit = release.targetCommit {
                     HStack(spacing: Spacing.xs) {
                         Text(commit.summary).lineLimit(1)
@@ -531,6 +568,28 @@ struct ReleaseTargetSection: View {
                     .foregroundStyle(.secondary)
                 }
             }
+        }
+    }
+
+    /// The newest commit whose CI passed, offered when another one is selected.
+    @ViewBuilder
+    private func latestPassingSuggestion(_ plan: ReleasePlan) -> some View {
+        if let latest = release.latestPassingCommit, latest.sha != plan.targetCommitSHA {
+            Button("Use \(latest.shortSHA), the latest commit whose CI passed") {
+                Task { await release.setTargetCommit(latest.sha) }
+            }
+            .buttonStyle(.link)
+            .accessibilityIdentifier("useLatestPassingCommit")
+        }
+    }
+
+    /// The commit's CI in the picker's menu, once read.
+    private func ciNote(_ commit: RemoteCommit) -> String {
+        switch release.ci(of: commit.sha) {
+        case .passed?: "  · CI passed"
+        case .failed?: "  · CI failed"
+        case .running?: "  · CI running"
+        case .notReported?, nil: ""
         }
     }
 

@@ -13,7 +13,8 @@
 | 0.1.2 — Version suggestion, release checklist | **Complete**: merged in PR #11, released as v0.1.2 ([ADR 0016](decisions/0016-version-suggestion-and-release-checklist.md)) |
 | 0.2.0 — Updating Relvora from Relvora | **Complete**: merged in PR #12, released as v0.2.0 ([ADR 0017](decisions/0017-update-relvora-from-relvora.md)) |
 | 0.2.1 — Claude creates tasks | **Complete**: merged in PR #13, released as v0.2.1, the first version installed by Relvora's updater ([ADR 0018](decisions/0018-claude-creates-tasks.md)) |
-| Next release (0.2.2) — Notifications | **In progress** on branch `feature/notifications` ([ADR 0019](decisions/0019-notifications.md)) |
+| 0.2.2 — Notifications | **Complete**: merged in PR #14, released as v0.2.2 ([ADR 0019](decisions/0019-notifications.md)) |
+| Next release (0.2.3) — Pull requests and CI | **In progress** on branch `feature/pull-requests` ([ADR 0020](decisions/0020-pull-requests-and-ci.md)) |
 
 The feature ideas are in [ROADMAP.md](ROADMAP.md).
 
@@ -151,7 +152,7 @@ The feature ideas are in [ROADMAP.md](ROADMAP.md).
 - [x] Owner: released v0.2.1 (release run 40407742616); 0.2.0 installed it into `/Applications` by itself on 2026-10-26: found, installed by the updater service, and relaunched (the new copy waited 0 ms for the old one)
 - [x] Owner: turned on Settings › Claude and ran the setup command; Claude Code reports Relvora as connected
 
-## Next release checklist (0.2.2)
+## 0.2.2 checklist
 
 - [x] Notification rules in RelvoraCore: the four kinds, their wording and targets, "planned for today" at 9:00 on the planned date, publications announced once ([ADR 0019](decisions/0019-notifications.md))
 - [x] Notifier: permission asked the first time; a banner only when Relvora isn't the active app; "planned for today" scheduled with macOS; clicks open the project, the plan, or the update sheet
@@ -159,5 +160,19 @@ The feature ideas are in [ROADMAP.md](ROADMAP.md).
 - [x] Drafts waiting on GitHub checked every 5 minutes while Relvora is open, so a release published on GitHub is recorded and announced
 - [x] Package tests: 216 (5 new)
 - [x] UI tests: 25 pass locally, one new (a published draft, an update, and Claude's tasks are notified; a kind turned off stays quiet)
+- [x] CI on PR #14 (lint, 216 package tests, build, 25 UI tests); merged
+- [x] Owner: released v0.2.2 (2026-10-26)
+- [ ] Owner: the first real notification, with macOS's permission prompt (not reported yet)
+
+## Next release checklist (0.2.3)
+
+- [x] Pull requests and CI in the release plan and the GitHub tab: open pull requests with their CI and whether they can merge, and recently merged ones with CI on the merge commit ([ADR 0020](decisions/0020-pull-requests-and-ci.md))
+- [x] Merge… with a confirmation, only when CI passed and GitHub says it can merge; the head commit is sent, so a branch that moved isn't merged
+- [x] Commit picker: CI of the latest commits, and the latest commit whose CI passed offered as the release's commit
+- [x] "CI finishes" notifications: the repositories of versions being planned, checked every 2 minutes while Relvora is open
+- [x] Package tests: 226 (10 new)
+- [x] UI tests chosen by change: pull requests run only the UI tests their changes can affect; pushes to main run all ([ADR 0021](decisions/0021-ui-tests-chosen-by-change.md))
+- [x] UI tests: the 23 this change selects pass locally (8 of 10 classes), two new (merge from the release plan, then use main's commit once its CI passes, with the notifications recorded; the GitHub tab lists pull requests)
 - [ ] CI on the PR
-- [ ] Owner: release it; the first notification shows macOS's permission prompt
+- [ ] Owner: add **Checks: Read-only** to the Relvora GitHub App and accept it on the installation ([GitHub App setup](GITHUB_APP_SETUP.md#checks-permission-for-ci-023))
+- [ ] Owner: release it

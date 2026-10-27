@@ -43,10 +43,30 @@
             let commitIndex: Int
         }
 
+        /// An open pull request (ADR 0020), until it's merged from Relvora.
+        private struct OpenPull {
+            let number: Int
+            let title: String
+            let login: String
+            let head: String
+            let sha: String
+            let draft: Bool
+            let updatedAt: Date
+            var mergedAt: Date?
+            var mergeCommit: String?
+        }
+
         private var commits: [Commit] = []
         private var releases: [Release] = []
         private var tags: [String: String] = [:]
         private var pulls: [Pull] = []
+        private var openPulls: [OpenPull] = []
+        /// When each commit's CI was first read: CI that takes a while finishes `ciSeconds` later.
+        private var ciStarted: [String: Date] = [:]
+        private var ciSeconds: TimeInterval {
+            UserDefaults.standard.string(forKey: "RelvoraDemoCISeconds").flatMap(TimeInterval.init) ?? 10
+        }
+        nonisolated static let checkNames = ["Lint, test, and build (macOS 26)", "UI tests (macOS 26)"]
         private var nextReleaseID = 10
         /// The next create succeeds on "GitHub" but the response is lost (a timeout).
         private var dropNextCreateResponse = false
@@ -77,6 +97,17 @@
                 Pull(
                     number: 15, title: "Bump swift-format", labels: ["dependencies"], login: "dependabot[bot]",
                     commitIndex: 5),
+            ]
+            openPulls = [
+                OpenPull(
+                    number: 16, title: "Pull requests and CI in Relvora", login: "erick", head: "feature/pull-requests",
+                    sha: Self.sha("pr-16"), draft: false, updatedAt: .now.addingTimeInterval(-600)),
+                OpenPull(
+                    number: 17, title: "Fix the sidebar width", login: "ann", head: "fix/sidebar-width",
+                    sha: Self.sha("pr-17"), draft: false, updatedAt: .now.addingTimeInterval(-1_800)),
+                OpenPull(
+                    number: 18, title: "Try a new board layout", login: "ann", head: "experiment/board",
+                    sha: Self.sha("pr-18"), draft: true, updatedAt: .now.addingTimeInterval(-86_400)),
             ]
             tags["v0.1.0"] = commits[0].sha
             releases = [
@@ -158,8 +189,22 @@
             case ("GET", base + "/commits"):
                 let head = index(of: query.first { $0.name == "sha" }?.value ?? "main") ?? commits.count - 1
                 return reply(request, commits[...head].reversed().map(json))
+            case ("GET", base + "/pulls"):
+                let wantsOpen = query.first { $0.name == "state" }?.value != "closed"
+                return reply(
+                    request, openPulls.filter { ($0.mergedAt == nil) == wantsOpen }.map { json($0, detail: false) })
             default:
                 break
+            }
+
+            if path.hasPrefix(base + "/pulls/") {
+                let rest = path.dropFirst((base + "/pulls/").count).split(separator: "/")
+                if let number = rest.first.flatMap({ Int($0) }),
+                    let index = openPulls.firstIndex(where: { $0.number == number })
+                {
+                    if method == "GET", rest.count == 1 { return reply(request, json(openPulls[index], detail: true)) }
+                    if method == "PUT", rest.count == 2, rest[1] == "merge" { return merge(request, at: index) }
+                }
             }
 
             if method == "GET", path.hasPrefix(base + "/releases/"),
@@ -195,6 +240,9 @@
             }
             if method == "GET", path.hasPrefix(base + "/commits/") {
                 let rest = String(path.dropFirst((base + "/commits/").count))
+                if rest.hasSuffix("/check-runs") {
+                    return reply(request, checkRuns(String(rest.dropLast("/check-runs".count))))
+                }
                 if rest.hasSuffix("/pulls") {
                     let sha = String(rest.dropLast("/pulls".count))
                     let matching = pulls.filter { commits[$0.commitIndex].sha == sha }
@@ -203,6 +251,67 @@
                 if let index = index(of: rest) { return reply(request, json(commits[index])) }
             }
             return reply(request, ["message": "Not Found"], status: 404)
+        }
+
+        // MARK: Pull requests and CI
+
+        /// #16 and the history pass at once, #17 and new merge commits after `ciSeconds`, and draft #18 fails its UI
+        /// tests.
+        private func checkRuns(_ sha: String) -> [String: Any] {
+            let started = ciStarted[sha] ?? .now
+            ciStarted[sha] = started
+            let slow = sha == Self.sha("pr-17") || openPulls.contains { $0.mergeCommit == sha }
+            let done = !slow || Date.now.timeIntervalSince(started) >= ciSeconds
+            let failing = sha == Self.sha("pr-18") ? Self.checkNames[1] : nil
+            let runs: [[String: Any]] = Self.checkNames.map { name in
+                [
+                    "name": name, "status": done ? "completed" : "in_progress",
+                    "conclusion": done ? (name == failing ? "failure" : "success") : NSNull(),
+                    "html_url": "https://github.com/\(Self.fullName)/actions/runs/1",
+                ]
+            }
+            return ["total_count": runs.count, "check_runs": runs]
+        }
+
+        private func merge(_ request: URLRequest, at index: Int) -> (Data, HTTPURLResponse) {
+            let body = (try? JSONSerialization.jsonObject(with: request.httpBody ?? Data())) as? [String: Any] ?? [:]
+            let pull = openPulls[index]
+            guard pull.mergedAt == nil, !pull.draft else {
+                return reply(request, ["message": "Pull Request is not mergeable"], status: 405)
+            }
+            guard body["sha"] as? String == pull.sha else {
+                return reply(
+                    request, ["message": "Head branch was modified. Review and try the merge again."], status: 409)
+            }
+            let commit = Commit(
+                sha: Self.sha("merge-\(pull.number)"),
+                message: "Merge pull request #\(pull.number) from \(Self.owner)/\(pull.head)\n\n\(pull.title)",
+                login: "demo", date: .now)
+            commits.append(commit)
+            pulls.append(
+                Pull(
+                    number: pull.number, title: pull.title, labels: ["feature"], login: pull.login,
+                    commitIndex: commits.count - 1))
+            openPulls[index].mergedAt = .now
+            openPulls[index].mergeCommit = commit.sha
+            return reply(request, ["sha": commit.sha, "merged": true, "message": "Pull Request successfully merged"])
+        }
+
+        private func json(_ pull: OpenPull, detail: Bool) -> [String: Any] {
+            var json: [String: Any] = [
+                "number": pull.number, "title": pull.title,
+                "html_url": "https://github.com/\(Self.fullName)/pull/\(pull.number)",
+                "state": pull.mergedAt == nil ? "open" : "closed", "draft": pull.draft,
+                "merged_at": pull.mergedAt.map { Self.iso($0) as Any } ?? NSNull(),
+                "merge_commit_sha": pull.mergeCommit ?? Self.sha("test-merge-\(pull.number)"),
+                "updated_at": Self.iso(pull.mergedAt ?? pull.updatedAt), "user": ["login": pull.login], "labels": [],
+                "head": ["ref": pull.head, "sha": pull.sha], "base": ["ref": "main"],
+            ]
+            if detail {
+                json["mergeable"] = pull.mergedAt == nil
+                json["mergeable_state"] = pull.draft ? "draft" : "clean"
+            }
+            return json
         }
 
         // MARK: Updates

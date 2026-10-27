@@ -16,7 +16,8 @@ Relvora authenticates as a **GitHub App** using the **device flow**. The app shi
 
    | Permission | Access |
    |---|---|
-   | Contents | Read and write (write is used only to create draft releases) |
+   | Checks | Read-only (CI of pull requests and commits, from 0.2.3) |
+   | Contents | Read and write (write is used only to create and publish releases, and to merge pull requests you confirm) |
    | Metadata | Read-only (mandatory) |
    | Pull requests | Read-only |
 
@@ -26,6 +27,16 @@ Relvora authenticates as a **GitHub App** using the **device flow**. The app shi
    - *Any account* if it must be installed on organizations. A private app can only be installed on its owner account.
    > Set these permissions **before** installing. An app with no repository permissions can only be installed with "No repositories". If you add permissions later, accept them on the installation (*Configure → Review request*).
 5. Click **Create GitHub App**, then copy the **Client ID** (it looks like `Iv23li…`). Do not click *Generate a new client secret* or *Generate a private key*.
+
+## Checks permission for CI (0.2.3)
+
+Relvora 0.2.3 shows the CI of pull requests and commits ([ADR 0020](decisions/0020-pull-requests-and-ci.md)). That needs **Checks: Read-only**, which an app registered before 0.2.3 doesn't have. Until it's added, Relvora says so where pull requests are listed, and doesn't offer to merge.
+
+1. On GitHub: **Settings → Developer settings → GitHub Apps → Relvora → Permissions & events**.
+2. Under **Repository permissions**, set **Checks** to **Read-only**, then **Save changes**.
+3. Accept it on each installation: **Settings → Applications → Installed GitHub Apps → Relvora → Configure**, then **Review request → Accept new permissions**. Organization installations are accepted by an owner.
+
+Merging uses **Contents: Read and write**, which Relvora already has. A pull request that changes files in `.github/workflows` may also need **Workflows: Read and write**. Without it, GitHub refuses that merge, Relvora shows GitHub's reason, and you merge it on GitHub instead.
 
 ## Install the app on repositories
 

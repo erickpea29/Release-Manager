@@ -24,6 +24,7 @@ final class ReleaseModel {
     let planID: UUID
     let workspace: WorkspaceModel
     let github: GitHubModel
+    let pullRequests: PullRequestModel
     let preferences: Preferences
 
     // Target choices, read from GitHub.
@@ -60,10 +61,14 @@ final class ReleaseModel {
     /// The draft as GitHub has it, while the user confirms publishing it.
     var publishPreview: PublishPreview?
 
-    init(planID: UUID, workspace: WorkspaceModel, github: GitHubModel, preferences: Preferences) {
+    init(
+        planID: UUID, workspace: WorkspaceModel, github: GitHubModel, pullRequests: PullRequestModel,
+        preferences: Preferences
+    ) {
         self.planID = planID
         self.workspace = workspace
         self.github = github
+        self.pullRequests = pullRequests
         self.preferences = preferences
         notesText = workspace.plan(planID)?.changelogMarkdown ?? ""
     }
@@ -130,6 +135,41 @@ final class ReleaseModel {
 
     /// The selected commit, when it is among the loaded ones.
     var targetCommit: RemoteCommit? { commits.first { $0.sha == plan?.targetCommitSHA } }
+
+    // MARK: CI (ADR 0020)
+
+    /// The latest commits whose CI is read for the commit picker.
+    static let commitsWithCI = 8
+
+    func ci(of sha: String) -> CIStatus? {
+        connection.flatMap { pullRequests.ci(sha, in: $0.githubRepositoryID) }
+    }
+
+    /// The newest of the latest commits whose CI passed: suggested as the release's commit.
+    var latestPassingCommit: RemoteCommit? {
+        guard let connection else { return nil }
+        let ci = pullRequests.ci[connection.githubRepositoryID] ?? [:]
+        return PullRequestRules.latestPassing(Array(commits.prefix(Self.commitsWithCI)), ci: ci)
+    }
+
+    /// Reads CI for the latest commits and the selected one, where it isn't known or may have changed.
+    func loadCommitCI() async {
+        guard let connection else { return }
+        let shas = commits.prefix(Self.commitsWithCI).map(\.sha) + [plan?.targetCommitSHA].compactMap(\.self)
+        await pullRequests.loadCI(shas, in: connection.githubRepositoryID)
+    }
+
+    /// A pull request was merged from the plan: its branch has a new commit, whose CI starts now.
+    func didMerge(_ pull: PullRequest, sha: String) async {
+        notice = ReleaseNotice(
+            tone: .success, title: "Merged #\(pull.number) into \(pull.baseRef)",
+            details: [
+                "GitHub created \(sha.prefix(7)) on \(pull.baseRef). Once its CI passes, Relvora suggests it as the "
+                    + "release’s commit."
+            ],
+            links: [.init(title: "Open #\(pull.number) on GitHub", url: pull.htmlURL)])
+        if pull.baseRef == plan?.targetBranch { await loadCommits() }
+    }
 
     private var currentChangesKey: String? {
         guard let connection, let sha = plan?.targetCommitSHA else { return nil }
@@ -255,6 +295,7 @@ final class ReleaseModel {
             commits = loaded
             commitsBranch = branch
             targetError = nil
+            await loadCommitCI()
         } catch {
             guard generation == commitsGeneration else { return }
             commits = []

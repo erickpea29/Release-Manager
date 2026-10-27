@@ -61,6 +61,8 @@ struct LaunchOptions {
     /// Turns on Claude's connection on this port with this key, instead of the Keychain's (UI tests).
     var claudePort: Int?
     var claudeKey: String?
+    /// Seconds between the watcher's pull request checks, instead of 2 minutes (UI tests of "CI finishes").
+    var pullRequestCheckInterval: TimeInterval?
 
     static func current(_ defaults: UserDefaults = .standard) -> LaunchOptions {
         var options = LaunchOptions()
@@ -87,6 +89,7 @@ struct LaunchOptions {
             if ticket == nil { options.updateAtLaunch = defaults.string(forKey: "RelvoraUpdateAtLaunch") }
             options.claudePort = string("RelvoraClaudePort").flatMap(Int.init)
             options.claudeKey = string("RelvoraClaudeKey").flatMap { AccessKey.isWellFormed($0) ? $0 : nil }
+            options.pullRequestCheckInterval = string("RelvoraPullRequestCheckInterval").flatMap(TimeInterval.init)
         #endif
         return options
     }
@@ -221,6 +224,7 @@ final class AppModel {
     let environment: AppEnvironment?
     let options: LaunchOptions
     let github: GitHubModel
+    let pullRequests: PullRequestModel
     let preferences: Preferences
     let updates: UpdateModel
     let claude: ClaudeConnection
@@ -278,6 +282,7 @@ final class AppModel {
             startupError = error
         }
         github = GitHubModel(services: environment?.github)
+        pullRequests = PullRequestModel(github: github)
         updates = UpdateModel(github: github, preferences: preferences, isDemo: options.demoGitHub)
         claude = ClaudeConnection(environment: environment, preferences: preferences, fixedKey: options.claudeKey)
         var recordsNotifications = false
@@ -431,6 +436,41 @@ final class AppModel {
             switch outcome.kind {
             case .stillDraft, .nothingToCheck: continue
             default: await dataChanged(in: project.id)
+            }
+        }
+    }
+
+    static let pullRequestCheckInterval: TimeInterval = 2 * 60
+
+    /// While Relvora is open, the repositories of versions being planned are checked every 2 minutes: CI that finished
+    /// on an open pull request, or on the release's branch, is announced (ADR 0020).
+    func watchPullRequests() async {
+        let interval = options.pullRequestCheckInterval ?? Self.pullRequestCheckInterval
+        try? await Task.sleep(for: .seconds(min(interval, 20)))
+        while !Task.isCancelled {
+            await checkPullRequests(maxAge: interval / 2)
+            try? await Task.sleep(for: .seconds(interval))
+        }
+    }
+
+    func checkPullRequests(maxAge: TimeInterval) async {
+        guard preferences.notifies(.ciFinished), github.isConnected, let environment else { return }
+        for project in activeProjects {
+            guard let plan = stats[project.id]?.activePlan,
+                let connections = try? await environment.repositoryConnections.connections(projectID: project.id),
+                let connection = plan.repositoryConnectionID.flatMap({ id in connections.first { $0.id == id } })
+                    ?? connections.first
+            else { continue }
+            let branches = [plan.targetBranch ?? connection.defaultBranch].compactMap(\.self)
+            let repositoryID = connection.githubRepositoryID
+            await pullRequests.refreshIfStale(repositoryID: repositoryID, branches: branches, maxAge: maxAge)
+            for run in pullRequests.takeFinished(repositoryID: repositoryID, branches: branches) {
+                guard
+                    let content = AppNotifications.ciFinished(
+                        run, projectID: project.id, projectName: project.name, repository: connection.fullName,
+                        version: plan.version)
+                else { continue }
+                await notifier.deliver(content)
             }
         }
     }

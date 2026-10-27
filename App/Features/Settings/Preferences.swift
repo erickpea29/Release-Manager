@@ -77,6 +77,7 @@ final class Preferences {
         static let claudeEnabled = "claudeEnabled"
         static let claudePort = "claudePort"
         static let notificationsOff = "notificationsOff"
+        static let mergeMethod = "mergeMethod"
     }
 
     @ObservationIgnored let defaults: UserDefaults
@@ -124,6 +125,11 @@ final class Preferences {
         if isOn { notificationsOff.remove(kind) } else { notificationsOff.insert(kind) }
     }
 
+    /// How Relvora last merged a pull request; the merge sheet starts with it. Per Mac.
+    var mergeMethod: MergeMethod {
+        didSet { defaults.set(mergeMethod.rawValue, forKey: Key.mergeMethod) }
+    }
+
     var claudePort: Int {
         didSet {
             let valid = min(max(claudePort, 1024), 65_535)
@@ -151,6 +157,7 @@ final class Preferences {
         notificationsOff = Set(
             (defaults.stringArray(forKey: Key.notificationsOff) ?? []).compactMap(NotificationKind.init))
         claudePort = (defaults.object(forKey: Key.claudePort) as? Int) ?? Int(ClaudeConnection.defaultPort)
+        mergeMethod = defaults.string(forKey: Key.mergeMethod).flatMap(MergeMethod.init) ?? .merge
     }
 
     /// Validates and stores the board template for new projects.

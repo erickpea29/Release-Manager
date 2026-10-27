@@ -1,7 +1,8 @@
 import Foundation
 import RelvoraCore
 
-/// Typed GitHub REST client for the signed-in user. Its only writes create and publish draft releases.
+/// Typed GitHub REST client for the signed-in user. Its only writes create and publish draft releases, and merge a
+/// pull request the user confirmed (ADR 0020).
 ///
 /// - Sends `Authorization`, `Accept: application/vnd.github+json`, and the pinned `X-GitHub-Api-Version`.
 /// - Follows `Link: rel="next"` pagination up to a page limit, and only to the API host (the token never
@@ -175,6 +176,72 @@ public struct GitHubAPIClient: Sendable {
     {
         try await get([PullRequestDTO].self, path: "repos/\(repository.fullName)/commits/\(sha)/pulls")
             .map { ($0.model, $0.base?.ref) }
+    }
+
+    // MARK: Pull requests and CI (ADR 0020)
+
+    /// Open pull requests, most recently updated first.
+    public func openPullRequests(of repository: GitHubRepository, limit: Int = 30) async throws(GitHubError)
+        -> [PullRequest]
+    {
+        try await pullRequests(of: repository, state: "open", limit: limit)
+    }
+
+    /// Closed pull requests, most recently updated first. Merged ones have `mergedAt`.
+    public func closedPullRequests(of repository: GitHubRepository, limit: Int = 20) async throws(GitHubError)
+        -> [PullRequest]
+    {
+        try await pullRequests(of: repository, state: "closed", limit: limit)
+    }
+
+    private func pullRequests(of repository: GitHubRepository, state: String, limit: Int) async throws(GitHubError)
+        -> [PullRequest]
+    {
+        try await get(
+            [PullRequestDTO].self, path: "repos/\(repository.fullName)/pulls",
+            query: [
+                ("state", state), ("sort", "updated"), ("direction", "desc"), ("per_page", String(min(limit, 100))),
+            ]
+        )
+        .compactMap(\.pullRequest)
+    }
+
+    /// One pull request, with whether GitHub can merge it (the list leaves that out).
+    public func pullRequest(of repository: GitHubRepository, number: Int) async throws(GitHubError)
+        -> (pullRequest: PullRequest, mergeability: Mergeability)
+    {
+        let body = try await get(PullRequestDTO.self, path: "repos/\(repository.fullName)/pulls/\(number)")
+        guard let pullRequest = body.pullRequest else { throw .invalidResponse("Pull request without branches") }
+        return (pullRequest, Mergeability(isMergeable: body.mergeable, state: body.mergeableState ?? "unknown"))
+    }
+
+    /// The latest run of each check on a commit, such as its GitHub Actions jobs. Needs the Checks permission.
+    public func checkRuns(of repository: GitHubRepository, sha: String) async throws(GitHubError) -> [CheckRun] {
+        try await get(
+            CheckRunsDTO.self, path: "repos/\(repository.fullName)/commits/\(sha)/check-runs",
+            query: [("filter", "latest"), ("per_page", "100")]
+        )
+        .checkRuns.map(\.model)
+    }
+
+    /// Merges a pull request, only while its latest commit is still `headSHA`: if the branch moved, GitHub refuses
+    /// with a conflict and merges nothing. Sent once, like every write: after a timeout or dropped connection, read
+    /// the pull request to learn whether it merged. Returns the commit the merge created.
+    public func mergePullRequest(
+        in repository: GitHubRepository, number: Int, headSHA: String, method: MergeMethod
+    ) async throws(GitHubError) -> String {
+        let data: Data
+        do {
+            data = try JSONEncoder().encode(["sha": headSHA, "merge_method": method.rawValue])
+        } catch {
+            throw .invalidResponse("Request encoding failed")
+        }
+        let result = try await send(
+            MergeResultDTO.self, url: url("repos/\(repository.fullName)/pulls/\(number)/merge"), method: "PUT",
+            body: data
+        ).body
+        guard result.merged else { throw .refused(message: result.message) }
+        return result.sha
     }
 
     // MARK: Relvora's own releases (updates, ADR 0017)
@@ -478,6 +545,10 @@ struct PullRequestDTO: Decodable {
     struct Base: Decodable {
         let ref: String
     }
+    struct Head: Decodable {
+        let ref: String
+        let sha: String
+    }
     let number: Int
     let title: String
     let htmlUrl: URL
@@ -485,10 +556,48 @@ struct PullRequestDTO: Decodable {
     let user: AccountDTO?
     let labels: [Label]
     let base: Base?
+    // Read for pull requests beside a release (ADR 0020). A commit's pull requests, read for release notes, may leave
+    // some out; `mergeable` comes only with a single pull request.
+    let state: String?
+    let draft: Bool?
+    let head: Head?
+    let mergeCommitSha: String?
+    let updatedAt: Date?
+    let mergeable: Bool?
+    let mergeableState: String?
 
     var model: RemotePullRequest {
         RemotePullRequest(
             number: number, title: title, authorLogin: user?.login, mergedAt: mergedAt,
             labels: labels.map(\.name), htmlURL: htmlUrl)
     }
+
+    var pullRequest: PullRequest? {
+        guard let head, let base else { return nil }
+        let state: PullRequest.State = mergedAt != nil ? .merged : (self.state == "open" ? .open : .closed)
+        return PullRequest(
+            number: number, title: title, authorLogin: user?.login, state: state, isDraft: draft ?? false,
+            headRef: head.ref, headSHA: head.sha, baseRef: base.ref, mergedAt: mergedAt,
+            mergeCommitSHA: mergedAt == nil ? nil : mergeCommitSha, updatedAt: updatedAt, htmlURL: htmlUrl)
+    }
+}
+
+struct CheckRunsDTO: Decodable {
+    struct Run: Decodable {
+        let name: String
+        let status: String
+        let conclusion: String?
+        let htmlUrl: URL?
+
+        var model: CheckRun {
+            CheckRun(name: name, isCompleted: status == "completed", conclusion: conclusion, htmlURL: htmlUrl)
+        }
+    }
+    let checkRuns: [Run]
+}
+
+struct MergeResultDTO: Decodable {
+    let sha: String
+    let merged: Bool
+    let message: String?
 }

@@ -26,7 +26,8 @@ struct ReleasePlansView: View {
                     Divider()
                     if let id = selection, model.plan(id) != nil {
                         ReleasePlanDetailContainer(
-                            planID: id, workspace: model, github: app.github, preferences: app.preferences
+                            planID: id, workspace: model, github: app.github, pullRequests: app.pullRequests,
+                            preferences: app.preferences
                         )
                         .id(id)
                     } else {
@@ -131,9 +132,14 @@ struct ReleasePlanRow: View {
 private struct ReleasePlanDetailContainer: View {
     @State private var release: ReleaseModel
 
-    init(planID: UUID, workspace: WorkspaceModel, github: GitHubModel, preferences: Preferences) {
+    init(
+        planID: UUID, workspace: WorkspaceModel, github: GitHubModel, pullRequests: PullRequestModel,
+        preferences: Preferences
+    ) {
         _release = State(
-            initialValue: ReleaseModel(planID: planID, workspace: workspace, github: github, preferences: preferences))
+            initialValue: ReleaseModel(
+                planID: planID, workspace: workspace, github: github, pullRequests: pullRequests,
+                preferences: preferences))
     }
 
     var body: some View {
