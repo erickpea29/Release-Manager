@@ -52,6 +52,7 @@ private struct GeneralSettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            MenuBarSettingsSection()
             UpdateSettingsSection()
         }
         .formStyle(.grouped)

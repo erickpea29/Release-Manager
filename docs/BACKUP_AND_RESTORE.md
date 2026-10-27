@@ -29,7 +29,7 @@ Safety copies are kept in Relvora's data folder:
 | Release plans: status, target commit, tag, notes | |
 | GitHub repository connections (format 2) | |
 | Release history: every snapshot, exactly as recorded (format 3) | |
-| Settings: appearance, accent, window, columns for new projects, release-note label rules, GitHub refresh interval (format 4) | |
+| Settings: appearance, accent, window, columns for new projects, release-note label rules, GitHub refresh interval (format 4), the menu bar icon (0.2.4) | |
 | Project groups, their order, and each project's group (format 5) | |
 | Release checklists: each project's steps, the steps ticked on each plan, and each release's checklist as it was (format 6) | |
 

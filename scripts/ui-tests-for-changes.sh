@@ -25,7 +25,8 @@ while IFS= read -r file; do
     case "$file" in
         # Nothing the app runs.
         docs/* | *.md | Design/* | spikes/* | .gitignore | .swift-format | Packages/RelvoraKit/Tests/*) ;;
-        scripts/make-app-icon.swift | scripts/release/* | .github/workflows/release.yml) ;;
+        scripts/make-app-icon.swift | scripts/make-menu-bar-icon.swift | scripts/release/* | \
+            .github/workflows/release.yml) ;;
         # How UI tests run: one quick test shows the job still works.
         .github/workflows/ci.yml | scripts/ui-tests-for-changes.sh) pick "$launch" ;;
         # A UI test file: that test.
@@ -47,6 +48,7 @@ while IFS= read -r file; do
         App/Features/Claude/*) pick ClaudeUITests NotificationUITests ;;
         App/Features/Updates/*) pick UpdateUITests NotificationUITests ;;
         App/Features/Settings/*) pick SettingsUITests ;;
+        App/Features/MenuBar/*) pick MenuBarUITests ;;
         App/Features/Backup/*) pick "$launch" ;;
         # The shortcuts window, and the menu keys it defines: the tests that press them.
         App/Features/Keyboard/*) pick KeyboardShortcutsUITests NavigationUITests BoardUITests ;;
@@ -64,6 +66,7 @@ while IFS= read -r file; do
         Packages/RelvoraKit/Sources/RelvoraCore/Services/AppNotifications.swift) pick NotificationUITests ;;
         Packages/RelvoraKit/Sources/RelvoraCore/Services/PullRequests.swift) pick PullRequestUITests NotificationUITests ;;
         Packages/RelvoraKit/Sources/RelvoraCore/Services/AppUpdate.swift) pick UpdateUITests ;;
+        Packages/RelvoraKit/Sources/RelvoraCore/Services/ReleaseOverview.swift) pick MenuBarUITests ;;
         Packages/RelvoraKit/Sources/RelvoraCore/Services/BoardPlanner.swift | \
             Packages/RelvoraKit/Sources/RelvoraCore/Services/BoardService.swift | \
             Packages/RelvoraKit/Sources/RelvoraCore/Services/Filtering.swift)

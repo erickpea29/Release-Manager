@@ -78,6 +78,7 @@ final class Preferences {
         static let claudePort = "claudePort"
         static let notificationsOff = "notificationsOff"
         static let mergeMethod = "mergeMethod"
+        static let showsMenuBarIcon = "showsMenuBarIcon"
     }
 
     @ObservationIgnored let defaults: UserDefaults
@@ -104,6 +105,10 @@ final class Preferences {
     }
     var githubRefresh: GitHubRefreshInterval {
         didSet { defaults.set(githubRefresh.rawValue, forKey: Key.githubRefresh) }
+    }
+    /// Versions in progress and drafts waiting in the menu bar (ADR 0022). On until turned off; in backups.
+    var showsMenuBarIcon: Bool {
+        didSet { defaults.set(showsMenuBarIcon, forKey: Key.showsMenuBarIcon) }
     }
     /// Looks for a newer Relvora at launch and once a day (ADR 0017). Kept per Mac: not in backups.
     var checksForUpdates: Bool {
@@ -152,6 +157,7 @@ final class Preferences {
         changelogLabelRules = ChangelogLabelRule.normalized(
             Self.load([ChangelogLabelRule].self, from: defaults, forKey: Key.changelogLabelRules) ?? [])
         githubRefresh = defaults.string(forKey: Key.githubRefresh).flatMap(GitHubRefreshInterval.init) ?? .fiveMinutes
+        showsMenuBarIcon = defaults.object(forKey: Key.showsMenuBarIcon) as? Bool ?? true
         checksForUpdates = defaults.object(forKey: Key.checksForUpdates) as? Bool ?? true
         claudeEnabled = defaults.bool(forKey: Key.claudeEnabled)
         notificationsOff = Set(
@@ -175,7 +181,7 @@ final class Preferences {
         BackupDocument.PreferencesRecord(
             appearance: appearance.rawValue, accentColor: accent.rawValue, windowMaterial: windowMaterial.rawValue,
             newProjectColumns: newProjectColumns, changelogLabelRules: changelogLabelRules,
-            githubRefreshInterval: githubRefresh.rawValue)
+            githubRefreshInterval: githubRefresh.rawValue, showsMenuBarIcon: showsMenuBarIcon)
     }
 
     /// Applies restored settings. Unknown or invalid values are skipped, keeping the current ones.
@@ -190,6 +196,7 @@ final class Preferences {
         }
         if let rules = record.changelogLabelRules { changelogLabelRules = ChangelogLabelRule.normalized(rules) }
         if let value = record.githubRefreshInterval.flatMap(GitHubRefreshInterval.init) { githubRefresh = value }
+        if let value = record.showsMenuBarIcon { showsMenuBarIcon = value }
     }
 
     // MARK: Storage

@@ -12,6 +12,7 @@ Status: finished in M05. Material rules follow [ADR 0006](decisions/0006-window-
 
 A sidebar holds **Dashboard**, **Release History**, and the projects; each project has the tabs **Backlog**, **Board**, **Releases**, and **GitHub**. Settings is its own scene (⌘,), with the tabs General, Board, Releases, GitHub, Notifications, and Claude.
 - **Notifications.** A banner only when Relvora isn't the active app; otherwise straight to Notification Center. A click opens the project's tab, or the update sheet ([ADR 0019](decisions/0019-notifications.md)).
+- **Menu bar icon.** While Relvora is open, its R in the menu bar opens a menu: **Drafts Waiting**, then **Versions in Progress** (by group when there are more than five), each with its status icon and a second line ("Planned for 9 Nov · 1 of 7 tasks done"). A click opens the project's Releases tab. Then **Open Relvora**, **Settings…**, and **Quit Relvora**. **Settings › General** turns it off ([ADR 0022](decisions/0022-menu-bar-icon.md)).
 
 - **Groups.** Projects are listed by group, one collapsible section each, then **Other Projects** (**Projects** while there are no groups). A group's heading has its menu (new project, rename, move up or down, delete); an empty group says "No projects" and takes dropped projects. Projects change groups by drag and drop, **Move to Group**, or the project editor ([ADR 0014](decisions/0014-project-groups.md)).
 - **Collapsed sidebar.** Hiding the sidebar (⌃⌘S or the toolbar button) narrows it to a strip of icons: Dashboard, Release History, each active project by its initials in the sidebar's order, with a line between groups (the group and name in the tooltip), and New Project. It widens again as the same piece; the list and the icons cross-fade.
@@ -27,6 +28,12 @@ The white **R** on a dark rounded square (0.1.1). The source is `Design/logo.png
 
 ```sh
 swift scripts/make-app-icon.swift Design/logo.png App/Assets.xcassets/AppIcon.appiconset
+```
+
+The menu bar icon is the same logo as a 16-point template image: the square opaque, the R cut out. To rebuild it:
+
+```sh
+swift scripts/make-menu-bar-icon.swift Design/logo.png App/Assets.xcassets/MenuBarIcon.imageset
 ```
 
 ## 3. Tokens

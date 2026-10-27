@@ -76,6 +76,8 @@ struct RelvoraApp: App {
         }
 
         KeyboardShortcutsWindow(preferences: model.preferences)
+
+        MenuBarScene(model: model)
     }
 }
 

@@ -119,7 +119,8 @@ struct RootView: View {
         } message: { alert in
             Text(alert.message)
         }
-        .onChange(of: model.navigationRequest) { _, request in
+        // Initial too: the menu bar icon can ask for a project while opening this window again.
+        .onChange(of: model.navigationRequest, initial: true) { _, request in
             guard let request else { return }
             select(request)
             model.navigationRequest = nil
