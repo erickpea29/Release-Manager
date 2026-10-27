@@ -43,6 +43,23 @@ final class MenuBarUITests: XCTestCase {
         screenshot(app, "menu-bar-opened-version")
     }
 
+    /// Relvora quits when its last window closes, Keyboard Shortcuts included, and the icon goes with it.
+    func testClosingTheLastWindowQuits() {
+        let app = RelvoraApp.launch()
+        app.staticTexts["Dashboard"].firstMatch.wait()
+        app.statusItems.firstMatch.wait()
+
+        app.typeKey("/", modifierFlags: .command)  // Help › Keyboard Shortcuts
+        let shortcuts = app.windows.matching(NSPredicate(format: "title == %@", "Keyboard Shortcuts")).firstMatch.wait()
+        let main = app.windows["main"]
+        main.buttons[XCUIIdentifierCloseWindow].click()
+        XCTAssertTrue(main.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(app.state, .runningForeground)  // Keyboard Shortcuts is still open
+
+        shortcuts.buttons[XCUIIdentifierCloseWindow].click()
+        XCTAssertTrue(app.wait(for: .notRunning, timeout: 10))
+    }
+
     /// A draft waiting on GitHub is listed apart from the versions in progress, and opens its plan.
     func testDraftWaitingOpensItsPlan() {
         let app = RelvoraApp.launchProject(tab: "releases", ["-RelvoraDemoScenario", "draft"])

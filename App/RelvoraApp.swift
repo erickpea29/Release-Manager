@@ -1,7 +1,9 @@
+import AppKit
 import SwiftUI
 
 @main
 struct RelvoraApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var model = AppModel()
 
     var body: some Scene {
@@ -79,6 +81,12 @@ struct RelvoraApp: App {
 
         MenuBarScene(model: model)
     }
+}
+
+/// Relvora quits when its last window closes (ADR 0022). Its background checks run with the main window, and the
+/// Keyboard Shortcuts window would otherwise keep it running without them.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 }
 
 /// Go › Backlog / Board / Releases / GitHub for the open project (⌥⌘1–4).

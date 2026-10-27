@@ -38,7 +38,7 @@ Until now, seeing what's in progress meant bringing Relvora's window forward and
    - **Inserted just after,** the window opens as before, and the menu has its data.
    - **If Relvora can't open its data,** there's no icon. The window shows the recovery screen.
 7. **Closing the main window still quits Relvora,** and the icon goes with it.
-   - **Today:** Relvora's main window is a SwiftUI `Window`, and there's no `applicationShouldTerminateAfterLastWindowClosed` override, so Relvora quits when that window closes. An icon inserted after launch keeps this behavior (checked).
+   - **Today:** Relvora quits when its last window closes. Until 0.2.3 that came from SwiftUI, because the main window was the only `Window` scene. The Keyboard Shortcuts window (0.2.4) is a second one, which would keep Relvora running with no window, so an app delegate now says it with `applicationShouldTerminateAfterLastWindowClosed`.
    - **Why not keep running in the menu bar:** Relvora's start-up and its background checks run with the main window. Those are drafts every 5 minutes, CI every 2 minutes, and updates. Running without the window would mean moving them out of it. Otherwise the menu would show numbers that stop updating. This is possible later.
    - **While Settings is open,** Relvora keeps running after the main window closes, as before. Choosing a version opens the main window again.
 
