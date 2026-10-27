@@ -79,6 +79,7 @@ final class Preferences {
         static let notificationsOff = "notificationsOff"
         static let mergeMethod = "mergeMethod"
         static let showsMenuBarIcon = "showsMenuBarIcon"
+        static let spotlightEnabled = "spotlightEnabled"
     }
 
     @ObservationIgnored let defaults: UserDefaults
@@ -135,6 +136,11 @@ final class Preferences {
         didSet { defaults.set(mergeMethod.rawValue, forKey: Key.mergeMethod) }
     }
 
+    /// Active projects and their tasks show in Spotlight (ADR 0023). On until turned off; per Mac, not in backups.
+    var spotlightEnabled: Bool {
+        didSet { defaults.set(spotlightEnabled, forKey: Key.spotlightEnabled) }
+    }
+
     var claudePort: Int {
         didSet {
             let valid = min(max(claudePort, 1024), 65_535)
@@ -164,6 +170,7 @@ final class Preferences {
             (defaults.stringArray(forKey: Key.notificationsOff) ?? []).compactMap(NotificationKind.init))
         claudePort = (defaults.object(forKey: Key.claudePort) as? Int) ?? Int(ClaudeConnection.defaultPort)
         mergeMethod = defaults.string(forKey: Key.mergeMethod).flatMap(MergeMethod.init) ?? .merge
+        spotlightEnabled = defaults.object(forKey: Key.spotlightEnabled) as? Bool ?? true
     }
 
     /// Validates and stores the board template for new projects.

@@ -24,5 +24,6 @@
 | [0020](0020-pull-requests-and-ci.md) | Pull requests and CI in Relvora | Accepted |
 | [0021](0021-ui-tests-chosen-by-change.md) | UI tests chosen by what a change affects | Accepted |
 | [0022](0022-menu-bar-icon.md) | Menu bar icon | Accepted |
+| [0023](0023-shortcuts-and-spotlight.md) | Shortcuts and Spotlight | Accepted |
 
 New records: copy the shape of an existing one (Status, Date, Context, Decision, Consequences, Evidence). Keep them short.

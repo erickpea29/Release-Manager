@@ -53,6 +53,7 @@ private struct GeneralSettingsView: View {
                     .foregroundStyle(.secondary)
             }
             MenuBarSettingsSection()
+            SpotlightSettingsSection()
             UpdateSettingsSection()
         }
         .formStyle(.grouped)

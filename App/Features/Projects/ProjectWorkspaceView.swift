@@ -108,9 +108,22 @@ struct ProjectWorkspaceView: View {
         case .newReleasePlan?:
             tabID = WorkspaceTab.releases.rawValue
             if model.activePlan == nil { model.planEditor = .new }
+        case .openTask(let taskID)?:
+            Task { await openTask(taskID, in: model) }
         case nil:
             break
         }
+    }
+
+    /// A task from Spotlight or Shortcuts: selected, with its editor open, on the Board or in the Backlog. An editor
+    /// already open stays, so nothing typed is lost.
+    private func openTask(_ id: UUID, in model: WorkspaceModel) async {
+        if model.state.task(id) == nil { await model.load() }  // Added moments ago.
+        guard let task = model.state.task(id) else { return }
+        let onBoard = VersionScope.isOnBoard(task, activePlanID: model.activePlan?.id)
+        tabID = (onBoard ? WorkspaceTab.board : .backlog).rawValue
+        model.selectedTaskID = task.id
+        if model.taskEditor == nil { model.taskEditor = .edit(task) }
     }
 
     private func makeModel() async {

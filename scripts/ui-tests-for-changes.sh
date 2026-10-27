@@ -49,6 +49,8 @@ while IFS= read -r file; do
         App/Features/Updates/*) pick UpdateUITests NotificationUITests ;;
         App/Features/Settings/*) pick SettingsUITests ;;
         App/Features/MenuBar/*) pick MenuBarUITests ;;
+        App/Features/Intents/*)
+            pick IntentsUITests SettingsUITests UpdateUITests/testCheckForUpdatesWhenUpToDate ;;
         App/Features/Backup/*) pick "$launch" ;;
         # The shortcuts window, and the menu keys it defines: the tests that press them.
         App/Features/Keyboard/*) pick KeyboardShortcutsUITests NavigationUITests BoardUITests ;;
@@ -67,6 +69,8 @@ while IFS= read -r file; do
         Packages/RelvoraKit/Sources/RelvoraCore/Services/PullRequests.swift) pick PullRequestUITests NotificationUITests ;;
         Packages/RelvoraKit/Sources/RelvoraCore/Services/AppUpdate.swift) pick UpdateUITests ;;
         Packages/RelvoraKit/Sources/RelvoraCore/Services/ReleaseOverview.swift) pick MenuBarUITests ;;
+        Packages/RelvoraKit/Sources/RelvoraCore/Services/TaskCreation.swift) pick ClaudeUITests ;;
+        Packages/RelvoraKit/Sources/RelvoraCore/Services/SystemSearch.swift) pick IntentsUITests ;;
         Packages/RelvoraKit/Sources/RelvoraCore/Services/BoardPlanner.swift | \
             Packages/RelvoraKit/Sources/RelvoraCore/Services/BoardService.swift | \
             Packages/RelvoraKit/Sources/RelvoraCore/Services/Filtering.swift)

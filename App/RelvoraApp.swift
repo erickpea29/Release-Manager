@@ -4,7 +4,17 @@ import SwiftUI
 @main
 struct RelvoraApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @State private var model = AppModel()
+    @State private var model: AppModel
+
+    init() {
+        let model = AppModel()
+        _model = State(initialValue: model)
+        // Shortcuts, Siri, and Spotlight run their intents in this process, with this model (ADR 0023).
+        model.registerForIntents()
+        #if DEBUG
+            Task { await model.openSearchResultAtLaunch() }
+        #endif
+    }
 
     var body: some Scene {
         Window("Relvora", id: "main") {
@@ -13,6 +23,7 @@ struct RelvoraApp: App {
                 .environment(model.preferences)
                 .preferredColorScheme(model.preferences.appearance.colorScheme)
                 .tint(model.preferences.accent.color)
+                .modifier(OpensSearchResults(model: model))
         }
         .defaultSize(width: 1280, height: 800)
         .commands {

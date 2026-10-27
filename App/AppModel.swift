@@ -63,6 +63,8 @@ struct LaunchOptions {
     var claudeKey: String?
     /// Seconds between the watcher's pull request checks, instead of 2 minutes (UI tests of "CI finishes").
     var pullRequestCheckInterval: TimeInterval?
+    /// Opens `task:<title>` or `project:<name>` at launch, as a clicked Spotlight result would (UI tests).
+    var openSearchResult: String?
 
     static func current(_ defaults: UserDefaults = .standard) -> LaunchOptions {
         var options = LaunchOptions()
@@ -90,6 +92,7 @@ struct LaunchOptions {
             options.claudePort = string("RelvoraClaudePort").flatMap(Int.init)
             options.claudeKey = string("RelvoraClaudeKey").flatMap { AccessKey.isWellFormed($0) ? $0 : nil }
             options.pullRequestCheckInterval = string("RelvoraPullRequestCheckInterval").flatMap(TimeInterval.init)
+            options.openSearchResult = string("RelvoraOpenSearchResult")
         #endif
         return options
     }
@@ -171,6 +174,8 @@ struct WorkspaceRequest: Equatable {
     enum Action: Equatable {
         case newTask
         case newReleasePlan
+        /// A task's editor, on the Board or in the Backlog (Spotlight, Shortcuts).
+        case openTask(UUID)
     }
 
     let projectID: UUID
@@ -229,6 +234,7 @@ final class AppModel {
     let updates: UpdateModel
     let claude: ClaudeConnection
     let notifier: Notifier
+    let spotlight: SpotlightIndex
     /// Published snapshots per project already seen, so each publication is announced once.
     private var knownPublished: [UUID: Set<UUID>] = [:]
     /// Set when an update opened this copy.
@@ -291,6 +297,7 @@ final class AppModel {
             recordsNotifications = options.defaultsSuite != nil
         #endif
         notifier = Notifier(preferences: preferences, records: recordsNotifications)
+        spotlight = SpotlightIndex(environment: environment, preferences: preferences, isAvailable: !options.isTestCopy)
     }
 
     func start() async {
@@ -346,6 +353,7 @@ final class AppModel {
         } catch {
             alert = AppAlert(title: "Couldn’t load projects", error: error)
         }
+        spotlight.setNeedsUpdate()
         hasLoaded = true
     }
 
@@ -357,9 +365,10 @@ final class AppModel {
     }
 
     /// Updates a project's numbers, and its notifications: a publication not seen before is announced (unless
-    /// `announce` is false), and "planned for today" follows the plans.
+    /// `announce` is false), and "planned for today" follows the plans. Spotlight follows a moment later.
     func refreshStats(for projectID: UUID, announce: Bool = true) async {
         guard let environment else { return }
+        spotlight.setNeedsUpdate()
         do {
             let state = try await environment.board.load(projectID: projectID)
             let plans = try await environment.releasePlans.plans(projectID: projectID)
@@ -519,6 +528,7 @@ final class AppModel {
             projects.removeAll { $0.id == project.id }
             stats[project.id] = nil
             knownPublished[project.id] = nil
+            spotlight.setNeedsUpdate()
             await notifier.schedulePlanned([], projectID: project.id)
         } catch {
             alert = AppAlert(title: "Couldn’t delete project", error: error)
@@ -541,6 +551,7 @@ final class AppModel {
         guard let environment else { return }
         let renamed = try await environment.groups.rename(group, to: name)
         if let index = groups.firstIndex(where: { $0.id == group.id }) { groups[index] = renamed }
+        spotlight.setNeedsUpdate()
     }
 
     /// Moves a group up (`-1`) or down (`1`) in the sidebar.
@@ -560,6 +571,7 @@ final class AppModel {
             try await environment.groups.delete(group.id)
             groups.removeAll { $0.id == group.id }
             for index in projects.indices where projects[index].groupID == group.id { projects[index].groupID = nil }
+            spotlight.setNeedsUpdate()
         } catch {
             alert = AppAlert(title: "Couldn’t delete group", error: error)
         }
@@ -589,6 +601,7 @@ final class AppModel {
 
     private func replace(_ project: Project) {
         if let index = projects.firstIndex(where: { $0.id == project.id }) { projects[index] = project }
+        spotlight.setNeedsUpdate()
     }
 
     // MARK: Backup
