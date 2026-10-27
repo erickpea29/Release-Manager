@@ -10,12 +10,23 @@ struct MenuBarScene: Scene {
     let model: AppModel
 
     var body: some Scene {
-        MenuBarExtra("Relvora", image: "MenuBarIcon", isInserted: isInserted) {
+        MenuBarExtra(isInserted: isInserted) {
             MenuBarMenu()
                 .environment(model)
+        } label: {
+            Image(nsImage: Self.icon)
         }
         .menuBarExtraStyle(.menu)
     }
+
+    /// The logo's R as a template image. The status item takes its VoiceOver name from the image: the title of
+    /// `MenuBarExtra("Relvora", image:)` didn't reach it.
+    private static let icon: NSImage = {
+        let image = NSImage(named: "MenuBarIcon")?.copy() as? NSImage ?? NSImage()
+        image.isTemplate = true
+        image.accessibilityDescription = "Relvora"
+        return image
+    }()
 
     private var isInserted: Binding<Bool> {
         Binding(

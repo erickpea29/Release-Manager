@@ -8,6 +8,7 @@ final class MenuBarUITests: XCTestCase {
         let app = RelvoraApp.launch()
         app.staticTexts["Dashboard"].firstMatch.wait()
         let icon = app.statusItems.firstMatch.wait()
+        attachTree(icon, "status-item-tree")
         XCTAssertEqual(icon.label, "Relvora")
 
         app.typeKey(",", modifierFlags: .command)
@@ -32,8 +33,9 @@ final class MenuBarUITests: XCTestCase {
 
         app.statusItems.firstMatch.wait().click()
         let version = app.menuItems["Relvora 0.2.0"].wait()
-        XCTAssertTrue(app.text("Versions in Progress", exact: true).exists)
-        XCTAssertFalse(app.text("Drafts Waiting", exact: true).exists)
+        attachTree(app.menus.firstMatch, "menu-tree")
+        XCTAssertTrue(header(app, "Versions in Progress").exists)
+        XCTAssertFalse(header(app, "Drafts Waiting").exists)
         XCTAssertTrue(app.menuItems["Open Relvora"].exists)
         XCTAssertTrue(app.menuItems["Quit Relvora"].exists)
         version.click()
@@ -69,10 +71,18 @@ final class MenuBarUITests: XCTestCase {
 
         app.statusItems.firstMatch.wait().click()
         let draft = app.menuItems["Relvora 0.2.0"].wait()
-        XCTAssertTrue(app.text("Drafts Waiting", exact: true).exists)
-        XCTAssertFalse(app.text("Versions in Progress", exact: true).exists)
+        attachTree(app.menus.firstMatch, "menu-tree")
+        XCTAssertTrue(header(app, "Drafts Waiting").exists)
+        XCTAssertFalse(header(app, "Versions in Progress").exists)
+        // Listed once: a draft isn't also a version in progress.
+        XCTAssertEqual(app.menuItems.matching(NSPredicate(format: "title == %@", "Relvora 0.2.0")).count, 1)
         draft.click()
 
         app.text("Draft on GitHub", exact: true).wait()
+    }
+
+    /// A section's title in the open menu: a menu item, not static text.
+    private func header(_ app: XCUIApplication, _ title: String) -> XCUIElement {
+        app.menuItems.matching(NSPredicate(format: "title == %@ OR label == %@", title, title)).firstMatch
     }
 }

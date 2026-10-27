@@ -72,6 +72,7 @@ struct KeyboardShortcutsView: View {
                 .textFieldStyle(.roundedBorder)
                 .focused($isSearchFocused)
                 .onExitCommand { query = "" }
+                .accessibilityLabel("Search shortcuts")
                 .accessibilityIdentifier("shortcutsSearch")
                 .scenePadding(.horizontal)
                 .padding(.top, Spacing.s)
@@ -99,7 +100,9 @@ private struct KeyCommandRow: View {
                 }
             }
         }
+        // One static text: without a role, VoiceOver and the audit see an unknown element with no value.
         .accessibilityElement(children: .ignore)
+        .accessibilityAddTraits(.isStaticText)
         .accessibilityLabel(command.title)
         .accessibilityValue(command.spokenKeys)
         .accessibilityIdentifier("shortcut-\(command.rawValue)")

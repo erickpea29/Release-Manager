@@ -69,6 +69,15 @@ extension XCUIElement {
 }
 
 extension XCTestCase {
+    /// Attaches the accessibility tree, kept only if the test fails: what XCUITest saw, for diagnosis on CI.
+    @MainActor
+    func attachTree(_ element: XCUIElement, _ name: String) {
+        let tree = XCTAttachment(string: element.debugDescription)
+        tree.name = name
+        tree.lifetime = .deleteOnSuccess
+        add(tree)
+    }
+
     /// Attaches a screenshot to the test result (export with `xcrun xcresulttool export attachments`).
     @MainActor
     func screenshot(_ app: XCUIApplication, _ name: String) {

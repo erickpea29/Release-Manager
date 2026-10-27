@@ -9,6 +9,7 @@ final class KeyboardShortcutsUITests: XCTestCase {
         app.menuBars.menuBarItems["Help"].click()
         app.menuItems["Keyboard Shortcuts"].wait().click()
         let window = shortcutsWindow(app).wait()
+        attachTree(window, "shortcuts-tree")
 
         // A menu command, a Task menu key, and board keys that aren't menu commands, read as one line each.
         expectRow(window, "newTask", "New Task", "Command N")
