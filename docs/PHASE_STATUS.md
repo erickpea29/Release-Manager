@@ -192,7 +192,8 @@ Tracked in Relvora as the task *Generative UI in the Releases view*, on Revora 0
 - [x] Package tests: 269 pass (19 new); `swift-format lint --strict` is clean (swift-format 6.2.3)
 - [x] UI tests: the 3 new `ReleaseBriefUITests` and the other 34 that ran pass, release workflow and pull requests included
 - [x] The release plan's accessibility audit found nothing more in the brief, after four fixes (animation, the verdict's icon, the meter's role, the grid's description)
-- [ ] The release plan's audit still fails on contrast of small captions in the Pull Requests list, on Xcode 27.2 only. `main` fails the same way, so it's an earlier issue; CI (Xcode 26, 1x display) doesn't audit contrast
+- [x] The release plan's audit passes on Xcode 27.2. It had failed there on `main` too, on the Pull Requests list. That list now draws CI's icon as a separate element, uses full-strength text for pull request numbers and readiness, and `.callout` for metadata and status
+- [x] CI found two problems the local runs hadn't: a click the brief moved on a small screen, and CI notifications for runs that finished before Relvora looked. Both are fixed; CI's full UI suite passed on `ea42b29`
 - [ ] Xcode 27.2's swift-format (6.4.4) can't read `.swift-format`: it needs `orderedImports.shouldGroupImports`
 - [ ] Write a brief with the real model on an Apple Intelligence Mac, and check its headline and themes against the plan
 - [ ] CI on the PR

@@ -98,6 +98,11 @@ On 2026-11-03, with Xcode 27.2 (Swift 6.4.2), on macOS 26.6 with a Retina displa
   - The progress meter had no role. The progress indicator carries the label and value now.
   - The themes grid had no description. It's labelled "Tasks by theme" now.
   - The test now waits for the prepared plan, as the release tests do.
-- **What the audit still reports:** contrast on small captions in the Pull Requests list. `main` fails the same way on Xcode 27.2 without the brief, so this is a separate, earlier issue: Xcode 27.2's audit reports these captions as failing where Xcode 26's let them pass. CI uses Xcode 26 on a 1x display and doesn't audit contrast.
+- **The audit's other findings were on the Pull Requests list:** small captions, which `main` fails too on Xcode 27.2. That list now draws CI's icon as a separate element, uses full-strength text for numbers and readiness, and `.callout` for metadata and status. The audit passes.
+- **CI found two problems on its small, slow runner:**
+  - the brief moved a link under a click;
+  - the CI watcher's first look could happen before CI was read, and then announced runs that had already finished.
+
+  Both are fixed, and CI's full UI suite passed.
 - **`swift-format lint --strict`** is clean, run with swift-format 6.2.3. Xcode 27.2's swift-format 6.4.4 can't read `.swift-format`, which lacks the new key `orderedImports.shouldGroupImports`.
 - **Not yet done:** a brief written by the real model on an Apple Intelligence Mac.

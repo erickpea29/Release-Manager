@@ -2,17 +2,19 @@ import AppKit
 import RelvoraCore
 import SwiftUI
 
-/// A commit's CI: always an icon and words, never color alone.
+/// A commit's CI: always an icon and words, never color alone. The words are their own element, so VoiceOver reads
+/// them and the contrast audit measures them without the colored icon.
 struct CIStatusLabel: View {
     let status: CIStatus?
     /// Says whose CI it is, such as "On main".
     var prefix: String?
 
     var body: some View {
-        Label {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
+            Image(systemName: symbol)
+                .foregroundStyle(tint)
+                .accessibilityHidden(true)
             Text([prefix, status?.title ?? "CI unknown"].compactMap(\.self).joined(separator: ": "))
-        } icon: {
-            Image(systemName: symbol).foregroundStyle(tint)
         }
     }
 
@@ -142,7 +144,6 @@ struct OpenPullRequestRow: View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
             Text("#\(pull.number)")
                 .font(.body.monospaced())
-                .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: Spacing.xs) {
                     Text(pull.title)
@@ -155,16 +156,15 @@ struct OpenPullRequestRow: View {
                     if let author = pull.authorLogin { Text("· @\(author)") }
                     if let updated = pull.updatedAt { Text("· \(updated.formatted(.relative(presentation: .named)))") }
                 }
-                .font(.caption)
+                .font(.callout)
                 .foregroundStyle(.secondary)
                 HStack(spacing: Spacing.s) {
                     CIStatusLabel(status: ci)
                     if showsReadiness {
                         Text(readiness.summary)
-                            .foregroundStyle(readiness == .ready ? .primary : .secondary)
                     }
                 }
-                .font(.caption)
+                .font(.callout)
             }
             Spacer()
             Button("Merge…", action: merge)
@@ -195,7 +195,6 @@ struct MergedPullRequestRow: View {
                 .accessibilityLabel("Merged")
             Text("#\(pull.number)")
                 .font(.body.monospaced())
-                .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 2) {
                 Text(pull.title)
                 HStack(spacing: Spacing.xs) {
@@ -203,9 +202,9 @@ struct MergedPullRequestRow: View {
                         Text("Merged \(merged.formatted(.relative(presentation: .named)))")
                     }
                     if let sha = pull.mergeCommitSHA { Text("as \(sha.prefix(7))").monospaced() }
-                    CIStatusLabel(status: ci, prefix: "On \(pull.baseRef)")
+                    CIStatusLabel(status: ci, prefix: "On \(pull.baseRef)").foregroundStyle(.primary)
                 }
-                .font(.caption)
+                .font(.callout)
                 .foregroundStyle(.secondary)
             }
             Spacer()
