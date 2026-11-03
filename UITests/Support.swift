@@ -2,10 +2,12 @@ import XCTest
 
 /// Launches Relvora for a UI test: a throwaway in-memory store with sample data, the in-memory demo GitHub, and a
 /// separate settings suite, so tests are independent, offline, and never touch real data, settings, or GitHub.
+/// Release briefs are Relvora's own, never Apple Intelligence's, unless a test asks for the demo writer.
 @MainActor
 enum RelvoraApp {
     static func launch(_ extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
+        let briefWriter = extra.contains("-RelvoraBriefWriter") ? [] : ["-RelvoraBriefWriter", "off"]
         app.launchArguments =
             [
                 "-RelvoraInMemoryStore", "YES",
@@ -14,7 +16,7 @@ enum RelvoraApp {
                 "-RelvoraDefaultsSuite", "com.erickpea29.Relvora.UITests",
                 "-NSQuitAlwaysKeepsWindows", "NO",
                 "-ApplePersistenceIgnoreState", "YES",
-            ] + extra
+            ] + briefWriter + extra
         app.launch()
         return app
     }

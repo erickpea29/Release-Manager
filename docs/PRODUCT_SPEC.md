@@ -50,7 +50,7 @@ A native macOS app for one developer managing several software projects: plan re
 
 ## 5. Non-goals (MVP)
 
-Team features, accounts, sync, hosted backend, deployment, auto-publishing, AI inside Relvora (Claude Code can connect from outside: [ADR 0018](decisions/0018-claude-creates-tasks.md)), App Store Connect, non-macOS platforms, time tracking, estimation, task dependencies.
+Team features, accounts, sync, hosted backend, deployment, auto-publishing, AI that sends data off the Mac (Claude Code can connect from outside: [ADR 0018](decisions/0018-claude-creates-tasks.md); Apple Intelligence's on-device model writes the release brief: [ADR 0025](decisions/0025-release-brief.md)), App Store Connect, non-macOS platforms, time tracking, estimation, task dependencies.
 
 ## 6. Open questions and plan gaps
 

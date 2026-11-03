@@ -18,6 +18,7 @@
 		B20000000000000000A0000F /* RelvoraWidgetData in Frameworks */ = {isa = PBXBuildFile; productRef = B20000000000000000A0000E /* RelvoraWidgetData */; };
 		B20000000000000000A00011 /* RelvoraWidgetData in Frameworks */ = {isa = PBXBuildFile; productRef = B20000000000000000A00010 /* RelvoraWidgetData */; };
 		B20000000000000000A00015 /* RelvoraCore in Frameworks */ = {isa = PBXBuildFile; productRef = B20000000000000000A00014 /* RelvoraCore */; };
+		B20000000000000000B00001 /* RelvoraIntelligence in Frameworks */ = {isa = PBXBuildFile; productRef = B20000000000000000B00002 /* RelvoraIntelligence */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -117,6 +118,7 @@
 				B20000000000000000000039 /* RelvoraUpdates in Frameworks */,
 				B2000000000000000000003C /* RelvoraMCP in Frameworks */,
 				B20000000000000000A0000F /* RelvoraWidgetData in Frameworks */,
+				B20000000000000000B00001 /* RelvoraIntelligence in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -214,6 +216,7 @@
 				B2000000000000000000003A /* RelvoraUpdates */,
 				B2000000000000000000003D /* RelvoraMCP */,
 				B20000000000000000A0000E /* RelvoraWidgetData */,
+				B20000000000000000B00002 /* RelvoraIntelligence */,
 			);
 			productName = Relvora;
 			productReference = B20000000000000000000001 /* Relvora.app */;
@@ -708,6 +711,10 @@
 		B20000000000000000A00014 /* RelvoraCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RelvoraCore;
+		};
+		B20000000000000000B00002 /* RelvoraIntelligence */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RelvoraIntelligence;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

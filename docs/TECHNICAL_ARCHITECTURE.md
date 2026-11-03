@@ -20,6 +20,7 @@ release-manager/                        # repository: erickpea29/Release-Manager
 │   ├── Sources/RelvoraUpdates/         # updates of Relvora itself: signatures, installer, XPC protocol (ADR 0017)
 │   ├── Sources/RelvoraMCP/             # Claude's connection: MCP over HTTP on 127.0.0.1, task tools (ADR 0018)
 │   ├── Sources/RelvoraWidgetData/      # the desktop widget's snapshot, its shared container, and links (ADR 0024)
+│   ├── Sources/RelvoraIntelligence/    # the release brief's on-device writer: the only FoundationModels import (ADR 0025)
 │   └── Tests/                          # swift test
 ├── Updater/                            # RelvoraUpdater.xpc: the updater service, outside the sandbox (ADR 0017)
 ├── Widget/                             # RelvoraWidget.appex: the desktop widget, reads only the snapshot (ADR 0024)
@@ -42,7 +43,8 @@ App (SwiftUI views, @Observable AppModel)
   ├─▶ GitHubIntegration  ─▶ RelvoraCore        (M03; DTOs internal)
   ├─▶ RelvoraUpdates     ─▶ RelvoraCore        (Security framework; also linked by RelvoraUpdater.xpc)
   ├─▶ RelvoraMCP         ─▶ RelvoraCore        (Network.framework; the tools use RelvoraCore services)
-  └─▶ RelvoraWidgetData  ─▶ RelvoraCore        (Security framework; the widget extension links it and RelvoraCore only)
+  ├─▶ RelvoraWidgetData  ─▶ RelvoraCore        (Security framework; the widget extension links it and RelvoraCore only)
+  └─▶ RelvoraIntelligence ─▶ RelvoraCore       (FoundationModels: Apple Intelligence's on-device model; rules in RelvoraCore)
 ```
 
 - Views never touch `URLSession`, SwiftData, or Keychain. They call `AppModel` (and later feature models), which calls use cases and repositories held by a single `AppEnvironment` built at launch.

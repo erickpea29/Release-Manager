@@ -171,6 +171,27 @@ final class ReleaseModel {
         if pull.baseRef == plan?.targetBranch { await loadCommits() }
     }
 
+    // MARK: The brief (ADR 0025)
+
+    /// What the release brief is built from: the last check's findings (local ones until it's checked on GitHub), the
+    /// release checklist, the selected commit's CI, and the open pull requests into the release's branch.
+    var briefFacts: ReleaseBriefFacts? {
+        guard let plan else { return nil }
+        var pulls: [(PullRequest, MergeReadiness)] = []
+        if let connection, let branch = plan.targetBranch ?? connection.defaultBranch {
+            let repositoryID = connection.githubRepositoryID
+            pulls = pullRequests.state(repositoryID).open
+                .filter { $0.baseRef == branch }
+                .map { ($0, pullRequests.readiness($0, in: repositoryID)) }
+        }
+        return ReleaseBriefComposer.facts(
+            plan: plan, tasks: tasks,
+            columnNames: Dictionary(uniqueKeysWithValues: workspace.columns.map { ($0.id, $0.name) }),
+            issues: check?.issues ?? localIssues, isCheckedOnGitHub: check?.isRemote == true,
+            steps: workspace.releaseSteps, targetCI: plan.targetCommitSHA.flatMap(ci(of:)),
+            latestPassingSHA: latestPassingCommit?.sha, pullRequests: pulls)
+    }
+
     private var currentChangesKey: String? {
         guard let connection, let sha = plan?.targetCommitSHA else { return nil }
         return "\(connection.githubRepositoryID) \(effectiveBaseTag ?? "-") \(sha)"

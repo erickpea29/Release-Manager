@@ -169,11 +169,31 @@ private struct BoardSettingsView: View {
 
 /// Label rules for generated release notes.
 private struct ReleaseSettingsView: View {
+    @Environment(AppModel.self) private var app
     @Environment(Preferences.self) private var preferences
 
     var body: some View {
         @Bindable var preferences = preferences
         Form {
+            Section {
+                Toggle("Write release briefs with Apple Intelligence", isOn: $preferences.writesReleaseBriefs)
+                    .accessibilityIdentifier("writesReleaseBriefs")
+                if preferences.writesReleaseBriefs, let explanation = app.briefs.status.explanation {
+                    Text(explanation).font(.callout).foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("Release brief")
+            } footer: {
+                Text(
+                    "Apple Intelligence’s on-device model writes the brief above a planned version: its headline, "
+                        + "summary, and themes. The plan never leaves this Mac. Relvora checks what it writes against "
+                        + "the plan, and the verdict, counts, and buttons are always Relvora’s own. When it’s off, "
+                        + "Relvora composes the brief from its rules."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            .onAppear { app.briefs.refreshStatus() }
             Section {
                 ForEach(preferences.changelogLabelRules.indices, id: \.self) { index in
                     HStack {
