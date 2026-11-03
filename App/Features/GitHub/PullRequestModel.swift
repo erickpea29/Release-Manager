@@ -193,10 +193,13 @@ final class PullRequestModel {
     // MARK: Notifications
 
     /// CI that finished since the last call, for "CI finishes" notifications. The first call for a repository, once
-    /// its CI can be read, only remembers what had finished.
+    /// its CI can be read, only remembers what had finished. Nothing is taken while a refresh is still reading CI: its
+    /// pull requests are stored before their CI, and a first look then would announce CI that finished earlier.
     func takeFinished(repositoryID: Int64, branches: [String]) -> [CIRun] {
         let state = state(repositoryID)
-        guard state.fetchedAt != nil, state.error == nil, ciProblems[repositoryID] == nil else { return [] }
+        guard state.fetchedAt != nil, !state.isLoading, state.error == nil, ciProblems[repositoryID] == nil else {
+            return []
+        }
         var runs: [CIRun] = state.open.compactMap { pull in
             ci(pull.headSHA, in: repositoryID).map { status in
                 CIRun(
