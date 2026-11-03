@@ -138,7 +138,7 @@ private struct ContentFrame: View {
 
 /// The content's top and left edges with a rounded top-left corner. It extends past the bottom and right, which are
 /// clipped.
-private struct ContentEdge: Shape {
+private nonisolated struct ContentEdge: Shape {
     let corner: CGPoint
     let radius: CGFloat
 
@@ -160,7 +160,7 @@ private struct ContentEdge: Shape {
 
 /// The corner outside the line's outer edge. The line itself lies over the content along its whole length, so it
 /// looks the same everywhere.
-private struct CornerFill: Shape {
+private nonisolated struct CornerFill: Shape {
     let edge: ContentEdge
 
     func path(in rect: CGRect) -> Path {
