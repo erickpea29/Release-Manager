@@ -80,7 +80,8 @@ while IFS= read -r file; do
         Packages/RelvoraKit/Sources/RelvoraCore/Services/PullRequests.swift) pick PullRequestUITests NotificationUITests ;;
         Packages/RelvoraKit/Sources/RelvoraCore/Services/AppUpdate.swift) pick UpdateUITests ;;
         Packages/RelvoraKit/Sources/RelvoraCore/Services/ReleaseOverview.swift) pick MenuBarUITests ;;
-        Packages/RelvoraKit/Sources/RelvoraCore/Services/TaskCreation.swift) pick ClaudeUITests ;;
+        Packages/RelvoraKit/Sources/RelvoraCore/Services/TaskCreation.swift | \
+            Packages/RelvoraKit/Sources/RelvoraCore/Services/TaskEditing.swift) pick ClaudeUITests ;;
         Packages/RelvoraKit/Sources/RelvoraCore/Services/SystemSearch.swift) pick IntentsUITests ;;
         Packages/RelvoraKit/Sources/RelvoraCore/Services/BoardPlanner.swift | \
             Packages/RelvoraKit/Sources/RelvoraCore/Services/BoardService.swift | \

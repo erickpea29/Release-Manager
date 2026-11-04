@@ -7,6 +7,8 @@ public enum NotificationKind: String, Sendable, CaseIterable, Codable, Identifia
     case plannedForToday
     case updateAvailable
     case claudeAddedTasks
+    /// Claude deleted tasks, a column, or a version, or cancelled a version (ADR 0026).
+    case claudeRemoved
     case ciFinished
 
     public var id: Self { self }
@@ -17,6 +19,7 @@ public enum NotificationKind: String, Sendable, CaseIterable, Codable, Identifia
         case .plannedForToday: "A version is planned for today"
         case .updateAvailable: "A new Relvora is available"
         case .claudeAddedTasks: "Claude added tasks"
+        case .claudeRemoved: "Claude deleted or cancelled something"
         case .ciFinished: "CI finishes"
         }
     }
@@ -32,6 +35,9 @@ public enum NotificationKind: String, Sendable, CaseIterable, Codable, Identifia
             "When the daily update check finds a new version, with its build ready to install."
         case .claudeAddedTasks:
             "When a Claude Code session creates tasks (Settings › Claude)."
+        case .claudeRemoved:
+            "When a Claude Code session deletes tasks, a column, or a version, or cancels a version. Claude Code asks "
+                + "you before each one."
         case .ciFinished:
             "On an open pull request, or on the latest commit of the branch a version is planned from. While Relvora "
                 + "is open, it checks the repositories of versions being planned every 2 minutes."
@@ -132,6 +138,17 @@ public enum AppNotifications {
             id: "claude-\(id.uuidString)", kind: .claudeAddedTasks, title: "Claude added \(tasks)",
             body: "To \(place). They’re labeled “claude”.", threadID: projectID.uuidString,
             target: .project(projectID, tab: version == nil ? "backlog" : "board"))
+    }
+
+    /// Claude deleted or cancelled something: `summary` is its sentence ("Claude deleted 2 tasks from Relvora."),
+    /// `detail` what else to know ("“Fix login”, “Old idea”."). Clicking shows `tab` of the project.
+    public static func claudeRemoved(
+        summary: String, detail: String?, projectID: UUID, tab: String, id: UUID = UUID()
+    ) -> NotificationContent {
+        let title = summary.hasSuffix(".") ? String(summary.dropLast()) : summary
+        return NotificationContent(
+            id: "claude-\(id.uuidString)", kind: .claudeRemoved, title: title,
+            body: detail ?? "It can’t be undone.", threadID: projectID.uuidString, target: .project(projectID, tab: tab))
     }
 
     /// Published snapshots not seen before: the ones to announce. The first look at a project only remembers what's

@@ -6,7 +6,7 @@ import Testing
 
 @testable import RelvoraMCP
 
-private final class ActivityLog: Sendable {
+final class ActivityLog: Sendable {
     private let events = Mutex<[RelvoraTools.Activity]>([])
 
     func record(_ event: RelvoraTools.Activity) { events.withLock { $0.append(event) } }
@@ -14,8 +14,9 @@ private final class ActivityLog: Sendable {
     var all: [RelvoraTools.Activity] { events.withLock { $0 } }
 }
 
-/// An in-memory Relvora: "Relvora" in the group "Acme", planning 0.2.0, with one task in it and one in the Backlog.
-private struct Desk {
+/// An in-memory Relvora: "Relvora" in the group "Acme", planning 0.2.0, with one task in it and one in the Backlog, and a
+/// release checklist of two steps.
+struct Desk {
     let store: PersistentStore
     let tools: RelvoraTools
     let project: Project
@@ -36,10 +37,17 @@ private struct Desk {
             projectID: project.id, columnID: first.id, title: "Existing", releasePlanID: plan.id)
         _ = try await board.createTask(projectID: project.id, columnID: first.id, title: "Someday")
         if !planned { _ = try await plans.cancel(plan) }
+        let checklist = ReleaseChecklistService(steps: store.releaseSteps, plans: store.releasePlans)
+        try await checklist.save(
+            [
+                ReleaseStep(projectID: project.id, title: "Test on a clean Mac", sortOrder: 1),
+                ReleaseStep(projectID: project.id, title: "Update the docs", sortOrder: 2),
+            ], projectID: project.id)
         let activity = activity
         tools = RelvoraTools(
-            projects: store.projects, groups: store.groups, board: board, plans: plans,
-            didCreate: { activity.record($0) })
+            projects: store.projects, groups: store.groups, board: board, plans: plans, checklist: checklist,
+            newProjectColumns: { [ColumnTemplate(name: "Next", isCompletion: false), .init(name: "Shipped", isCompletion: true)] },
+            didChange: { activity.record($0) })
     }
 
     func call(_ name: String, _ arguments: [String: JSONValue] = [:]) async -> MCPToolResult {
@@ -47,7 +55,34 @@ private struct Desk {
     }
 
     func tasks() async throws -> [ProjectTask] {
-        try await BoardService(repository: store.board).load(projectID: project.id).tasks
+        try await board().tasks
+    }
+
+    func board() async throws -> BoardState {
+        try await BoardService(repository: store.board).load(projectID: project.id)
+    }
+
+    func task(_ title: String) async throws -> ProjectTask {
+        try #require(try await tasks().first { $0.title == title })
+    }
+
+    func plans() async throws -> [ReleasePlan] {
+        try await ReleasePlanService(repository: store.releasePlans).plans(projectID: project.id)
+    }
+
+    /// Fails the test with the tool's message when it's an error.
+    @discardableResult
+    func succeed(_ name: String, _ arguments: [String: JSONValue]) async -> JSONValue {
+        let result = await call(name, arguments)
+        #expect(!result.isError, "\(name): \(result.content)")
+        return result.content
+    }
+
+    /// The tool's error message; fails the test when it succeeds.
+    func refusal(_ name: String, _ arguments: [String: JSONValue]) async -> String {
+        let result = await call(name, arguments)
+        #expect(result.isError, "\(name) should have been refused: \(result.content)")
+        return result.content.stringValue ?? ""
     }
 }
 
@@ -113,9 +148,8 @@ struct RelvoraToolsTests {
         #expect(state.column(sheet.columnID)?.name == "To Do")
         let adr = try #require(tasks.first { $0.title == "Write ADR 0018" })
         #expect(state.column(adr.columnID)?.name == "Review" && adr.labels == ["claude"])
-        #expect(
-            desk.activity.all
-                == [.init(projectID: desk.project.id, projectName: "Relvora", version: "0.2.0", count: 2)])
+        #expect(desk.activity.all.map(\.kind) == [.addedTasks(count: 2, version: "0.2.0")])
+        #expect(desk.activity.all.map(\.summary) == ["Claude added 2 tasks to Relvora 0.2.0."])
     }
 
     @Test("Tasks can go to the Backlog, outside any version")
@@ -170,10 +204,20 @@ struct RelvoraToolsTests {
         #expect(result.isError && result.content.stringValue?.contains("at most 50") == true)
     }
 
-    @Test("Only reading and creating are offered")
+    @Test("Tools read, change, and delete; deleting and cancelling are marked destructive; nothing touches GitHub")
     func toolset() async throws {
         let desk = try await Desk()
-        #expect(desk.tools.all.map(\.name) == ["list_projects", "list_tasks", "create_tasks"])
-        #expect(desk.tools.all.map(\.isReadOnly) == [true, true, false])
+        let names = desk.tools.all.map(\.name)
+        #expect(
+            names == [
+                "list_projects", "list_tasks", "create_tasks", "update_tasks", "delete_tasks", "list_versions",
+                "plan_version", "update_version", "cancel_version", "delete_version", "add_column", "update_column",
+                "delete_column", "create_project", "update_project",
+            ])
+        #expect(desk.tools.all.filter(\.isReadOnly).map(\.name) == ["list_projects", "list_tasks", "list_versions"])
+        #expect(
+            desk.tools.all.filter(\.isDestructive).map(\.name)
+                == ["delete_tasks", "cancel_version", "delete_version", "delete_column"])
+        #expect(!names.contains { $0.contains("github") || $0.contains("publish") || $0 == "delete_project" })
     }
 }

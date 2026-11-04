@@ -16,6 +16,14 @@ public struct BoardState: Sendable, Equatable {
 
     public func task(_ id: UUID) -> ProjectTask? { tasks.first { $0.id == id } }
 
+    /// The column with this name, ignoring case and accents, or this id. Used by Claude and Shortcuts, which name
+    /// columns.
+    public static func column(named name: String, in columns: [BoardColumn]) -> BoardColumn? {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return columns.first { $0.name.compare(name, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame }
+            ?? UUID(uuidString: name).flatMap { id in columns.first { $0.id == id } }
+    }
+
     /// Tasks of one column in board order.
     public func tasks(in columnID: UUID) -> [ProjectTask] {
         tasks.filter { $0.columnID == columnID }.sorted { $0.sortOrder < $1.sortOrder }

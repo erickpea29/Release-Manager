@@ -33,15 +33,20 @@ To update by hand, quit Relvora and replace the app in Applications. Your projec
 
 ## Connect Claude Code
 
-Claude Code sessions on your Mac can read your projects and add tasks to the version being planned ([ADR 0018](decisions/0018-claude-creates-tasks.md)).
+Claude Code sessions on your Mac can plan in Relvora: read your projects, add and change tasks, and plan versions ([ADR 0018](decisions/0018-claude-creates-tasks.md), [ADR 0026](decisions/0026-claude-plans-in-relvora.md)).
 
-1. In Relvora, open **Settings › Claude** and turn on **Let Claude read projects and add tasks**.
+1. In Relvora, open **Settings › Claude** and turn on **Let Claude Code plan in Relvora**.
 2. Click **Copy Setup Command** and paste it into Terminal once. It runs `claude mcp add --scope user …`, so every Claude Code session on this Mac gets Relvora. A session that's already open picks it up after `/mcp` or a restart.
-3. Ask Claude, for example: "Add tasks for the new update screen to Relvora's version being planned."
+3. Ask Claude, for example: "Add tasks for the new update screen to Relvora's version being planned", "Mark the login fix done", or "Plan 0.4.0 with the GitHub tasks from the Backlog."
 
 Good to know:
 - **Relvora must be open.** Claude reaches it only on this Mac (127.0.0.1), with the key in the setup command.
-- **What Claude can do:** read projects, the versions being planned, and tasks, and create tasks, which it labels **claude**. It can't edit, move, complete, or delete tasks, plan versions, or touch GitHub.
+- **What Claude can do:**
+  - Create, edit, move, complete, and delete tasks. Tasks it creates are labeled **claude**.
+  - Plan, edit, cancel, and delete versions, and tick their release checklist.
+  - Change board columns, and create, edit, archive, and group projects.
+- **What it can't do:** delete projects or groups, change settings, or do anything on GitHub (drafts, publishing, pull requests).
+- **Deleting and cancelling can't be undone.** Claude Code asks you before each one, unless you've allowed those tools, and Relvora sends a notification saying what went. **Settings › Claude** lists Claude's last five changes.
 - **New Key…** in Settings stops the old setup command working; run the new one.
 - **To disconnect,** turn the setting off. You can also remove it from Claude Code with `claude mcp remove relvora --scope user`.
 

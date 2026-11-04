@@ -94,9 +94,23 @@ struct AppNotificationsTests {
         #expect(content.body == "GitHub has the release v0.2.1, verified at aaaaaaa in octo/relvora.")
     }
 
+    @Test("Claude's deletions and cancellations say what went, and open where it was")
+    func claudeRemoved() {
+        let project = UUID()
+        let tasks = AppNotifications.claudeRemoved(
+            summary: "Claude deleted 2 tasks from Relvora.", detail: "“Fix login”, “Old idea”.", projectID: project,
+            tab: "board")
+        #expect(tasks.kind == .claudeRemoved && tasks.title == "Claude deleted 2 tasks from Relvora")
+        #expect(tasks.body == "“Fix login”, “Old idea”." && tasks.target == .project(project, tab: "board"))
+        #expect(tasks.threadID == project.uuidString)
+        let version = AppNotifications.claudeRemoved(
+            summary: "Claude deleted Relvora 0.3.1.", detail: nil, projectID: project, tab: "releases")
+        #expect(version.body == "It can’t be undone." && version.id != tasks.id)
+    }
+
     @Test("Every kind has a title and an explanation for Settings")
     func kinds() {
-        #expect(NotificationKind.allCases.count == 5)
+        #expect(NotificationKind.allCases.count == 6)
         #expect(NotificationKind.allCases.allSatisfy { !$0.title.isEmpty && !$0.explanation.isEmpty })
     }
 }

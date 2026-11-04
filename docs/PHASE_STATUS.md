@@ -17,6 +17,7 @@
 | 0.2.3 — Pull requests and CI | **Complete**: merged in PR #15, released as v0.2.3 ([ADR 0020](decisions/0020-pull-requests-and-ci.md), [ADR 0021](decisions/0021-ui-tests-chosen-by-change.md)) |
 | 0.2.4 — Keyboard shortcuts, menu bar, Shortcuts and Spotlight, widget | **Merged** in PR #16; the owner's checks are below ([ADR 0022](decisions/0022-menu-bar-icon.md), [ADR 0023](decisions/0023-shortcuts-and-spotlight.md), [ADR 0024](decisions/0024-desktop-widget.md)) |
 | Next release (0.2.5) — Release brief with Apple Intelligence | **In progress** on branch `feature/release-brief` ([ADR 0025](decisions/0025-release-brief.md)) |
+| 0.3.1 — Claude plans in Relvora | **In progress** in PR #18 ([ADR 0026](decisions/0026-claude-plans-in-relvora.md)) |
 
 The feature ideas are in [ROADMAP.md](ROADMAP.md).
 
@@ -178,6 +179,20 @@ The feature ideas are in [ROADMAP.md](ROADMAP.md).
 - [x] CI on PR #15 (lint, 226 package tests, build, the UI tests it selects); merged
 - [ ] Owner: add **Checks: Read-only** to the Relvora GitHub App and accept it on the installation ([GitHub App setup](GITHUB_APP_SETUP.md#checks-permission-for-ci-023))
 - [x] Owner: released v0.2.3 (2026-10-27; release run 40433842565 attached the notarized app)
+
+## 0.3.1 checklist
+
+Tracked in Relvora on Revora 0.3.1: *Claude edits tasks* (from the roadmap) and *Claude plans versions, deletes, and manages the board* (the owner's "almost full control", 2026-11-03).
+
+- [x] ADR 0026: what Claude can do, what stays off-limits (GitHub, deleting projects or groups, settings), and deletions guarded by Claude Code's prompt
+- [x] `RelvoraCore`: `TaskEditingService` (edit, move, complete, place, delete; every change checked before any), `BoardService.deleteTasks`, `BoardState.column(named:in:)`, the *Claude deleted or cancelled something* notification
+- [x] `RelvoraMCP`: 12 new tools (15 in all), split by area; `destructiveHint` on deleting and cancelling
+- [x] The app: Claude's changes reload the workspace (and the sidebar for projects), editors of deleted items close, Settings › Claude lists what Claude can do and its last five changes
+- [x] Package tests: 301 pass (21 new). `swift-format lint --strict` is clean on the changed files, with the config's missing `orderedImports.shouldGroupImports` added for Xcode 27.2's swift-format (see 0.2.5)
+- [x] UI tests: the 9 this change can affect pass (`scripts/ui-tests-for-changes.sh`), the new `testClaudeEditsCompletesAndDeletesTasksOnTheBoard` included. The script now maps `TaskEditing.swift` to `ClaudeUITests`
+- [ ] With the real app: ask a Claude Code session to plan a version, move tasks into it, complete one, and delete one
+- [ ] CI on the PR
+- [ ] Owner: release it
 
 ## Next release checklist (0.2.5)
 

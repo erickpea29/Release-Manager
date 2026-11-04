@@ -8,17 +8,21 @@ public struct MCPTool: Sendable {
     /// A JSON Schema object for the arguments.
     public let inputSchema: JSONValue
     public let isReadOnly: Bool
+    /// It removes something, or changes it in a way that can't be undone: clients such as Claude Code may ask the user
+    /// before each call.
+    public let isDestructive: Bool
     public let run: @Sendable (_ arguments: [String: JSONValue]) async -> MCPToolResult
 
     public init(
         name: String, title: String, description: String, inputSchema: JSONValue, isReadOnly: Bool,
-        run: @escaping @Sendable ([String: JSONValue]) async -> MCPToolResult
+        isDestructive: Bool = false, run: @escaping @Sendable ([String: JSONValue]) async -> MCPToolResult
     ) {
         self.name = name
         self.title = title
         self.description = description
         self.inputSchema = inputSchema
         self.isReadOnly = isReadOnly
+        self.isDestructive = isDestructive && !isReadOnly
         self.run = run
     }
 
@@ -27,7 +31,7 @@ public struct MCPTool: Sendable {
             "name": .string(name), "title": .string(title), "description": .string(description),
             "inputSchema": inputSchema,
             "annotations": [
-                "title": .string(title), "readOnlyHint": .bool(isReadOnly), "destructiveHint": false,
+                "title": .string(title), "readOnlyHint": .bool(isReadOnly), "destructiveHint": .bool(isDestructive),
                 "idempotentHint": .bool(isReadOnly), "openWorldHint": false,
             ],
         ]
