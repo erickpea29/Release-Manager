@@ -17,7 +17,7 @@
 | 0.2.3 — Pull requests and CI | **Complete**: merged in PR #15, released as v0.2.3 ([ADR 0020](decisions/0020-pull-requests-and-ci.md), [ADR 0021](decisions/0021-ui-tests-chosen-by-change.md)) |
 | 0.2.4 — Keyboard shortcuts, menu bar, Shortcuts and Spotlight, widget | **Merged** in PR #16; the owner's checks are below ([ADR 0022](decisions/0022-menu-bar-icon.md), [ADR 0023](decisions/0023-shortcuts-and-spotlight.md), [ADR 0024](decisions/0024-desktop-widget.md)) |
 | Next release (0.2.5) — Release brief with Apple Intelligence | **In progress** on branch `feature/release-brief` ([ADR 0025](decisions/0025-release-brief.md)) |
-| 0.3.1 — Claude plans in Relvora | **In progress** on branch `feature/claude-control` ([ADR 0026](decisions/0026-claude-plans-in-relvora.md)) |
+| 0.3.1 — Claude plans in Relvora | **In progress** in PR #18 ([ADR 0026](decisions/0026-claude-plans-in-relvora.md)) |
 
 The feature ideas are in [ROADMAP.md](ROADMAP.md).
 
