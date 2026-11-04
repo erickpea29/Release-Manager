@@ -80,6 +80,7 @@ final class Preferences {
         static let mergeMethod = "mergeMethod"
         static let showsMenuBarIcon = "showsMenuBarIcon"
         static let spotlightEnabled = "spotlightEnabled"
+        static let writesReleaseBriefs = "writesReleaseBriefs"
     }
 
     @ObservationIgnored let defaults: UserDefaults
@@ -141,6 +142,12 @@ final class Preferences {
         didSet { defaults.set(spotlightEnabled, forKey: Key.spotlightEnabled) }
     }
 
+    /// Apple Intelligence's on-device model writes the release brief, when this Mac has it (ADR 0025). On until turned
+    /// off; per Mac, not in backups.
+    var writesReleaseBriefs: Bool {
+        didSet { defaults.set(writesReleaseBriefs, forKey: Key.writesReleaseBriefs) }
+    }
+
     var claudePort: Int {
         didSet {
             let valid = min(max(claudePort, 1024), 65_535)
@@ -171,6 +178,7 @@ final class Preferences {
         claudePort = (defaults.object(forKey: Key.claudePort) as? Int) ?? Int(ClaudeConnection.defaultPort)
         mergeMethod = defaults.string(forKey: Key.mergeMethod).flatMap(MergeMethod.init) ?? .merge
         spotlightEnabled = defaults.object(forKey: Key.spotlightEnabled) as? Bool ?? true
+        writesReleaseBriefs = defaults.object(forKey: Key.writesReleaseBriefs) as? Bool ?? true
     }
 
     /// Validates and stores the board template for new projects.

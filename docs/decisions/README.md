@@ -26,5 +26,6 @@
 | [0022](0022-menu-bar-icon.md) | Menu bar icon | Accepted |
 | [0023](0023-shortcuts-and-spotlight.md) | Shortcuts and Spotlight | Accepted |
 | [0024](0024-desktop-widget.md) | Desktop widget | Accepted |
+| [0025](0025-release-brief.md) | Release brief with Apple Intelligence | Accepted |
 
 New records: copy the shape of an existing one (Status, Date, Context, Decision, Consequences, Evidence). Keep them short.

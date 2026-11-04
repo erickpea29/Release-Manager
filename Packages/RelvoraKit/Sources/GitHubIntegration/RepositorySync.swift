@@ -63,6 +63,7 @@ public struct GitHubSyncService: Sendable {
         var commits: [RemoteCommit]
         var total: Int
         var compareURL: URL?
+        var stats: ChangeStats?
         var resolvedBase = base
         if let base {
             do {
@@ -70,6 +71,7 @@ public struct GitHubSyncService: Sendable {
                 commits = result.commits.reversed()  // newest first
                 total = result.totalCommits
                 compareURL = result.htmlURL
+                stats = result.stats
             } catch .notFound {
                 notes.append("Couldn’t compare with \(base) (the tag may have been deleted). Showing recent commits.")
                 commits = try await api.commits(of: repository, branch: head)
@@ -116,7 +118,8 @@ public struct GitHubSyncService: Sendable {
             pullRequests: pullRequests.values.sorted { ($0.mergedAt ?? .distantPast) > ($1.mergedAt ?? .distantPast) },
             isTruncated: isTruncated,
             pullRequestsComplete: complete,
-            compareURL: compareURL
+            compareURL: compareURL,
+            stats: stats
         )
         return (changes, notes)
     }

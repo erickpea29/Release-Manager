@@ -25,7 +25,9 @@ final class AccessibilityUITests: XCTestCase {
 
     func testReleasePlanPassesAccessibilityAudit() throws {
         let app = RelvoraApp.launchProject(tab: "releases", ["-RelvoraDemoScenario", "prepare"])
-        app.buttons["Create GitHub Draft…"].wait(20)
+        // The prepared plan, not one still loading: the draft can be created once the scenario's check is done.
+        let create = app.buttons["Create GitHub Draft…"].wait(20)
+        wait(for: [expectation(for: NSPredicate(format: "isEnabled == true"), evaluatedWith: create)], timeout: 20)
         try audit(app)
     }
 }

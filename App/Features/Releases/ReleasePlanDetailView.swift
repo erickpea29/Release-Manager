@@ -4,30 +4,38 @@ import SwiftUI
 /// One release plan: preparation while it is planned, then its GitHub draft and publication.
 struct ReleasePlanDetailView: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.openURL) private var openURL
     @Bindable var release: ReleaseModel
     @State private var isConfirmingRecord = false
     @State private var isConfirmingAccept = false
 
     var body: some View {
         if let plan = release.plan {
-            ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.l) {
-                    header(plan)
-                    if let notice = release.notice {
-                        NoticeBanner(notice: notice) { release.notice = nil }
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Spacing.l) {
+                        header(plan)
+                        if let activity = release.activity {
+                            ReleaseActivityCard(activity: activity, stats: release.currentChanges?.stats) {
+                                release.activity = nil
+                            }
+                        }
+                        if let notice = release.notice {
+                            NoticeBanner(notice: notice) { release.notice = nil }
+                        }
+                        if let message = release.errorMessage {
+                            Label(message, systemImage: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        content(plan, proxy: proxy)
+                        earlierDrafts
                     }
-                    if let message = release.errorMessage {
-                        Label(message, systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    content(plan)
-                    earlierDrafts
+                    .padding(Spacing.l)
+                    .frame(maxWidth: 860, alignment: .leading)
+                    // Centered in wide windows, such as with the sidebar closed.
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(Spacing.l)
-                .frame(maxWidth: 860, alignment: .leading)
-                // Centered in wide windows, such as with the sidebar closed.
-                .frame(maxWidth: .infinity)
             }
             .sheet(isPresented: isReviewing) {
                 if let review = release.review, let check = release.check {
@@ -102,7 +110,7 @@ struct ReleasePlanDetailView: View {
     }
 
     @ViewBuilder
-    private func content(_ plan: ReleasePlan) -> some View {
+    private func content(_ plan: ReleasePlan, proxy: ScrollViewProxy) -> some View {
         switch plan.status {
         case .planned:
             if release.workspace.workflow == nil {
@@ -111,12 +119,14 @@ struct ReleasePlanDetailView: View {
                 )
                 .foregroundStyle(.secondary)
             }
-            ReleasePullRequestsSection(release: release)
-            ReleaseTargetSection(release: release)
-            ReleaseTasksSection(release: release)
-            ReleaseNotesEditor(release: release)
-            ReleaseChecklistSection(release: release)
-            checkSection
+            ReleaseBriefSection(release: release, isEnabled: canPerform) { perform($0, proxy: proxy) }
+            ReleaseChangesCard(release: release)
+            ReleasePullRequestsSection(release: release).id(ReleaseBriefAnchor.pullRequests)
+            ReleaseTargetSection(release: release).id(ReleaseBriefAnchor.target)
+            ReleaseTasksSection(release: release).id(ReleaseBriefAnchor.tasks)
+            ReleaseNotesEditor(release: release).id(ReleaseBriefAnchor.notes)
+            ReleaseChecklistSection(release: release).id(ReleaseBriefAnchor.checklist)
+            checkSection.id(ReleaseBriefAnchor.check)
         case .draftCreated:
             draftPanel
             if let snapshot = release.openSnapshot { SnapshotDetailView(snapshot: snapshot) }
@@ -177,6 +187,30 @@ struct ReleasePlanDetailView: View {
         .panel()
     }
 
+    // MARK: The brief's actions (ADR 0025)
+
+    /// What a brief's button does: the same as the plan's own controls. The draft still opens its confirmation.
+    private func perform(_ action: ReleaseBriefAction, proxy: ScrollViewProxy) {
+        switch action {
+        case .useCommit(let sha): Task { await release.setTargetCommit(sha) }
+        case .show(let anchor): withAnimation(.smooth) { proxy.scrollTo(anchor, anchor: .top) }
+        case .openURL(let url): openURL(url)
+        case .checkOnGitHub: Task { await release.runCheck() }
+        case .createDraft: Task { await createDraft() }
+        case .editPlan: if let plan = release.plan { release.workspace.planEditor = .edit(plan) }
+        }
+    }
+
+    private func canPerform(_ action: ReleaseBriefAction) -> Bool {
+        switch action {
+        case .useCommit: !release.isWorking
+        case .show, .openURL: true
+        case .checkOnGitHub: !release.isChecking && app.github.isConnected && release.workspace.workflow != nil
+        case .createDraft: canStartDraft
+        case .editPlan: release.plan.map(ReleasePlanRules.isEditable) ?? false
+        }
+    }
+
     private var canStartDraft: Bool {
         app.github.isConnected && release.workspace.workflow != nil && !release.isChecking && !release.isWorking
             && !release.localIssues.contains { $0.severity == .blocking }
@@ -184,9 +218,7 @@ struct ReleasePlanDetailView: View {
 
     /// Checks GitHub again, then opens the confirmation with exactly what will be sent.
     private func createDraft() async {
-        await release.runCheck()
-        guard let check = release.check, check.isRemote, check.blockingIssues.isEmpty else { return }
-        await release.beginReview()
+        await release.startDraft()
     }
 
     // MARK: After the draft

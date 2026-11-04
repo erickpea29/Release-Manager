@@ -80,7 +80,7 @@ Claude Code already reads projects and creates tasks ([ADR 0018](decisions/0018-
   - Today everything is local, by design.
 - [ ] **Help writing release notes** (M)
   - A suggested summary of the changes, always shown for editing, never published without review.
-  - Needs a decision on which service, and on what data leaves the Mac.
+  - Needs a decision on which service, and on what data leaves the Mac. The release brief already uses Apple Intelligence's on-device model, so nothing leaves the Mac ([ADR 0025](decisions/0025-release-brief.md)); the notes could use it too.
 - [ ] **Time estimates** (M)
   - Rough sizes on tasks, and how much of a version is done by size, not only by count.
 - [ ] **Task dependencies** (M)

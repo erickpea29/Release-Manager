@@ -12,6 +12,7 @@ let package = Package(
         .library(name: "RelvoraUpdates", targets: ["RelvoraUpdates"]),
         .library(name: "RelvoraMCP", targets: ["RelvoraMCP"]),
         .library(name: "RelvoraWidgetData", targets: ["RelvoraWidgetData"]),
+        .library(name: "RelvoraIntelligence", targets: ["RelvoraIntelligence"]),
     ],
     targets: [
         // Domain types, rules, use cases, and repository protocols. Must not import SwiftData.
@@ -28,11 +29,15 @@ let package = Package(
         // The desktop widget's snapshot, its shared container, and its links (ADR 0024). The app and the widget
         // extension both link it; the widget never opens the store.
         .target(name: "RelvoraWidgetData", dependencies: ["RelvoraCore"]),
+        // The release brief written by Apple Intelligence's on-device model (ADR 0025). The only module that imports
+        // FoundationModels; the brief's rules are in RelvoraCore.
+        .target(name: "RelvoraIntelligence", dependencies: ["RelvoraCore"]),
         .testTarget(name: "RelvoraCoreTests", dependencies: ["RelvoraCore"]),
         .testTarget(name: "GitHubIntegrationTests", dependencies: ["GitHubIntegration", "RelvoraCore"]),
         .testTarget(name: "RelvoraUpdatesTests", dependencies: ["RelvoraUpdates", "RelvoraCore"]),
         .testTarget(name: "RelvoraMCPTests", dependencies: ["RelvoraMCP", "RelvoraCore", "RelvoraPersistence"]),
         .testTarget(name: "RelvoraWidgetDataTests", dependencies: ["RelvoraWidgetData", "RelvoraCore"]),
+        .testTarget(name: "RelvoraIntelligenceTests", dependencies: ["RelvoraIntelligence", "RelvoraCore"]),
         .testTarget(
             name: "RelvoraPersistenceTests",
             dependencies: ["RelvoraCore", "RelvoraPersistence"],

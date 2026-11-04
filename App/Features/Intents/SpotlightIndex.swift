@@ -21,7 +21,7 @@ final class SpotlightIndex {
     private let environment: AppEnvironment?
     private let preferences: Preferences
     /// What this run put in Spotlight; `nil` until the first update, since what earlier runs left is unknown.
-    private var indexed: [String: SearchableItem]?
+    private var indexed: [String: RelvoraCore.SearchableItem]?
     /// The project names Siri last learned for the App Shortcuts' phrases.
     private var phraseProjectNames: [String]?
     private var pending: Task<Void, Never>?
@@ -85,7 +85,7 @@ final class SpotlightIndex {
     }
 
     /// Siri learns the projects' names, for phrases such as "What's the next release of Relvora in Relvora".
-    private func updatePhrases(_ items: [SearchableItem]) {
+    private func updatePhrases(_ items: [RelvoraCore.SearchableItem]) {
         let names = items.compactMap { item -> String? in
             if case .project(let project) = item { project.name } else { nil }
         }
@@ -97,7 +97,7 @@ final class SpotlightIndex {
     // MARK: Items
 
     /// The item, linked to its App Intents entity, so Spotlight can open it with Open Project or Open Task.
-    nonisolated static func searchableItem(_ item: SearchableItem) -> CSSearchableItem {
+    nonisolated static func searchableItem(_ item: RelvoraCore.SearchableItem) -> CSSearchableItem {
         let domain =
             switch item {
             case .project: "projects"
@@ -113,7 +113,7 @@ final class SpotlightIndex {
     }
 
     /// What Spotlight shows and searches.
-    nonisolated static func attributes(_ item: SearchableItem) -> CSSearchableItemAttributeSet {
+    nonisolated static func attributes(_ item: RelvoraCore.SearchableItem) -> CSSearchableItemAttributeSet {
         let attributes = CSSearchableItemAttributeSet(contentType: .content)
         switch item {
         case .project(let project):

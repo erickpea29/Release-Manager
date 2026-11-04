@@ -32,7 +32,14 @@ final class PullRequestUITests: XCTestCase {
         app.descendants(matching: .any)["mergedPullRequest-16"].wait(20)
 
         // main's new commit runs CI; once it passes, it's offered as the release's commit (a link-style button).
-        app.links["useLatestPassingCommit"].wait(40).click()
+        // The release brief above can grow as CI results arrive and move the link under the click, as on CI's small
+        // screen: click until the link goes away, which using the commit does.
+        let useLatest = app.links["useLatestPassingCommit"].wait(40)
+        for _ in 0..<3 where useLatest.exists {
+            useLatest.click()
+            _ = useLatest.waitForNonExistence(timeout: 5)
+        }
+        XCTAssertFalse(useLatest.exists, "The latest commit whose CI passed is the release's commit")
         let targetCI = app.descendants(matching: .any)["targetCommitCI"]
         let passed = NSPredicate(format: "label CONTAINS 'CI passed' OR value CONTAINS 'CI passed'")
         wait(for: [expectation(for: passed, evaluatedWith: targetCI)], timeout: 10)

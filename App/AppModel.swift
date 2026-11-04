@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 import Observation
 import RelvoraCore
+import RelvoraIntelligence
 import RelvoraMCP
 import RelvoraPersistence
 import RelvoraUpdates
@@ -65,6 +66,9 @@ struct LaunchOptions {
     var pullRequestCheckInterval: TimeInterval?
     /// Opens `task:<title>` or `project:<name>` at launch, as a clicked Spotlight result would (UI tests).
     var openSearchResult: String?
+    /// Who writes release briefs instead of Apple Intelligence: `demo`, the scripted `DemoBriefWriter`, or `off`,
+    /// Relvora's standard brief only (UI tests).
+    var briefWriter: String?
 
     static func current(_ defaults: UserDefaults = .standard) -> LaunchOptions {
         var options = LaunchOptions()
@@ -93,6 +97,7 @@ struct LaunchOptions {
             options.claudeKey = string("RelvoraClaudeKey").flatMap { AccessKey.isWellFormed($0) ? $0 : nil }
             options.pullRequestCheckInterval = string("RelvoraPullRequestCheckInterval").flatMap(TimeInterval.init)
             options.openSearchResult = string("RelvoraOpenSearchResult")
+            options.briefWriter = string("RelvoraBriefWriter")
         #endif
         return options
     }
@@ -234,6 +239,8 @@ final class AppModel {
     let github: GitHubModel
     let pullRequests: PullRequestModel
     let preferences: Preferences
+    /// Release briefs written by Apple Intelligence (ADR 0025).
+    let briefs: ReleaseBriefModel
     let updates: UpdateModel
     let claude: ClaudeConnection
     let notifier: Notifier
@@ -268,6 +275,15 @@ final class AppModel {
             }
         #endif
         preferences = Preferences(defaults: defaults)
+        var briefWriter: any ReleaseBriefWriter = OnDeviceBriefWriter()
+        #if DEBUG
+            switch options.briefWriter {
+            case "demo": briefWriter = DemoBriefWriter()
+            case "off": briefWriter = NoReleaseBriefWriter()
+            default: break
+            }
+        #endif
+        briefs = ReleaseBriefModel(writer: briefWriter, preferences: preferences)
         #if DEBUG
             if let port = options.claudePort, options.claudeKey != nil {
                 preferences.claudePort = port

@@ -77,24 +77,31 @@ public struct GitHubAPIClient: Sendable {
         return (result.items.map(\.model), result.truncated)
     }
 
-    /// Commits reachable from `head` but not from `base`, oldest first.
+    /// Commits reachable from `head` but not from `base`, oldest first, and how many lines they change (GitHub lists
+    /// the changed files on the first page only, at most 300 of them).
     public func compare(_ repository: GitHubRepository, base: String, head: String, maxPages: Int = 3)
-        async throws(GitHubError) -> (commits: [RemoteCommit], totalCommits: Int, htmlURL: URL?)
+        async throws(GitHubError) -> (commits: [RemoteCommit], totalCommits: Int, htmlURL: URL?, stats: ChangeStats?)
     {
         var next: URL? = url("repos/\(repository.fullName)/compare/\(base)...\(head)", [("per_page", "100")])
         var commits: [RemoteCommit] = []
         var total = 0
         var htmlURL: URL?
+        var stats: ChangeStats?
         var pages = 0
         while let page = next, pages < maxPages {
             let (body, response) = try await send(CompareDTO.self, url: page)
             commits += body.commits.map(\.model)
             total = body.totalCommits
             htmlURL = htmlURL ?? body.htmlUrl
+            if stats == nil, let files = body.files {
+                stats = ChangeStats(
+                    additions: files.reduce(0) { $0 + $1.additions }, deletions: files.reduce(0) { $0 + $1.deletions },
+                    changedFiles: files.count, isPartial: files.count >= ChangeStats.maximumFiles)
+            }
             next = sameHost(LinkHeader.next(in: response.value(forHTTPHeaderField: "Link")))
             pages += 1
         }
-        return (commits, total, htmlURL)
+        return (commits, total, htmlURL, stats)
     }
 
     /// The latest commits on `branch`, newest first.
@@ -487,22 +494,31 @@ struct CommitDTO: Decodable {
         let message: String
         let author: Author?
     }
+    struct Parent: Decodable {
+        let sha: String
+    }
     let sha: String
     let htmlUrl: URL
     let commit: Detail
     let author: AccountDTO?
+    let parents: [Parent]?
 
     var model: RemoteCommit {
         RemoteCommit(
             sha: sha, message: commit.message, authorName: commit.author?.name, authorLogin: author?.login,
-            date: commit.author?.date, htmlURL: htmlUrl)
+            date: commit.author?.date, htmlURL: htmlUrl, parentSHAs: parents?.map(\.sha) ?? [])
     }
 }
 
 struct CompareDTO: Decodable {
+    struct File: Decodable {
+        let additions: Int
+        let deletions: Int
+    }
     let totalCommits: Int
     let commits: [CommitDTO]
     let htmlUrl: URL?
+    let files: [File]?
 }
 
 struct BranchDTO: Decodable {

@@ -15,7 +15,8 @@
 | 0.2.1 — Claude creates tasks | **Complete**: merged in PR #13, released as v0.2.1, the first version installed by Relvora's updater ([ADR 0018](decisions/0018-claude-creates-tasks.md)) |
 | 0.2.2 — Notifications | **Complete**: merged in PR #14, released as v0.2.2 ([ADR 0019](decisions/0019-notifications.md)) |
 | 0.2.3 — Pull requests and CI | **Complete**: merged in PR #15, released as v0.2.3 ([ADR 0020](decisions/0020-pull-requests-and-ci.md), [ADR 0021](decisions/0021-ui-tests-chosen-by-change.md)) |
-| Next release (0.2.4) — Keyboard shortcuts, menu bar, Shortcuts and Spotlight, widget | **In progress** on branch `feature/macos-0.2.4` ([ADR 0022](decisions/0022-menu-bar-icon.md), [ADR 0023](decisions/0023-shortcuts-and-spotlight.md), [ADR 0024](decisions/0024-desktop-widget.md)) |
+| 0.2.4 — Keyboard shortcuts, menu bar, Shortcuts and Spotlight, widget | **Merged** in PR #16; the owner's checks are below ([ADR 0022](decisions/0022-menu-bar-icon.md), [ADR 0023](decisions/0023-shortcuts-and-spotlight.md), [ADR 0024](decisions/0024-desktop-widget.md)) |
+| Next release (0.2.5) — Release brief with Apple Intelligence | **In progress** on branch `feature/release-brief` ([ADR 0025](decisions/0025-release-brief.md)) |
 
 The feature ideas are in [ROADMAP.md](ROADMAP.md).
 
@@ -178,7 +179,30 @@ The feature ideas are in [ROADMAP.md](ROADMAP.md).
 - [ ] Owner: add **Checks: Read-only** to the Relvora GitHub App and accept it on the installation ([GitHub App setup](GITHUB_APP_SETUP.md#checks-permission-for-ci-023))
 - [x] Owner: released v0.2.3 (2026-10-27; release run 40433842565 attached the notarized app)
 
-## Next release checklist (0.2.4)
+## Next release checklist (0.2.5)
+
+Tracked in Relvora as the task *Generative UI in the Releases view*, on Revora 0.2.5.
+
+- [x] ADR 0025: the on-device model composes the brief; Relvora decides the verdict, items, and actions, and checks what the model wrote
+- [x] `RelvoraCore`: the brief's facts, standard brief, prompt, and `resolve` (`ReleaseBrief.swift`)
+- [x] `RelvoraIntelligence`: `OnDeviceBriefWriter` and the `@Generable` draft, the only module that imports FoundationModels
+- [x] The brief above a planned version: it streams in, is rewritten when the plan changes, and its buttons use the plan's own actions; Settings › Releases turns it off
+- [x] `-RelvoraBriefWriter demo|off`; UI tests launch with `off` unless they ask for `demo`
+- [x] Builds with Xcode 27.2 (Swift 6.4.2). Two fixes for the new SDK and compiler: `RelvoraCore.SearchableItem` is spelled out, since the SDK now has a `SearchableItem` too, and the sidebar's two `Shape`s are `nonisolated`
+- [x] Package tests: 269 pass (19 new); `swift-format lint --strict` is clean (swift-format 6.2.3)
+- [x] UI tests: the 3 new `ReleaseBriefUITests` and the other 34 that ran pass, release workflow and pull requests included
+- [x] The release plan's accessibility audit found nothing more in the brief, after four fixes (animation, the verdict's icon, the meter's role, the grid's description)
+- [x] The release plan's audit passes on Xcode 27.2. It had failed there on `main` too, on the Pull Requests list. That list now draws CI's icon as a separate element, uses full-strength text for pull request numbers and readiness, and `.callout` for metadata and status
+- [x] CI found two problems the local runs hadn't: a click the brief moved on a small screen, and CI notifications for runs that finished before Relvora looked. Both are fixed; CI's full UI suite passed on `ea42b29`
+- [ ] Xcode 27.2's swift-format (6.4.4) can't read `.swift-format`: it needs `orderedImports.shouldGroupImports`
+- [x] What's in this release: the model's title, the commit graph since the last release (branch lanes, open pull requests waiting, the last release), and the size chip, from GitHub's compare (parents and files) (ADR 0025 addendum)
+- [x] Live steps for checking, starting the draft, creating, reading, publishing, and checking publication; folded when done, open with the reason when failed
+- [x] Package tests: 280 pass (11 new). UI tests: the 15 they affect pass, the 2 new ones and the release plan's audit included
+- [ ] Write a brief with the real model on an Apple Intelligence Mac, and check its headline, themes, and changes title against the plan
+- [ ] CI on the PR
+- [ ] Owner: release it
+
+## 0.2.4 checklist
 
 Built by four agents in parallel, one branch each, then combined on `feature/macos-0.2.4`.
 

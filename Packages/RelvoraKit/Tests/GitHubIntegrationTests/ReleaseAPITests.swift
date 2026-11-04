@@ -158,5 +158,30 @@ struct ReleaseAPITests {
         #expect(changes.headSHA == sha && changes.headRef == sha && notes.isEmpty)
         // Only pull requests merged into the release branch count.
         #expect(changes.pullRequests.map(\.number) == [6])
+        // Without files in the comparison, there are no stats.
+        #expect(changes.stats == nil)
+    }
+
+    @Test("A comparison gives each commit's parents, and the lines its files change")
+    func compareParentsAndStats() async throws {
+        let harness = Harness()
+        await harness.mock.on(
+            "/repos/octo/app/compare/v1.0.0...m1",
+            json: """
+                {"total_commits": 2, "html_url": "https://github.com/octo/app/compare/v1.0.0...m1",
+                 "commits": [
+                   {"sha": "b1", "html_url": "https://github.com/octo/app/commit/b1",
+                    "commit": {"message": "Add login", "author": {"name": "Ann", "date": "2026-01-03T00:00:00Z"}},
+                    "author": {"login": "ann"}, "parents": [{"sha": "base"}]},
+                   {"sha": "m1", "html_url": "https://github.com/octo/app/commit/m1",
+                    "commit": {"message": "Merge pull request #5 from octo/login", "author": null},
+                    "author": null, "parents": [{"sha": "base"}, {"sha": "b1"}]}
+                 ],
+                 "files": [{"filename": "a.swift", "additions": 40, "deletions": 2},
+                           {"filename": "b.swift", "additions": 2, "deletions": 5}]}
+                """)
+        let result = try await harness.api.compare(repository, base: "v1.0.0", head: "m1")
+        #expect(result.commits.map(\.parentSHAs) == [["base"], ["base", "b1"]])
+        #expect(result.stats == ChangeStats(additions: 42, deletions: 7, changedFiles: 2))
     }
 }

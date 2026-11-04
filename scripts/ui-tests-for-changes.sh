@@ -42,14 +42,17 @@ while IFS= read -r file; do
         App/Features/Dashboard/*) pick "$launch" AccessibilityUITests/testDashboardPassesAccessibilityAudit ;;
         App/Features/History/*) pick ReleaseWorkflowUITests/testDraftPublicationAndHistory ;;
         App/Features/Releases/*)
-            pick ReleaseWorkflowUITests PullRequestUITests ErrorStateUITests/testOfflineReleaseCheckExplainsTheProblem \
+            pick ReleaseWorkflowUITests ReleaseBriefUITests PullRequestUITests \
+                ErrorStateUITests/testOfflineReleaseCheckExplainsTheProblem \
                 AccessibilityUITests/testReleasePlanPassesAccessibilityAudit ;;
+        # The pull request list also shows on the release plan, so its audit too.
         App/Features/GitHub/*)
-            pick PullRequestUITests ReleaseWorkflowUITests ErrorStateUITests/testOfflineRefreshKeepsCachedRepositoryData ;;
+            pick PullRequestUITests ReleaseWorkflowUITests ErrorStateUITests/testOfflineRefreshKeepsCachedRepositoryData \
+                AccessibilityUITests/testReleasePlanPassesAccessibilityAudit ;;
         App/Features/Notifications/*) pick NotificationUITests ;;
         App/Features/Claude/*) pick ClaudeUITests NotificationUITests ;;
         App/Features/Updates/*) pick UpdateUITests NotificationUITests ;;
-        App/Features/Settings/*) pick SettingsUITests ;;
+        App/Features/Settings/*) pick SettingsUITests ReleaseBriefUITests/testTurningBriefsOffInSettings ;;
         App/Features/MenuBar/*) pick MenuBarUITests ;;
         App/Features/Intents/*)
             pick IntentsUITests SettingsUITests UpdateUITests/testCheckForUpdatesWhenUpToDate ;;
@@ -61,6 +64,7 @@ while IFS= read -r file; do
         App/Navigation/*) pick NavigationUITests AccessibilityUITests ;;
         App/DesignSystem/* | App/Assets.xcassets/*) pick NavigationUITests AccessibilityUITests ;;
         App/AppModel.swift) pick "$launch" NotificationUITests ;;
+        App/Debug/DemoBriefWriter.swift) pick ReleaseBriefUITests ;;
         App/Debug/DemoGitHub.swift)
             pick ReleaseWorkflowUITests PullRequestUITests ErrorStateUITests UpdateUITests NotificationUITests ;;
 
@@ -68,6 +72,9 @@ while IFS= read -r file; do
         Packages/RelvoraKit/Sources/GitHubIntegration/*)
             pick ReleaseWorkflowUITests PullRequestUITests ErrorStateUITests UpdateUITests ;;
         Packages/RelvoraKit/Sources/RelvoraMCP/*) pick ClaudeUITests NotificationUITests ;;
+        # The on-device model: UI tests never run it (they use the demo writer or none), so the brief's tests show the
+        # app still builds the brief around it.
+        Packages/RelvoraKit/Sources/RelvoraIntelligence/*) pick ReleaseBriefUITests ;;
         Packages/RelvoraKit/Sources/RelvoraUpdates/* | Updater/*) pick UpdateUITests ;;
         Packages/RelvoraKit/Sources/RelvoraCore/Services/AppNotifications.swift) pick NotificationUITests ;;
         Packages/RelvoraKit/Sources/RelvoraCore/Services/PullRequests.swift) pick PullRequestUITests NotificationUITests ;;
@@ -79,10 +86,12 @@ while IFS= read -r file; do
             Packages/RelvoraKit/Sources/RelvoraCore/Services/BoardService.swift | \
             Packages/RelvoraKit/Sources/RelvoraCore/Services/Filtering.swift)
             pick BoardUITests ;;
+        # The release contents card's graph.
+        Packages/RelvoraKit/Sources/RelvoraCore/Services/CommitGraph.swift) pick ReleaseBriefUITests ;;
         Packages/RelvoraKit/Sources/RelvoraCore/Services/Changelog.swift | \
             Packages/RelvoraKit/Sources/RelvoraCore/Services/Release*.swift | \
             Packages/RelvoraKit/Sources/RelvoraCore/Services/VersionSuggestion.swift)
-            pick ReleaseWorkflowUITests ;;
+            pick ReleaseWorkflowUITests ReleaseBriefUITests ;;
 
         # Everything else: the app's setup, menus, sample data, persistence, models, the project and its settings.
         *) all=true ;;

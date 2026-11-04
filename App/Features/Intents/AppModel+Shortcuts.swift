@@ -38,7 +38,7 @@ extension AppEnvironment {
     }
 
     /// What Spotlight lists and Shortcuts offers: active projects, and their tasks on the Board and in the Backlog.
-    func searchableItems() async throws -> [SearchableItem] {
+    func searchableItems() async throws -> [RelvoraCore.SearchableItem] {
         try await activeProjectContents().flatMap {
             SystemSearch.items($0.project, groupName: $0.groupName, board: $0.board, plans: $0.plans)
         }
@@ -75,7 +75,7 @@ extension AppModel {
         try await withStore { try await $0.activeProjectContents() }
     }
 
-    func searchableItems() async throws -> [SearchableItem] {
+    func searchableItems() async throws -> [RelvoraCore.SearchableItem] {
         try await withStore { try await $0.searchableItems() }
     }
 
@@ -110,7 +110,7 @@ extension AppModel {
 
     /// Opens a Spotlight result or an Open intent: the project on its Board, or a task's editor on the Board or in the
     /// Backlog. Relvora may have been opened for it, in which case the window follows the request once it appears.
-    func open(_ target: SearchableItem.Target) async {
+    func open(_ target: RelvoraCore.SearchableItem.Target) async {
         NSApp.activate()
         let isShowingWindow = NSApp.windows.contains {
             $0.isVisible && $0.identifier?.rawValue.hasPrefix("main") == true
@@ -131,7 +131,7 @@ extension AppModel {
     /// A Spotlight result was clicked, and macOS handed it over as a user activity.
     func openSearchResult(_ activity: NSUserActivity) {
         guard let identifier = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
-            let target = SearchableItem.target(of: identifier)
+            let target = RelvoraCore.SearchableItem.target(of: identifier)
         else { return }
         Task { await open(target) }
     }
