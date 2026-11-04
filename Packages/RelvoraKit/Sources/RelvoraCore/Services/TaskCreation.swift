@@ -160,11 +160,7 @@ public struct TaskCreationService: Sendable {
         }
         let column: BoardColumn
         if let wanted = task.column {
-            guard
-                let match = state.orderedColumns.first(where: {
-                    $0.name.compare(wanted, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
-                })
-            else {
+            guard let match = BoardState.column(named: wanted, in: state.orderedColumns) else {
                 throw .unknownColumn(task: number, name: wanted, columns: state.orderedColumns.map(\.name))
             }
             guard !match.isCompletionColumn else { throw .completionColumn(task: number, name: match.name) }

@@ -26,8 +26,8 @@ A native macOS app for one developer managing several software projects: plan re
 | History | Browse snapshots with links to GitHub |
 | Appearance | System/light/dark, accent color, optional translucent window with opaque fallback |
 | Data | Local export, backup, and restore |
-| Claude | Claude Code sessions on the Mac read projects and the version being planned, and add tasks to it or to the Backlog, through an MCP server in Relvora that is off until turned on in Settings › Claude ([ADR 0018](decisions/0018-claude-creates-tasks.md)) |
-| Notifications | macOS notifications when a release is published (drafts waiting on GitHub are checked every 5 minutes), a version is planned for today, a new Relvora is available, Claude added tasks, or CI finished on a pull request or on the release's branch ([ADR 0020](decisions/0020-pull-requests-and-ci.md)). Each kind can be turned off ([ADR 0019](decisions/0019-notifications.md)) |
+| Claude | Claude Code sessions on the Mac plan in Relvora through an MCP server that is off until turned on in Settings › Claude ([ADR 0018](decisions/0018-claude-creates-tasks.md)). They read projects, versions, and tasks; create, edit, move, complete, and delete tasks; plan, edit, cancel, and delete versions; and manage columns and projects. They never delete projects or groups or do anything on GitHub ([ADR 0026](decisions/0026-claude-plans-in-relvora.md)) |
+| Notifications | macOS notifications when a release is published (drafts waiting on GitHub are checked every 5 minutes), a version is planned for today, a new Relvora is available, Claude added tasks or deleted or cancelled something, or CI finished on a pull request or on the release's branch ([ADR 0020](decisions/0020-pull-requests-and-ci.md)). Each kind can be turned off ([ADR 0019](decisions/0019-notifications.md)) |
 | Menu bar | While Relvora is open, an icon in the menu bar lists the drafts waiting and the versions in progress, each one click from its project's Releases tab. On by default; Settings › General turns it off ([ADR 0022](decisions/0022-menu-bar-icon.md)) |
 | Shortcuts and Spotlight | Siri and Shortcuts add a task to the version being planned, or to the Backlog, and tell a project's next release. Spotlight finds active projects and their open tasks, and opens them in Relvora. Indexing can be turned off in Settings › General ([ADR 0023](decisions/0023-shortcuts-and-spotlight.md)) |
 | Desktop widget | The progress of the version being planned in a chosen project, or in every project: version, tasks done, planned date, and status. A click opens the project. The widget reads a snapshot the app writes, never the data ([ADR 0024](decisions/0024-desktop-widget.md)) |
@@ -50,7 +50,7 @@ A native macOS app for one developer managing several software projects: plan re
 
 ## 5. Non-goals (MVP)
 
-Team features, accounts, sync, hosted backend, deployment, auto-publishing, AI that sends data off the Mac (Claude Code can connect from outside: [ADR 0018](decisions/0018-claude-creates-tasks.md); Apple Intelligence's on-device model writes the release brief: [ADR 0025](decisions/0025-release-brief.md)), App Store Connect, non-macOS platforms, time tracking, estimation, task dependencies.
+Team features, accounts, sync, hosted backend, deployment, auto-publishing, AI that sends data off the Mac (Claude Code can connect from outside: [ADR 0018](decisions/0018-claude-creates-tasks.md), [ADR 0026](decisions/0026-claude-plans-in-relvora.md); Apple Intelligence's on-device model writes the release brief: [ADR 0025](decisions/0025-release-brief.md)), App Store Connect, non-macOS platforms, time tracking, estimation, task dependencies.
 
 ## 6. Open questions and plan gaps
 

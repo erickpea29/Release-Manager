@@ -171,7 +171,7 @@ enum GroupEditorRequest: Identifiable {
     }
 }
 
-/// Tasks changed outside the project's views (Claude created some): open views reload.
+/// A project changed outside its views (Claude changed it, a draft was found published): open views reload.
 struct ExternalChange: Equatable {
     let projectID: UUID
     let id = UUID()
@@ -336,14 +336,7 @@ final class AppModel {
             await notifier.deliver(AppNotifications.updateAvailable(update.version, current: updates.currentVersion))
         }
         await loadProjects()
-        claude.onTasksCreated = { [weak self] activity in
-            guard let self else { return }
-            await dataChanged(in: activity.projectID)
-            await notifier.deliver(
-                AppNotifications.claudeAddedTasks(
-                    count: activity.count, projectID: activity.projectID, projectName: activity.projectName,
-                    version: activity.version))
-        }
+        claude.onChange = { [weak self] activity in await self?.claudeChanged(activity) }
         claude.apply()
         await github.loadStatus()
         if let notice = relaunchTicket.flatMap(UpdateModel.installedNotice) { alert = notice }
@@ -376,7 +369,38 @@ final class AppModel {
         hasLoaded = true
     }
 
-    /// Data changed outside the views (Claude created tasks, a draft was found published): the sidebar, the
+    /// Claude changed something (ADR 0026): what shows it reloads, and additions and removals are announced.
+    private func claudeChanged(_ activity: RelvoraTools.Activity) async {
+        if activity.changedProject { await reloadProjects() }
+        await dataChanged(in: activity.projectID)
+        switch activity.kind {
+        case .addedTasks(let count, let version):
+            await notifier.deliver(
+                AppNotifications.claudeAddedTasks(
+                    count: count, projectID: activity.projectID, projectName: activity.projectName, version: version))
+        case .removed:
+            await notifier.deliver(
+                AppNotifications.claudeRemoved(
+                    summary: activity.summary, detail: activity.detail, projectID: activity.projectID,
+                    tab: activity.tab))
+        case .changed:
+            break
+        }
+    }
+
+    /// The projects and groups again, after Claude created, renamed, archived, or regrouped a project.
+    private func reloadProjects() async {
+        guard let environment else { return }
+        do {
+            groups = try await environment.groups.groups()
+            projects = try await environment.store.projects.projects(includeArchived: true)
+            spotlight.setNeedsUpdate()
+        } catch {
+            alert = AppAlert(title: "Couldn’t load projects", error: error)
+        }
+    }
+
+    /// Data changed outside the views (Claude changed something, a draft was found published): the sidebar, the
     /// Dashboard, and an open workspace update.
     func dataChanged(in projectID: UUID) async {
         await refreshStats(for: projectID)

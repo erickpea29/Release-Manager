@@ -50,6 +50,19 @@ public enum JSONValue: Sendable, Hashable, Codable {
         if case .string(let value) = self { value } else { nil }
     }
 
+    public var boolValue: Bool? {
+        if case .bool(let value) = self { value } else { nil }
+    }
+
+    /// Integers, and numbers without a fraction (some clients send 2.0).
+    public var integerValue: Int? {
+        switch self {
+        case .integer(let value): value
+        case .number(let value): Int(exactly: value)
+        default: nil
+        }
+    }
+
     public var arrayValue: [JSONValue]? {
         if case .array(let value) = self { value } else { nil }
     }

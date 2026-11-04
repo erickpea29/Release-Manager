@@ -167,8 +167,18 @@ final class WorkspaceModel {
             snapshots = try await snapshotRepository.snapshots(projectID: projectID)
             releaseSteps = try await checklist.steps(projectID: projectID)
             loadState = .loaded
+            closeEditorsOfRemovedItems()
         } catch {
             loadState = .failed(AppAlert.message(for: error))
+        }
+    }
+
+    /// Claude may have deleted the task or version an editor shows, or ended the version: saving it would fail.
+    private func closeEditorsOfRemovedItems() {
+        if case .edit(let task)? = taskEditor, state.task(task.id) == nil { taskEditor = nil }
+        if let id = selectedTaskID, state.task(id) == nil { selectedTaskID = nil }
+        if case .edit(let plan)? = planEditor, !(self.plan(plan.id).map(ReleasePlanRules.isEditable) ?? false) {
+            planEditor = nil
         }
     }
 

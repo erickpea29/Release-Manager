@@ -22,12 +22,10 @@ Recommended first. With publishing, updates, notifications, and pull requests wi
 
 Added by the owner on 2026-10-26.
 
-Claude Code already reads projects and creates tasks ([ADR 0018](decisions/0018-claude-creates-tasks.md)).
+Claude Code already reads projects and creates tasks ([ADR 0018](decisions/0018-claude-creates-tasks.md)). In 0.3.1 it also edits, moves, completes, and deletes tasks, plans versions, and manages columns and projects, but never GitHub or deleting projects ([ADR 0026](decisions/0026-claude-plans-in-relvora.md)) — in progress: branch `feature/claude-control`.
 
 - [ ] **Claude Desktop** (S)
   - A small stdio bridge in the app bundle, so the Claude Desktop app can connect too.
-- [ ] **Claude edits tasks** (S–M)
-  - Also edit, move between columns, and complete tasks. Still no deletions and nothing on GitHub.
 
 ## Releasing
 

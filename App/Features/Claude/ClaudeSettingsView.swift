@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Settings › Claude: turn the connection on, copy the setup command, see what Claude did.
+/// Settings › Claude: turn the connection on, copy the setup command, see what Claude can do and what it did.
 struct ClaudeSettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(Preferences.self) private var preferences
@@ -14,8 +14,8 @@ struct ClaudeSettingsView: View {
         @Bindable var preferences = preferences
         Form {
             Section {
-                Toggle("Let Claude read projects and add tasks", isOn: $preferences.claudeEnabled)
-                    .accessibilityLabel("Let Claude read projects and add tasks")
+                Toggle("Let Claude Code plan in Relvora", isOn: $preferences.claudeEnabled)
+                    .accessibilityLabel("Let Claude Code plan in Relvora")
                     .accessibilityIdentifier("claudeEnabled")
                 LabeledContent("Status") {
                     Label(statusText, systemImage: statusSymbol)
@@ -61,18 +61,33 @@ struct ClaudeSettingsView: View {
                 }
             }
 
-            Section("What Claude can do") {
-                Label("Read your projects, the versions being planned, and their tasks", systemImage: "eye")
-                Label("Create tasks in a version or the Backlog, labeled “claude”", systemImage: "plus.square")
+            Section {
+                Label("Read your projects, versions, and tasks", systemImage: "eye")
                 Label(
-                    "Nothing else: no edits, moves, or deletions, no release plans, nothing on GitHub",
+                    "Create, edit, move, complete, and delete tasks; tasks it creates are labeled “claude”",
+                    systemImage: "checklist")
+                Label(
+                    "Plan, edit, cancel, and delete versions, and tick their release checklist",
+                    systemImage: "shippingbox")
+                Label("Change board columns, and create, edit, archive, and group projects", systemImage: "rectangle.3.group")
+                Label(
+                    "Never: delete a project or group, change settings, or do anything on GitHub",
                     systemImage: "hand.raised")
-                if let activity = claude.lastActivity {
-                    Text(
-                        "\(activity.date.formatted(date: .omitted, time: .shortened)): \(activity.summary)"
-                    )
+            } header: {
+                Text("What Claude can do")
+            } footer: {
+                Text("Claude Code asks you before each deletion or cancellation, unless you’ve allowed it to go ahead.")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("claudeActivity")
+            }
+
+            if !claude.recentActivity.isEmpty {
+                Section("Recent activity") {
+                    ForEach(claude.recentActivity) { activity in
+                        Text("\(activity.date.formatted(date: .omitted, time: .shortened)): \(activity.summary)")
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("claudeActivity")
+                    }
                 }
             }
         }

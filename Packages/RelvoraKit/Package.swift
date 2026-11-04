@@ -24,7 +24,8 @@ let package = Package(
         // Checks and installs updates of Relvora itself: code signatures, the zip, the atomic swap (ADR 0017). The
         // app and its updater service both link it.
         .target(name: "RelvoraUpdates", dependencies: ["RelvoraCore"]),
-        // Claude's connection: an MCP server on 127.0.0.1 that reads projects and creates tasks (ADR 0018).
+        // Claude's connection: an MCP server on 127.0.0.1 through which Claude plans: tasks, versions, columns, and
+        // projects, never GitHub (ADR 0018, ADR 0026).
         .target(name: "RelvoraMCP", dependencies: ["RelvoraCore"]),
         // The desktop widget's snapshot, its shared container, and its links (ADR 0024). The app and the widget
         // extension both link it; the widget never opens the store.

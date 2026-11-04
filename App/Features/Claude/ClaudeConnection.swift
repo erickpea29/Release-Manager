@@ -4,7 +4,8 @@ import RelvoraCore
 import RelvoraMCP
 
 /// Claude's connection to Relvora: an MCP server on 127.0.0.1 while Relvora runs and Settings › Claude has it on
-/// (ADR 0018). Claude Code connects with the setup command; it can read projects and tasks and create tasks.
+/// (ADR 0018). Claude Code connects with the setup command; it can read and change projects, versions, columns, and
+/// tasks, but not delete projects or do anything on GitHub (ADR 0026).
 @Observable
 final class ClaudeConnection {
     enum Status: Equatable {
@@ -14,16 +15,20 @@ final class ClaudeConnection {
         case failed(String)
     }
 
-    struct Activity: Equatable {
+    struct Activity: Equatable, Identifiable {
+        let id = UUID()
         let date: Date
         let summary: String
     }
 
     static let defaultPort: UInt16 = 47823
     static let serverName = "relvora"
+    /// How many of Claude's recent changes Settings › Claude lists.
+    static let recentActivityLimit = 5
 
     private(set) var status: Status = .off
-    private(set) var lastActivity: Activity?
+    /// What Claude did lately, newest first.
+    private(set) var recentActivity: [Activity] = []
     /// `nil` until the connection is first turned on.
     private(set) var accessKey: String?
 
@@ -32,8 +37,8 @@ final class ClaudeConnection {
     /// A fixed key from a launch option (UI tests), instead of the Keychain.
     @ObservationIgnored private let fixedKey: String?
     @ObservationIgnored private var server: LoopbackServer?
-    /// Claude created tasks: views showing the project reload, and the user may be notified.
-    @ObservationIgnored var onTasksCreated: (RelvoraTools.Activity) async -> Void = { _ in }
+    /// Claude changed something: views showing the project reload, and the user may be notified.
+    @ObservationIgnored var onChange: (RelvoraTools.Activity) async -> Void = { _ in }
 
     init(environment: AppEnvironment?, preferences: Preferences, fixedKey: String? = nil) {
         self.environment = environment
@@ -65,7 +70,8 @@ final class ClaudeConnection {
         accessKey = key
         let tools = RelvoraTools(
             projects: environment.store.projects, groups: environment.store.groups, board: environment.board,
-            plans: environment.releasePlans
+            plans: environment.releasePlans, checklist: environment.checklist,
+            newProjectColumns: { @MainActor [preferences] in preferences.newProjectColumns }
         ) { [weak self] activity in
             await self?.record(activity)
         }
@@ -108,10 +114,8 @@ final class ClaudeConnection {
     }
 
     private func record(_ activity: RelvoraTools.Activity) async {
-        let place = activity.version.map { "\(activity.projectName) \($0)" } ?? "the Backlog of \(activity.projectName)"
-        lastActivity = Activity(
-            date: .now, summary: "Claude added \(activity.count) \(activity.count == 1 ? "task" : "tasks") to \(place)."
-        )
-        await onTasksCreated(activity)
+        recentActivity.insert(Activity(date: .now, summary: activity.summary), at: 0)
+        recentActivity = Array(recentActivity.prefix(Self.recentActivityLimit))
+        await onChange(activity)
     }
 }

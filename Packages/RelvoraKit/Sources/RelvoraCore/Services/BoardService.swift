@@ -74,6 +74,11 @@ public struct BoardService: Sendable {
         try await commit(BoardChanges(deleteTaskIDs: [taskID]), projectID: projectID)
     }
 
+    /// Deletes several tasks in one change.
+    public func deleteTasks(_ taskIDs: [UUID], projectID: UUID) async throws -> BoardState {
+        try await commit(BoardChanges(deleteTaskIDs: taskIDs), projectID: projectID)
+    }
+
     // MARK: Columns
 
     public func addColumn(named name: String, projectID: UUID) async throws -> BoardState {

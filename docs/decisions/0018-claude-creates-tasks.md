@@ -1,6 +1,6 @@
 # 0018 — Claude creates tasks through MCP
 
-- **Status:** Accepted. The owner asked for Claude sessions to create tasks for a release version; they chose "read + create tasks" and "Claude Code first". Narrows the "AI" non-goal in [PRODUCT_SPEC §5](../PRODUCT_SPEC.md#5-non-goals-mvp).
+- **Status:** Accepted. The owner asked for Claude sessions to create tasks for a release version; they chose "read + create tasks" and "Claude Code first". Narrows the "AI" non-goal in [PRODUCT_SPEC §5](../PRODUCT_SPEC.md#5-non-goals-mvp). Decisions 2 and 6 (reading and creating only) are superseded by [ADR 0026](0026-claude-plans-in-relvora.md): Claude now edits, moves, completes, and deletes tasks, plans versions, and manages columns and projects.
 - **Date:** 2026-10-26
 
 ## Context

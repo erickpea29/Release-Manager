@@ -27,5 +27,6 @@
 | [0023](0023-shortcuts-and-spotlight.md) | Shortcuts and Spotlight | Accepted |
 | [0024](0024-desktop-widget.md) | Desktop widget | Accepted |
 | [0025](0025-release-brief.md) | Release brief with Apple Intelligence | Accepted |
+| [0026](0026-claude-plans-in-relvora.md) | Claude plans in Relvora: tasks, versions, columns, projects | Accepted |
 
 New records: copy the shape of an existing one (Status, Date, Context, Decision, Consequences, Evidence). Keep them short.
