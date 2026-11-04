@@ -80,7 +80,7 @@ struct PublishReleaseSheet: View {
             HStack {
                 if isPublishing {
                     ProgressView().controlSize(.small)
-                    Text("Publishing…").foregroundStyle(.secondary)
+                    Text("\(release.activity?.currentStep ?? "Publishing")…").foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button("Cancel", role: .cancel) { dismiss() }

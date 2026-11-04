@@ -21,6 +21,18 @@
             let message: String
             let login: String
             let date: Date
+            /// The commits it follows: one, two for a merge.
+            var parents: [String] = []
+            /// The lines it changes, for the comparison's file list.
+            var additions = 0
+            var deletions = 0
+        }
+
+        /// A commit on a branch that a merge on main brought in: listed in comparisons, not on main.
+        private struct BranchCommit {
+            let commit: Commit
+            /// The main commit that merged it.
+            let mergedBy: String
         }
 
         private struct Release {
@@ -57,6 +69,7 @@
         }
 
         private var commits: [Commit] = []
+        private var branchCommits: [BranchCommit] = []
         private var releases: [Release] = []
         private var tags: [String: String] = [:]
         private var pulls: [Pull] = []
@@ -85,8 +98,17 @@
             commits = history.enumerated().map { index, item in
                 Commit(
                     sha: Self.sha("demo-\(index)"), message: item.0, login: item.1,
-                    date: start.addingTimeInterval(Double(index) * 86_400 * 1.5))
+                    date: start.addingTimeInterval(Double(index) * 86_400 * 1.5),
+                    parents: [Self.sha(index == 0 ? "demo-root" : "demo-\(index - 1)")],
+                    additions: [120, 64, 9, 48, 210, 3, 37][index], deletions: [0, 12, 4, 0, 18, 3, 22][index])
             }
+            // #14 was a merge: its branch commit started from #13 and joins main at the merge.
+            let drafts = Commit(
+                sha: Self.sha("drafts-1"), message: "Create GitHub drafts from release plans", login: "erick",
+                date: commits[3].date.addingTimeInterval(-3_600), parents: [commits[2].sha], additions: 186,
+                deletions: 14)
+            commits[4].parents = [commits[3].sha, drafts.sha]
+            branchCommits = [BranchCommit(commit: drafts, mergedBy: commits[4].sha)]
             pulls = [
                 Pull(
                     number: 12, title: "Add release history view", labels: ["feature"], login: "erick", commitIndex: 1),
@@ -229,12 +251,22 @@
             if method == "GET", path.hasPrefix(base + "/compare/") {
                 let spec = path.dropFirst((base + "/compare/").count).components(separatedBy: "...")
                 if spec.count == 2, let from = index(of: spec[0]), let to = index(of: spec[1]) {
-                    let range = from < to ? Array(commits[(from + 1)...to]) : []
+                    let main = from < to ? Array(commits[(from + 1)...to]) : []
+                    // Like GitHub: every commit the head has and the base doesn't, merged branches included.
+                    let range = main.flatMap { commit in
+                        branchCommits.filter { $0.mergedBy == commit.sha }.map(\.commit) + [commit]
+                    }
                     return reply(
                         request,
                         [
                             "total_commits": range.count, "commits": range.map(json),
                             "html_url": "https://github.com/\(Self.fullName)/compare/\(spec[0])...\(spec[1])",
+                            "files": range.enumerated().map { index, commit in
+                                [
+                                    "filename": "Sources/Change\(index).swift", "additions": commit.additions,
+                                    "deletions": commit.deletions,
+                                ] as [String: Any]
+                            },
                         ])
                 }
             }
@@ -283,11 +315,15 @@
                 return reply(
                     request, ["message": "Head branch was modified. Review and try the merge again."], status: 409)
             }
+            let branch = Commit(
+                sha: pull.sha, message: pull.title, login: pull.login, date: pull.updatedAt,
+                parents: [commits.last!.sha], additions: 96, deletions: 31)
             let commit = Commit(
                 sha: Self.sha("merge-\(pull.number)"),
                 message: "Merge pull request #\(pull.number) from \(Self.owner)/\(pull.head)\n\n\(pull.title)",
-                login: "demo", date: .now)
+                login: "demo", date: .now, parents: [commits.last!.sha, pull.sha])
             commits.append(commit)
+            branchCommits.append(BranchCommit(commit: branch, mergedBy: commit.sha))
             pulls.append(
                 Pull(
                     number: pull.number, title: pull.title, labels: ["feature"], login: pull.login,
@@ -415,6 +451,7 @@
         private func json(_ commit: Commit) -> [String: Any] {
             [
                 "sha": commit.sha, "html_url": "https://github.com/\(Self.fullName)/commit/\(commit.sha)",
+                "parents": commit.parents.map { ["sha": $0] },
                 "commit": [
                     "message": commit.message, "author": ["name": commit.login, "date": Self.iso(commit.date)],
                 ] as [String: Any],

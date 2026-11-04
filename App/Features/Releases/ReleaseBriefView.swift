@@ -159,7 +159,7 @@ private struct NextStepCallout: View {
         }
         .padding(Spacing.s)
         .background(
-            Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+            .tint.opacity(0.08), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
         )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("releaseBriefNextStep")
@@ -270,7 +270,7 @@ private struct BriefProgress: View {
             .accessibilityHidden(true)
             // The progress indicator carries the words, so VoiceOver reads one element with a role.
             ProgressView(value: Double(done), total: Double(max(total, 1)))
-                .tint(total > 0 && done == total ? .green : .accentColor)
+                .tint(total > 0 && done == total ? Color.green : nil)
                 .accessibilityLabel(title)
                 .accessibilityValue("\(done) of \(total) done")
         }

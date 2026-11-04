@@ -144,6 +144,8 @@ public struct RemoteCommit: Sendable, Hashable, Identifiable, Codable {
     public let htmlURL: URL
     /// Pull request numbers this commit belongs to (from GitHub, or parsed from the message).
     public var pullRequestNumbers: [Int]
+    /// The commits it follows: one, two for a merge. Empty when GitHub didn't say, as in caches from before 0.2.5.
+    public var parentSHAs: [String]
 
     public var id: String { sha }
     public var shortSHA: String { String(sha.prefix(7)) }
@@ -151,7 +153,7 @@ public struct RemoteCommit: Sendable, Hashable, Identifiable, Codable {
 
     public init(
         sha: String, message: String, authorName: String?, authorLogin: String?, date: Date?, htmlURL: URL,
-        pullRequestNumbers: [Int] = []
+        pullRequestNumbers: [Int] = [], parentSHAs: [String] = []
     ) {
         self.sha = sha
         self.message = message
@@ -160,6 +162,49 @@ public struct RemoteCommit: Sendable, Hashable, Identifiable, Codable {
         self.date = date
         self.htmlURL = htmlURL
         self.pullRequestNumbers = pullRequestNumbers
+        self.parentSHAs = parentSHAs
+    }
+
+    /// Repository caches written before commits had parents still load.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sha = try container.decode(String.self, forKey: .sha)
+        message = try container.decode(String.self, forKey: .message)
+        authorName = try container.decodeIfPresent(String.self, forKey: .authorName)
+        authorLogin = try container.decodeIfPresent(String.self, forKey: .authorLogin)
+        date = try container.decodeIfPresent(Date.self, forKey: .date)
+        htmlURL = try container.decode(URL.self, forKey: .htmlURL)
+        pullRequestNumbers = try container.decodeIfPresent([Int].self, forKey: .pullRequestNumbers) ?? []
+        parentSHAs = try container.decodeIfPresent([String].self, forKey: .parentSHAs) ?? []
+    }
+}
+
+/// How much a range of commits changes, from GitHub's comparison.
+public struct ChangeStats: Sendable, Hashable, Codable {
+    public let additions: Int
+    public let deletions: Int
+    public let changedFiles: Int
+    /// GitHub lists at most 300 files in a comparison; the counts cover those only.
+    public let isPartial: Bool
+
+    public static let maximumFiles = 300
+
+    public init(additions: Int, deletions: Int, changedFiles: Int, isPartial: Bool = false) {
+        self.additions = additions
+        self.deletions = deletions
+        self.changedFiles = changedFiles
+        self.isPartial = isPartial
+    }
+
+    /// GitHub's five-square bar: how many squares are additions, deletions, and unchanged (neutral). A change of any
+    /// size fills all five; each kind that's present gets at least one.
+    public var squares: (additions: Int, deletions: Int, neutral: Int) {
+        let total = additions + deletions
+        guard total > 0 else { return (0, 0, 5) }
+        var added = Int((Double(additions) / Double(total) * 5).rounded())
+        if additions > 0 { added = max(added, 1) }
+        if deletions > 0 { added = min(added, 4) }
+        return (added, 5 - added, 0)
     }
 }
 
@@ -198,10 +243,13 @@ public struct UnreleasedChanges: Sendable, Hashable, Codable {
     /// Pull requests were looked up for every listed commit (otherwise some were inferred from messages).
     public let pullRequestsComplete: Bool
     public let compareURL: URL?
+    /// Lines added and removed from the base to the head; `nil` without a comparison, or in older caches.
+    public let stats: ChangeStats?
 
     public init(
         baseTag: String?, headRef: String, headSHA: String?, totalCommits: Int, commits: [RemoteCommit],
-        pullRequests: [RemotePullRequest], isTruncated: Bool, pullRequestsComplete: Bool, compareURL: URL?
+        pullRequests: [RemotePullRequest], isTruncated: Bool, pullRequestsComplete: Bool, compareURL: URL?,
+        stats: ChangeStats? = nil
     ) {
         self.baseTag = baseTag
         self.headRef = headRef
@@ -212,6 +260,7 @@ public struct UnreleasedChanges: Sendable, Hashable, Codable {
         self.isTruncated = isTruncated
         self.pullRequestsComplete = pullRequestsComplete
         self.compareURL = compareURL
+        self.stats = stats
     }
 }
 

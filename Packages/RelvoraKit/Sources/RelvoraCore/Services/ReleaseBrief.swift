@@ -139,10 +139,15 @@ public struct ReleaseBriefFacts: Sendable, Equatable {
     public let targetCI: CIStatus?
     /// Checked on GitHub since the plan last changed.
     public let isCheckedOnGitHub: Bool
+    /// The first lines of the commits since the base, newest first, once GitHub's changes are read.
+    public let commitSummaries: [String]
+    /// The tag the changes start from: the last release.
+    public let baseTag: String?
 
     public init(
         version: String, title: String?, plannedDate: Date?, tasks: [TaskFact], attention: [ReleaseBriefAttention],
-        checklistDone: Int, checklistTotal: Int, hasTargetCommit: Bool, targetCI: CIStatus?, isCheckedOnGitHub: Bool
+        checklistDone: Int, checklistTotal: Int, hasTargetCommit: Bool, targetCI: CIStatus?, isCheckedOnGitHub: Bool,
+        commitSummaries: [String] = [], baseTag: String? = nil
     ) {
         self.version = version
         self.title = title
@@ -154,6 +159,8 @@ public struct ReleaseBriefFacts: Sendable, Equatable {
         self.hasTargetCommit = hasTargetCommit
         self.targetCI = targetCI
         self.isCheckedOnGitHub = isCheckedOnGitHub
+        self.commitSummaries = commitSummaries
+        self.baseTag = baseTag
     }
 
     public var doneCount: Int { tasks.filter(\.isDone).count }
@@ -171,6 +178,7 @@ public struct ReleaseBriefFacts: Sendable, Equatable {
         lines += tasks.map { "\($0.ref) \($0.type.rawValue) \($0.isDone) \($0.title)" }
         lines += attention.map { "\($0.key) \($0.severity.rawValue)" }
         lines.append("checklist \(checklistDone)/\(checklistTotal)")
+        lines += commitSummaries.prefix(ReleaseBriefComposer.maximumCommits).map { "commit \($0)" }
         return lines.joined(separator: "\n")
     }
 
@@ -201,6 +209,8 @@ public struct ReleaseBriefComposition: Sendable, Equatable {
 
     public var headline: String?
     public var summary: String?
+    /// A title for what the commits do, like a pull request's: the release contents card's heading.
+    public var changesTitle: String?
     /// Section names, in the order to show them: `themes`, `attention`, `progress`.
     public var layout: [String]?
     public var themes: [Theme]?
@@ -211,11 +221,12 @@ public struct ReleaseBriefComposition: Sendable, Equatable {
     public var nextStepReason: String?
 
     public init(
-        headline: String? = nil, summary: String? = nil, layout: [String]? = nil, themes: [Theme]? = nil,
-        attentionOrder: [String]? = nil, nextStep: String? = nil, nextStepReason: String? = nil
+        headline: String? = nil, summary: String? = nil, changesTitle: String? = nil, layout: [String]? = nil,
+        themes: [Theme]? = nil, attentionOrder: [String]? = nil, nextStep: String? = nil, nextStepReason: String? = nil
     ) {
         self.headline = headline
         self.summary = summary
+        self.changesTitle = changesTitle
         self.layout = layout
         self.themes = themes
         self.attentionOrder = attentionOrder
@@ -256,6 +267,8 @@ public struct ReleaseBrief: Sendable, Equatable {
     /// `nil` while the model hasn't written it yet.
     public let headline: String?
     public let summary: String?
+    /// The model's title for the commits; `nil` without a model, when the card uses Relvora's own.
+    public let changesTitle: String?
     public let nextStep: NextStep?
     /// Every section, in the order to show them.
     public let sections: [Section]
@@ -273,6 +286,7 @@ public enum ReleaseBriefComposer {
     /// What the prompt includes at most, to stay well inside the on-device model's context.
     public static let maximumTasks = 40
     public static let maximumPullRequests = 4
+    public static let maximumCommits = 20
     static let maximumTitleLength = 90
     static let maximumThemes = 5
 
@@ -290,7 +304,7 @@ public enum ReleaseBriefComposer {
     public static func facts(
         plan: ReleasePlan, tasks: [ProjectTask], columnNames: [UUID: String], issues: [ReleaseIssue],
         isCheckedOnGitHub: Bool, steps: [ReleaseStep], targetCI: CIStatus?, latestPassingSHA: String?,
-        pullRequests: [(PullRequest, MergeReadiness)]
+        pullRequests: [(PullRequest, MergeReadiness)], changes: UnreleasedChanges? = nil
     ) -> ReleaseBriefFacts {
         let planTasks = tasks.filter { $0.releasePlanID == plan.id }
         let briefTasks = planTasks.enumerated().map { index, task in
@@ -352,7 +366,8 @@ public enum ReleaseBriefComposer {
             version: plan.version, title: plan.title, plannedDate: plan.plannedDate, tasks: briefTasks,
             attention: unique, checklistDone: steps.count - remaining, checklistTotal: steps.count,
             hasTargetCommit: plan.targetCommitSHA != nil, targetCI: plan.targetCommitSHA == nil ? nil : targetCI,
-            isCheckedOnGitHub: isCheckedOnGitHub)
+            isCheckedOnGitHub: isCheckedOnGitHub, commitSummaries: changes?.commits.map(\.summary) ?? [],
+            baseTag: changes?.baseTag)
     }
 
     static func attentionItem(for issue: ReleaseIssue, latestPassingSHA: String?) -> ReleaseBriefAttention {
@@ -406,7 +421,7 @@ public enum ReleaseBriefComposer {
         let sections: [ReleaseBrief.Section] =
             verdict == .blocked ? [.attention, .progress, .themes] : [.themes, .attention, .progress]
         return ReleaseBrief(
-            verdict: verdict, headline: standardHeadline(facts), summary: standardSummary(facts),
+            verdict: verdict, headline: standardHeadline(facts), summary: standardSummary(facts), changesTitle: nil,
             nextStep: standardNextStep(facts), sections: sections, themes: themesByType(facts.tasks),
             attention: facts.attention, source: .standard)
     }
@@ -522,6 +537,7 @@ public enum ReleaseBriefComposer {
         return ReleaseBrief(
             verdict: verdict, headline: cleaned(composition.headline, limit: 120),
             summary: cleaned(composition.summary, limit: 400),
+            changesTitle: facts.commitSummaries.isEmpty ? nil : cleaned(composition.changesTitle, limit: 80),
             nextStep: nextStep(composition, facts: facts, isComplete: isComplete), sections: sections,
             themes: themes, attention: attention, source: .model(isComplete: isComplete))
     }
@@ -554,8 +570,9 @@ public enum ReleaseBriefComposer {
         being prepared. Use only the facts you are given: never invent tasks, pull requests, numbers, names, or dates. \
         Write short, plain, friendly English for the developer who is releasing. The headline says where the release \
         stands in at most 12 words. The summary says what the release brings, in one or two sentences. Group the tasks \
-        into a few themes by what they change for the app's users, with short titles. Copy task refs, attention keys, \
-        and next step keys exactly as given.
+        into a few themes by what they change for the app's users, with short titles. The changes title names what \
+        the commits do in a few words, like a pull request title. Copy task refs, attention keys, and next step keys \
+        exactly as given.
         """
 
     /// The facts as the model reads them: compact lines, at most `maximumTasks` tasks.
@@ -582,6 +599,15 @@ public enum ReleaseBriefComposer {
         if facts.attention.isEmpty { lines.append("none") }
         for item in facts.attention {
             lines.append("\(item.key) | \(item.severity.word) | \(item.message)")
+        }
+
+        if !facts.commitSummaries.isEmpty {
+            lines.append("")
+            lines.append("COMMITS since \(facts.baseTag ?? "the start") (newest first):")
+            for summary in facts.commitSummaries.prefix(maximumCommits) { lines.append("- \(clipped(summary))") }
+            if facts.commitSummaries.count > maximumCommits {
+                lines.append("…and \(facts.commitSummaries.count - maximumCommits) more")
+            }
         }
 
         lines.append("")

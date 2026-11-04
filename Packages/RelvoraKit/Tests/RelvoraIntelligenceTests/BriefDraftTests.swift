@@ -12,12 +12,14 @@ struct BriefDraftTests {
     func wholeDraft() throws {
         let content = try GeneratedContent(
             json: """
-                {"headline": "Two steps from a draft", "summary": "Briefs arrive.", "layout": ["attention", "themes"],
+                {"headline": "Two steps from a draft", "summary": "Briefs arrive.", "changesTitle": "Release briefs",
+                 "layout": ["attention", "themes"],
                  "themes": [{"title": "Smarter Releases", "symbol": "sparkles", "taskRefs": ["T1", "T2"]}],
                  "attentionOrder": ["commit"], "nextStep": "commit", "nextStepReason": "Pick the commit first."}
                 """)
         let composition = ReleaseBriefComposition(try BriefDraft.PartiallyGenerated(content))
         #expect(composition.headline == "Two steps from a draft")
+        #expect(composition.changesTitle == "Release briefs")
         #expect(composition.layout == ["attention", "themes"])
         #expect(composition.themes == [.init(title: "Smarter Releases", symbol: "sparkles", taskRefs: ["T1", "T2"])])
         #expect(composition.attentionOrder == ["commit"])

@@ -45,6 +45,7 @@
                 headline: headline,
                 summary: "A demo brief: \(facts.doneCount) of \(facts.tasks.count) tasks are done, grouped by how far "
                     + "along they are.",
+                changesTitle: facts.commitSummaries.isEmpty ? nil : "Drafts from release plans, and a faster board",
                 layout: facts.verdict == .blocked
                     ? ["attention", "themes", "progress"] : ["themes", "progress", "attention"],
                 themes: themes, attentionOrder: facts.attention.map(\.key).reversed(), nextStep: next,
@@ -61,6 +62,7 @@
                 steps.append(partial)
             }
             partial.summary = whole.summary
+            partial.changesTitle = whole.changesTitle
             steps.append(partial)
             partial.layout = whole.layout
             for theme in whole.themes ?? [] {

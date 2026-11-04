@@ -52,6 +52,9 @@ struct BriefDraft {
     @Guide(description: "What the release brings for the app's users, in one or two short sentences.")
     var summary: String
 
+    @Guide(description: "What the COMMITS do in at most 8 words, like a pull request title; empty without COMMITS.")
+    var changesTitle: String
+
     @Guide(
         description: "The sections, in the order to show them: what matters most for this release first.",
         .maximumCount(3), .element(.anyOf(["themes", "attention", "progress"])))
@@ -85,7 +88,7 @@ struct ThemeDraft {
 extension ReleaseBriefComposition {
     init(_ draft: BriefDraft.PartiallyGenerated) {
         self.init(
-            headline: draft.headline, summary: draft.summary, layout: draft.layout,
+            headline: draft.headline, summary: draft.summary, changesTitle: draft.changesTitle, layout: draft.layout,
             themes: draft.themes?.map { Theme(title: $0.title, symbol: $0.symbol, taskRefs: $0.taskRefs) },
             attentionOrder: draft.attentionOrder,
             // The key is whole once its reason has started: a key still streaming ("pr-1" of "pr-15") isn't used.

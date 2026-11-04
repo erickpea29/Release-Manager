@@ -106,3 +106,33 @@ On 2026-11-03, with Xcode 27.2 (Swift 6.4.2), on macOS 26.6 with a Retina displa
   Both are fixed, and CI's full UI suite passed.
 - **`swift-format lint --strict`** is clean, run with swift-format 6.2.3. Xcode 27.2's swift-format 6.4.4 can't read `.swift-format`, which lacks the new key `orderedImports.shouldGroupImports`.
 - **Not yet done:** a brief written by the real model on an Apple Intelligence Mac.
+
+## Addendum: release contents and live steps (2026-11-03)
+
+The owner asked for generative UI like an agent's work card: a title written for the change, a commit graph with branch lanes, pending work faded, live steps with spinners, and a size chip. They chose both cards below, in the same PR.
+
+1. **What's in this release**, a card below the brief.
+   - **The title** is Apple Intelligence's: `changesTitle` in the draft, written from the commit summaries the prompt now lists (at most 20). Without a model, the plan's title.
+   - **The graph:** the commits since the last release, newest first, at most 12.
+     - `CommitGraph.layout` (RelvoraCore) gives each commit a lane, like `git log --graph`. A merge's second parent opens a branch lane, and lanes join where the branch started.
+     - The branch name comes from the merge message ("Merge pull request #14 from octo/drafts" gives `drafts`).
+     - Parents outside the commits shown lead to the last release, which closes the graph.
+   - **Open pull requests** into the release's branch (not drafts, at most 3) wait above the newest commit, on a dashed line.
+   - **The size chip**, "+557 −73" with GitHub's five squares.
+   - **The data** comes from GitHub's compare response, which Relvora already read: each commit's `parents`, and the `files` with their additions and deletions. There's no new request or permission.
+     - `RemoteCommit.parentSHAs` decodes as empty from older repository caches, and an empty list is drawn as a straight line.
+     - `UnreleasedChanges.stats` is optional.
+2. **Live steps** for GitHub work: checking, starting the draft, creating it, reading it, publishing, and checking publication.
+   - **Each step is real work, in order.** For example, "Saving the notes", then "Checking tags, releases, and the version on GitHub", then "Reading the changes since v0.1.0".
+   - **Each step shows as it happens:** pending, running with a spinner, then done or failed. The header shows the seconds so far.
+   - **Finished work folds** behind its header ("Checked GitHub 1s · Ready for a draft"). Failed work stays open, with the reason.
+   - **The draft and publish sheets** show the step in progress.
+   - **Quiet reconciliations** (on opening a plan) show no steps.
+   - **Not included:** watching the build after publishing. Relvora doesn't read GitHub Actions runs yet ([roadmap](../ROADMAP.md)).
+3. **Accessibility.**
+   - Each row's texts are separate elements: grouped rows were measured with their tinted chips and colored icons, and failed the contrast audit.
+   - The graph is decoration (hidden from VoiceOver); the rows say the same things in words.
+
+**Evidence:**
+- **Package tests:** 280 pass (11 new). They cover lanes for straight, merged, and truncated histories, older caches, branch names from merge messages, the size bar, parents and stats from a comparison, and the commits in the prompt and title.
+- **UI tests:** the 15 for releases, pull requests, error states, and the brief all pass, as does the release plan's accessibility audit. The 2 new ones cover the graph (with the demo GitHub's merged branch) and a failed step while offline.

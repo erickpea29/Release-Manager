@@ -15,6 +15,11 @@ struct ReleasePlanDetailView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Spacing.l) {
                         header(plan)
+                        if let activity = release.activity {
+                            ReleaseActivityCard(activity: activity, stats: release.currentChanges?.stats) {
+                                release.activity = nil
+                            }
+                        }
                         if let notice = release.notice {
                             NoticeBanner(notice: notice) { release.notice = nil }
                         }
@@ -115,6 +120,7 @@ struct ReleasePlanDetailView: View {
                 .foregroundStyle(.secondary)
             }
             ReleaseBriefSection(release: release, isEnabled: canPerform) { perform($0, proxy: proxy) }
+            ReleaseChangesCard(release: release)
             ReleasePullRequestsSection(release: release).id(ReleaseBriefAnchor.pullRequests)
             ReleaseTargetSection(release: release).id(ReleaseBriefAnchor.target)
             ReleaseTasksSection(release: release).id(ReleaseBriefAnchor.tasks)
@@ -212,9 +218,7 @@ struct ReleasePlanDetailView: View {
 
     /// Checks GitHub again, then opens the confirmation with exactly what will be sent.
     private func createDraft() async {
-        await release.runCheck()
-        guard let check = release.check, check.isRemote, check.blockingIssues.isEmpty else { return }
-        await release.beginReview()
+        await release.startDraft()
     }
 
     // MARK: After the draft

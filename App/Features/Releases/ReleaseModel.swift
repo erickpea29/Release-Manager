@@ -60,6 +60,8 @@ final class ReleaseModel {
     var review: ReleaseReview?
     /// The draft as GitHub has it, while the user confirms publishing it.
     var publishPreview: PublishPreview?
+    /// GitHub work in progress or just finished, step by step (ADR 0025).
+    var activity: ReleaseActivity?
 
     init(
         planID: UUID, workspace: WorkspaceModel, github: GitHubModel, pullRequests: PullRequestModel,
@@ -189,10 +191,46 @@ final class ReleaseModel {
             columnNames: Dictionary(uniqueKeysWithValues: workspace.columns.map { ($0.id, $0.name) }),
             issues: check?.issues ?? localIssues, isCheckedOnGitHub: check?.isRemote == true,
             steps: workspace.releaseSteps, targetCI: plan.targetCommitSHA.flatMap(ci(of:)),
-            latestPassingSHA: latestPassingCommit?.sha, pullRequests: pulls)
+            latestPassingSHA: latestPassingCommit?.sha, pullRequests: pulls, changes: currentChanges)
     }
 
-    private var currentChangesKey: String? {
+    // MARK: Live steps (ADR 0025)
+
+    static let checkStep = "Checking tags, releases, and the version on GitHub"
+    static let historyStep = "Updating Release History"
+
+    private func begin(_ kind: ReleaseActivity.Kind, steps: [String]) {
+        activity = ReleaseActivity(kind: kind, steps: steps)
+    }
+
+    /// Runs step `index` of the activity in progress: running, then done. An error marks it failed, ends the activity
+    /// with the error's message, and is thrown on. Without an activity in progress (a quiet check), it just runs.
+    private func step<T>(_ index: Int, _ work: () async throws -> T) async throws -> T {
+        let shows = activity?.isRunning == true && activity?.steps.indices.contains(index) == true
+        if shows { activity?.steps[index].state = .running }
+        do {
+            let value = try await work()
+            if shows { activity?.steps[index].state = .done }
+            return value
+        } catch {
+            if shows {
+                activity?.steps[index].state = .failed
+                activity?.end(failure: AppAlert.message(for: error))
+            }
+            throw error
+        }
+    }
+
+    /// What a check found, in a few words.
+    private var checkOutcome: String? {
+        guard let check else { return nil }
+        let blocking = check.blockingIssues.count
+        return blocking == 0
+            ? "Ready for a draft" : "\(blocking) \(blocking == 1 ? "thing" : "things") to fix before the draft"
+    }
+
+    /// The repository, base, and target commit the loaded changes are for; `nil` until a commit is chosen.
+    var currentChangesKey: String? {
         guard let connection, let sha = plan?.targetCommitSHA else { return nil }
         return "\(connection.githubRepositoryID) \(effectiveBaseTag ?? "-") \(sha)"
     }
@@ -367,17 +405,46 @@ final class ReleaseModel {
 
     /// Local and GitHub checks for the plan. Reads only.
     func runCheck() async {
-        await flushNotes()
-        guard let plan, let workflow = workspace.workflow else { return }
+        guard workspace.workflow != nil else {
+            await flushNotes()
+            return
+        }
+        begin(.check, steps: ["Saving the notes", Self.checkStep])
+        if await checkSteps(from: 0) { activity?.end(outcome: checkOutcome) }
+    }
+
+    /// Saves the notes, then checks GitHub: steps `first` and `first + 1`. False when GitHub couldn't be checked.
+    private func checkSteps(from first: Int) async -> Bool {
+        _ = try? await step(first) { await flushNotes() }
+        guard let plan, let workflow = workspace.workflow else {
+            activity = nil
+            return false
+        }
         isChecking = true
         defer { isChecking = false }
         do {
-            check = try await workflow.check(plan)
+            check = try await step(first + 1) { try await workflow.check(plan) }
             errorMessage = nil
+            return true
         } catch {
             github.noteError(error)
             errorMessage = AppAlert.message(for: error)
+            return false
         }
+    }
+
+    /// Checks GitHub again and reads the changes, then opens the confirmation with exactly what will be sent.
+    func startDraft() async {
+        guard workspace.workflow != nil else { return }
+        let changes = effectiveBaseTag.map { "Reading the changes since \($0)" } ?? "Reading the changes"
+        begin(.startDraft, steps: ["Saving the notes", Self.checkStep, changes])
+        guard await checkSteps(from: 0) else { return }
+        guard let check, check.isRemote, check.blockingIssues.isEmpty else {
+            activity?.end(outcome: checkOutcome)
+            return
+        }
+        _ = try? await step(2) { await beginReview() }
+        activity?.end(outcome: review == nil ? nil : "Review it before it’s created")
     }
 
     /// Opens the confirmation sheet with exactly what will be sent.
@@ -394,9 +461,11 @@ final class ReleaseModel {
         guard let workflow = workspace.workflow else { return .success(()) }
         isWorking = true
         defer { isWorking = false }
+        begin(.createDraft, steps: ["Creating the draft on GitHub", Self.historyStep])
         do {
-            let snapshot = try await workflow.createDraft(review)
-            await workspace.reloadReleases()
+            let snapshot = try await step(0) { try await workflow.createDraft(review) }
+            _ = try? await step(1) { await workspace.reloadReleases() }
+            activity?.end()
             notice = ReleaseNotice(
                 tone: .success, title: "Draft created on GitHub",
                 details: [
@@ -417,8 +486,10 @@ final class ReleaseModel {
     func beginPublish() async {
         guard let plan, let workflow = workspace.workflow, !isWorking else { return }
         isWorking = true
+        begin(.readDraft, steps: ["Reading the draft on GitHub"])
         do {
-            let preview = try await workflow.publishPreview(plan)
+            let preview = try await step(0) { try await workflow.publishPreview(plan) }
+            activity?.end(outcome: preview == nil ? "It changed on GitHub" : "Confirm to publish")
             isWorking = false
             errorMessage = nil
             if let preview { publishPreview = preview } else { await reconcile() }
@@ -435,9 +506,11 @@ final class ReleaseModel {
         guard let plan, let workflow = workspace.workflow else { return .success(()) }
         isWorking = true
         defer { isWorking = false }
+        begin(.publish, steps: ["Publishing on GitHub and checking the tag", Self.historyStep])
         do {
-            let outcome = try await workflow.publishDraft(plan, confirmed: preview)
-            await workspace.reloadReleases()
+            let outcome = try await step(0) { try await workflow.publishDraft(plan, confirmed: preview) }
+            _ = try? await step(1) { await workspace.reloadReleases() }
+            activity?.end()
             apply(outcome, quiet: false)
             errorMessage = nil
             return .success(())
@@ -456,9 +529,11 @@ final class ReleaseModel {
         guard let plan, let workflow = workspace.workflow, !isWorking else { return }
         isWorking = true
         defer { isWorking = false }
+        if !quiet { begin(.reconcile, steps: ["Reading the release on GitHub", Self.historyStep]) }
         do {
-            let outcome = try await workflow.reconcile(plan)
-            await workspace.reloadReleases()
+            let outcome = try await step(0) { try await workflow.reconcile(plan) }
+            _ = try? await step(1) { await workspace.reloadReleases() }
+            if !quiet { activity?.end() }
             apply(outcome, quiet: quiet)
             errorMessage = nil
         } catch {

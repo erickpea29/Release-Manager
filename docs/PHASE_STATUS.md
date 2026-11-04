@@ -195,7 +195,10 @@ Tracked in Relvora as the task *Generative UI in the Releases view*, on Revora 0
 - [x] The release plan's audit passes on Xcode 27.2. It had failed there on `main` too, on the Pull Requests list. That list now draws CI's icon as a separate element, uses full-strength text for pull request numbers and readiness, and `.callout` for metadata and status
 - [x] CI found two problems the local runs hadn't: a click the brief moved on a small screen, and CI notifications for runs that finished before Relvora looked. Both are fixed; CI's full UI suite passed on `ea42b29`
 - [ ] Xcode 27.2's swift-format (6.4.4) can't read `.swift-format`: it needs `orderedImports.shouldGroupImports`
-- [ ] Write a brief with the real model on an Apple Intelligence Mac, and check its headline and themes against the plan
+- [x] What's in this release: the model's title, the commit graph since the last release (branch lanes, open pull requests waiting, the last release), and the size chip, from GitHub's compare (parents and files) (ADR 0025 addendum)
+- [x] Live steps for checking, starting the draft, creating, reading, publishing, and checking publication; folded when done, open with the reason when failed
+- [x] Package tests: 280 pass (11 new). UI tests: the 15 they affect pass, the 2 new ones and the release plan's audit included
+- [ ] Write a brief with the real model on an Apple Intelligence Mac, and check its headline, themes, and changes title against the plan
 - [ ] CI on the PR
 - [ ] Owner: release it
 

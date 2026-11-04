@@ -88,7 +88,7 @@ struct CreateDraftSheet: View {
             HStack {
                 if isCreating {
                     ProgressView().controlSize(.small)
-                    Text("Creating the draft…").foregroundStyle(.secondary)
+                    Text("\(release.activity?.currentStep ?? "Creating the draft")…").foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button("Cancel", role: .cancel) { dismiss() }
