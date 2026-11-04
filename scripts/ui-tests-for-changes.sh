@@ -45,8 +45,10 @@ while IFS= read -r file; do
             pick ReleaseWorkflowUITests ReleaseBriefUITests PullRequestUITests \
                 ErrorStateUITests/testOfflineReleaseCheckExplainsTheProblem \
                 AccessibilityUITests/testReleasePlanPassesAccessibilityAudit ;;
+        # The pull request list also shows on the release plan, so its audit too.
         App/Features/GitHub/*)
-            pick PullRequestUITests ReleaseWorkflowUITests ErrorStateUITests/testOfflineRefreshKeepsCachedRepositoryData ;;
+            pick PullRequestUITests ReleaseWorkflowUITests ErrorStateUITests/testOfflineRefreshKeepsCachedRepositoryData \
+                AccessibilityUITests/testReleasePlanPassesAccessibilityAudit ;;
         App/Features/Notifications/*) pick NotificationUITests ;;
         App/Features/Claude/*) pick ClaudeUITests NotificationUITests ;;
         App/Features/Updates/*) pick UpdateUITests NotificationUITests ;;
@@ -84,6 +86,8 @@ while IFS= read -r file; do
             Packages/RelvoraKit/Sources/RelvoraCore/Services/BoardService.swift | \
             Packages/RelvoraKit/Sources/RelvoraCore/Services/Filtering.swift)
             pick BoardUITests ;;
+        # The release contents card's graph.
+        Packages/RelvoraKit/Sources/RelvoraCore/Services/CommitGraph.swift) pick ReleaseBriefUITests ;;
         Packages/RelvoraKit/Sources/RelvoraCore/Services/Changelog.swift | \
             Packages/RelvoraKit/Sources/RelvoraCore/Services/Release*.swift | \
             Packages/RelvoraKit/Sources/RelvoraCore/Services/VersionSuggestion.swift)
